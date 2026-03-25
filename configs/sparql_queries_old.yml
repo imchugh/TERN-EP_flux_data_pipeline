@@ -1,0 +1,185 @@
+sparql_endpoint:
+    https://graphdb.tern.org.au/repositories/knowledge_graph_core
+
+query_headers:
+    "content-type": "application/sparql-query"
+    "accept": "application/sparql-results+json"
+
+queries: 
+    list_predicates: |
+        PREFIX tern: <https://w3id.org/tern/ontologies/tern/>
+        
+        SELECT DISTINCT ?predicate
+        WHERE {
+            ?tower a tern:FluxTower ;
+                   ?predicate ?value .
+        }
+        ORDER BY ?predicate
+    
+    get_geometry: |    
+        PREFIX tern: <https://w3id.org/tern/ontologies/tern/>
+        PREFIX wgs: <http://www.w3.org/2003/01/geo/wgs84_pos#>
+        PREFIX geosparql: <http://www.opengis.net/ont/geosparql#>
+        PREFIX tern-loc: <https://w3id.org/tern/ontologies/loc/>
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+        
+        SELECT ?id ?label ?latitude ?longitude ?elevation
+        WHERE {
+            ?id a tern:FluxTower .
+            OPTIONAL { ?id rdfs:label ?label . }
+        
+            OPTIONAL {
+                ?id geosparql:hasGeometry ?geo .
+                OPTIONAL { ?geo wgs:lat ?latitude . }
+                OPTIONAL { ?geo wgs:long ?longitude . }
+                OPTIONAL { ?geo tern-loc:elevation ?elevation . }
+            }
+        }
+    
+    get_attributes: |
+        PREFIX tern: <https://w3id.org/tern/ontologies/tern/>
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+        PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+    
+        SELECT DISTINCT ?attr_uuid ?label
+        WHERE {
+            ?tower a tern:FluxTower ;
+                   tern:hasAttribute ?attr .
+            ?attr tern:attribute ?attr_uuid .
+            OPTIONAL { ?attr_uuid rdfs:label ?label }
+            OPTIONAL { ?attr_uuid skos:prefLabel ?label }
+        }
+        ORDER BY ?attr_uuid
+        
+    get_operational: |
+        PREFIX tern: <https://w3id.org/tern/ontologies/tern/>
+        PREFIX wgs: <http://www.w3.org/2003/01/geo/wgs84_pos#>
+        PREFIX geo: <http://www.w3.org/2003/01/geo/wgs84_pos#>
+        PREFIX geosparql: <http://www.opengis.net/ont/geosparql#>
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+        PREFIX tern-loc: <https://w3id.org/tern/ontologies/loc/>
+        PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    
+        SELECT ?id ?label ?fluxnet_id ?date_commissioned ?date_decommissioned ?latitude ?longitude ?elevation ?time_step ?freq_hz ?canopy_height ?soil ?tower_height ?vegetation
+        WHERE {
+            ?id a tern:FluxTower ;
+                rdfs:label ?label ;
+                tern:fluxnetID ?fluxnet_id .
+    
+            OPTIONAL {
+                ?id tern:dateCommissioned ?date_commissioned .
+            }
+            OPTIONAL {
+                ?id tern:dateDecommissioned ?date_decommissioned .
+            }
+            OPTIONAL {
+                ?id geosparql:hasGeometry ?geo .
+                ?geo wgs:lat ?latitude ;
+                     wgs:long ?longitude .
+                OPTIONAL {
+                    ?geo tern-loc:elevation ?elevation .
+                }
+            }
+            OPTIONAL {
+                ?id tern:hasAttribute ?time_step_attr .
+                ?time_step_attr tern:attribute <http://linked.data.gov.au/def/tern-cv/ca60779d-4c00-470c-a6b6-70385753dff1> ;
+                    tern:hasSimpleValue ?time_step .
+            }
+            OPTIONAL {
+                ?id tern:hasAttribute ?freq_hz_attr .
+                ?freq_hz_attr tern:attribute <http://linked.data.gov.au/def/tern-cv/ce39d9fd-ef90-4540-881d-5b9e779d9842> ;
+                    tern:hasSimpleValue ?freq_hz .
+            }
+            OPTIONAL {
+                ?id tern:hasAttribute ?canopy_height_attr .
+                ?canopy_height_attr tern:attribute <http://linked.data.gov.au/def/tern-cv/c1920aed1295ee17a2aa05a9616e9b11d35e05b56f72ccc9a3748eb31c913551> ;
+                    tern:hasSimpleValue ?canopy_height .
+            }
+            OPTIONAL {
+                ?id tern:hasAttribute ?soil_attr .
+                ?soil_attr tern:attribute <http://linked.data.gov.au/def/tern-cv/ed2ebb7c-561a-4892-9662-3b3aaa9ec768> ;
+                    tern:hasSimpleValue ?soil .
+            }
+            OPTIONAL {
+                ?id tern:hasAttribute ?tower_height_attr .
+                ?tower_height_attr tern:attribute <http://linked.data.gov.au/def/tern-cv/d54e6e12-b9a6-42ac-ad2f-c56fb0d3e5d6> ;
+                    tern:hasSimpleValue ?tower_height_double .
+            }
+            OPTIONAL {
+                ?id tern:hasAttribute ?vegetation_attr .
+                ?vegetation_attr tern:attribute <http://linked.data.gov.au/def/tern-cv/1338fc29-53ef-4b27-8903-b824e973807a> ;
+                    tern:hasSimpleValue ?vegetation .
+            }
+    
+            BIND(xsd:decimal(?tower_height_double) AS ?tower_height)
+    
+        }
+        ORDER BY ?label
+    
+    get_extended: |
+        PREFIX tern: <https://w3id.org/tern/ontologies/tern/>
+        PREFIX wgs: <http://www.w3.org/2003/01/geo/wgs84_pos#>
+        PREFIX geo: <http://www.w3.org/2003/01/geo/wgs84_pos#>
+        PREFIX geosparql: <http://www.opengis.net/ont/geosparql#>
+        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+        PREFIX tern-loc: <https://w3id.org/tern/ontologies/loc/>
+        PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    
+        SELECT ?id ?label ?fluxnet_id ?date_commissioned ?date_decommissioned ?climate_code ?latitude ?longitude ?elevation ?time_step ?freq_hz ?canopy_height ?soil ?tower_height ?vegetation
+        WHERE {
+            ?id a tern:FluxTower ;
+                rdfs:label ?label ;
+                tern:fluxnetID ?fluxnet_id .
+    
+            OPTIONAL {
+                ?id tern:dateCommissioned ?date_commissioned .
+            }
+            OPTIONAL {
+                ?id tern:dateDecommissioned ?date_decommissioned .
+            }
+            OPTIONAL {
+                ?id tern:climateCode ?climate_code .
+            }       
+            OPTIONAL {
+                ?id geosparql:hasGeometry ?geo .
+                ?geo wgs:lat ?latitude ;
+                     wgs:long ?longitude .
+                OPTIONAL {
+                    ?geo tern-loc:elevation ?elevation .
+                }
+            }
+            OPTIONAL {
+                ?id tern:hasAttribute ?time_step_attr .
+                ?time_step_attr tern:attribute <http://linked.data.gov.au/def/tern-cv/ca60779d-4c00-470c-a6b6-70385753dff1> ;
+                    tern:hasSimpleValue ?time_step .
+            }
+            OPTIONAL {
+                ?id tern:hasAttribute ?freq_hz_attr .
+                ?freq_hz_attr tern:attribute <http://linked.data.gov.au/def/tern-cv/ce39d9fd-ef90-4540-881d-5b9e779d9842> ;
+                    tern:hasSimpleValue ?freq_hz .
+            }
+            OPTIONAL {
+                ?id tern:hasAttribute ?canopy_height_attr .
+                ?canopy_height_attr tern:attribute <http://linked.data.gov.au/def/tern-cv/c1920aed1295ee17a2aa05a9616e9b11d35e05b56f72ccc9a3748eb31c913551> ;
+                    tern:hasSimpleValue ?canopy_height .
+            }
+            OPTIONAL {
+                ?id tern:hasAttribute ?soil_attr .
+                ?soil_attr tern:attribute <http://linked.data.gov.au/def/tern-cv/ed2ebb7c-561a-4892-9662-3b3aaa9ec768> ;
+                    tern:hasSimpleValue ?soil .
+            }
+            OPTIONAL {
+                ?id tern:hasAttribute ?tower_height_attr .
+                ?tower_height_attr tern:attribute <http://linked.data.gov.au/def/tern-cv/d54e6e12-b9a6-42ac-ad2f-c56fb0d3e5d6> ;
+                    tern:hasSimpleValue ?tower_height_double .
+            }
+            OPTIONAL {
+                ?id tern:hasAttribute ?vegetation_attr .
+                ?vegetation_attr tern:attribute <http://linked.data.gov.au/def/tern-cv/1338fc29-53ef-4b27-8903-b824e973807a> ;
+                    tern:hasSimpleValue ?vegetation .
+            }
+    
+            BIND(xsd:decimal(?tower_height_double) AS ?tower_height)
+    
+        }
+        ORDER BY ?label

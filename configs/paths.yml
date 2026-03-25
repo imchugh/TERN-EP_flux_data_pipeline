@@ -1,0 +1,92 @@
+local:
+  network:
+    base_path: /store/Network
+    stream:
+      status: Status
+      status_xlsx: Status/network_status.xlsx
+      status_geojson: Status/network_status.json
+      site_metadata: Site_metadata
+      RTMC_images: RTMC
+  configs:
+    base_path: /store/Config_files
+    stream:
+      nc_generic_attrs: Network/PFP/generic_global_attrs.yml
+      nc_dim_attrs: Network/PFP/nc_dim_attrs.yml
+      pfp_std_names: Network/PFP/pfp_std_names.yml
+      all_site_metadata: Network/Metadata/site_metadata.yml
+      site_master_list: Network/Metadata/site_master_list.yml
+      raw_file_configs: Network/Metadata/file_configs.yml
+      tasks: Network/Tasks/tasks.yml
+      hardware: Site_based/Hardware/<site>_hardware.yml
+      variables_pfp: Site_based/Variables/<site>_pfp_variables.yml
+      variables_vis: Site_based/Variables/<site>_vis_variables.yml
+      site_config_files: Sites/Operational
+      site_variables: Sites/Operational/<site>.yml
+      site_xl: Site_based/xl_configs
+      secrets: Secrets/logins.yml
+  configs_new:
+    base_path: /store/Config_files
+    stream:
+      site_xl: Sites/xl
+      template_xl: Templates/xl/config_templates.xlsx
+      site_yml: Sites/yml
+      template_yml: Templates/yml
+  raw_data:
+    base_path: /store/Raw_data/<site>
+    stream:
+      flux_slow: Flux/Slow
+      flux_fast: Flux/Fast
+      flux_slow_aux: Flux_aux/Slow
+      flux_fast_aux: Flux_aux/Fast
+      rtmc_images: Flux/RTMC
+      profile: Profile
+  processed_data:
+    base_path: /store/Processed_data/<site>
+    stream:
+      profile: Profile
+  homogenised_data:
+    base_path: /store/Homogenised_data
+    stream:
+      TOA5: TOA5
+      nc: NetCDF
+      xlsx: Excel
+  shell_scripts:
+    base_path: /mnt/Code/Shell
+    stream:
+      push_cosmoz: send_cosmoz_data.sh
+  logs:
+    base_path: /store/Logs
+    stream:
+      network_logs: Generic_tasks
+      site_logs: Site_tasks/<site>
+      master_logs: Master
+
+remote:
+  network:
+    base_path: {}
+    stream:
+      epcn_share: uqrdm:TERNEP-Q5937/EPCN_Share
+      RTMC_image_source: OneDrive_UoM:Documents/RTMC/Snapshots
+      RTMC_image_dest: sftpgo:/web-sites/flux-status-test.tern.org.au/RTMC
+      status: sftpgo:/web-sites/flux-status-test.tern.org.au/RTMC
+      status_xlsx: uqrdm:TERNEP-Q5937/EPCN_Share
+      status_geojson: sftpgo:/web-sites/flux-status-test.tern.org.au/RTMC
+  raw_data:
+    base_path: {}
+    stream:
+      flux_slow: uqrdm:TERNEP-Q5937/Sites/<site>/Data/Flux/Raw/Slow
+      flux_fast: uqrdm:FLUXARCH23-Q6223/Sites/<site>/Data/Flux/Raw/Fast/TOB3
+      flux_fast_aux: uqrdm:FLUXARCH23-Q6223/Sites/<site>/Data/Flux_aux/Raw/Fast/TOB3
+      profile: uqrdm:TERNEP-Q5937/Sites/<site>/Data/Profile/Raw
+      rtmc: sftpgo:/TERNEP-Q5937/Sites/<site>/Data/Flux/Raw/RTMC
+  processed_data:
+    base_path: {}
+    stream:
+      profile: uqrdm:TERNEP-Q5937/Sites/<site>/Data/Profile/Processed
+  homogenised_data:
+    base_path: {}
+    stream:
+      TOA5: OneDrive_UoM:Documents/RTMC/Site_data
+      nc: uqrdm:TERNEP-Q5937/EPCN_Share/Homogenised_data/NetCDF
+      xlsx: uqrdm:TERNEP-Q5937/EPCN_Share/Homogenised_data/Excel
+    

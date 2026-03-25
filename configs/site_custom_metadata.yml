@@ -1,0 +1,23 @@
+AliceSpringsMulga:
+  notes: >
+    soil pit a: bare soil array 1; soil pit b: mulga array 1;
+    soil pit c: understorey array 1; soil pit d: bare soil array 2;
+    soil pit e: mulga array 2; soil pit f: understorey array 2
+Boyagin:
+  notes: >
+    soil pit a: pit north of tower
+    soil pit b: pit south of tower
+Fletcherview:
+  notes: >
+    soil pit a: shrub
+    soil pit b: bare ground
+    soil pit c: tree
+    soil pit d: grass
+Ridgefield:
+  notes: >
+    soil location a: main tower
+    soil location b: main tower
+    soil location c: main tower
+    soil location d: satellite pit
+    soil location e: satellite pit
+    soil location f: satellite pit

@@ -1,0 +1,92 @@
+AliceSpringsMulga:
+  soil_heat_flux: Fg_0.08ma, Fg_0.08mb, Fg_0.08mc
+  soil_temperature: Ts_0.04ma, Ts_0.04mb, Ts_0.04mc
+  soil_moisture: Sws_0.05ma, Sws_0.05mb, Sws_0.05mc
+Boyagin:
+  soil_heat_flux: Fg_0.08ma, Fg_0.08mb
+  soil_temperature: Ts_0.05mb1, Ts_0.1mb1, Ts_0.2mb1, Ts_0.4mb, Ts_0.8mb
+  soil_moisture: Sws_0.05mb1, Sws_0.1mb1, Sws_0.2mb1, Sws_0.4mb, Sws_0.8mb
+Calperum:
+  soil_heat_flux: Fg_0.08ma, Fg_0.08mb, Fg_0.08mc
+  soil_temperature: Ts_0.08ma, Ts_0.08mb, Ts_0.08mc
+  soil_moisture: Sws_0.1ma, Sws_0.1mb, Sws_0.1mc
+CumberlandPlain:
+  soil_heat_flux: Fg_0.08ma, Fg_0.08mb
+  soil_temperature: Ts_0.08ma, Ts_0.08mb
+  soil_moisture: Sws_0.08ma, Sws_0.08mb, Sws_0.2ma, Sws_0.2mb
+Dookie1:
+  soil_heat_flux: Fg_0.16ma
+  soil_temperature: Ts_0.09ma
+  soil_moisture: Sws_0.18ma, Sws_0.18mb
+Fletcherview:
+  soil_heat_flux: Fg_0.08ma, Fg_0.08mb, Fg_0.08mc, Fg_0.08md
+  soil_temperature: Ts_0.04ma, Ts_0.04mb, Ts_0.04mc, Ts_0.04md
+  soil_moisture: Sws_0.05ma, Sws_0.05mb, Sws_0.05mc, Sws_0.05md
+Gingin:
+  soil_heat_flux: Fg_0.08ma, Fg_0.08mb, Fg_0.08mc, Fg_0.08md
+  soil_temperature: Ts_0.04ma, Ts_0.04mb, Ts_0.04mc, Ts_0.04md
+  soil_moisture: Sws_0.1ma, Sws_0.2ma, Sws_0.4ma, Sws_0.8ma, Sws_1.6ma
+GreatWesternWoodlands:
+  soil_heat_flux: Fg_0.08ma, Fg_0.08mb, Fg_0.08mc
+  soil_temperature: Ts_0.1ma, Ts_0.1mb
+  soil_moisture: Sws_0.05ma, Sws_0.1ma, Sws_0.3ma, Sws_0.5ma, Sws_0.7ma, Sws_1.1ma
+HowardSprings:
+  soil_heat_flux: Fg_0.08ma, Fg_0.08mb, Fg_0.08mc, Fg_0.08md
+  soil_temperature: Ts_0.08ma
+  soil_moisture: Sws_0.1ma, Sws_0.4ma, Sws_1ma, Sws_1.2ma, Sws_1.4ma
+Litchfield:
+  soil_heat_flux: Fg_0.08ma, Fg_0.08mb
+  soil_temperature: Ts_0.05mb, Ts_0.2mb, Ts_0.5mb, Ts_1mb, Ts_1.4mb
+  soil_moisture: Sws_0.05mb, Sws_0.2mb, Sws_0.5mb, Sws_1mb, Sws_1.4mb
+MyallValeA:
+  soil_heat_flux: Fg_0.16ma, Fg_0.16mb, Fg_0.16mc
+  soil_temperature: Ts_0.08ma, Ts_0.08mb, Ts_0.08mc
+  soil_moisture: Sws_0.08ma, Sws_0.08mb, Sws_0.08mc
+MyallValeB:
+  soil_heat_flux: Fg_0.16ma, Fg_0.16mb, Fg_0.16mc
+  soil_temperature: Ts_0.08ma, Ts_0.08mb, Ts_0.08mc
+  soil_moisture: Sws_0.08ma, Sws_0.08mb, Sws_0.08mc
+Ridgefield:
+  soil_heat_flux: Fg_0.1ma, Fg_0.1mb, Fg_0.1mc
+  soil_temperature: Ts_0.1md, Ts_0.2md, Ts_0.4md, Ts_0.8md
+  soil_moisture: Sws_0.1md, Sws_0.2md, Sws_0.4md, Sws_0.8md
+RobsonCreek:
+  soil_heat_flux: Fg_0.1ma, Fg_0.1mb
+  soil_temperature: Ts_0.05ma, Ts_0.05mb
+  soil_moisture: Sws_0.1m, Sws_0.25m, Sws_1.5m, Sws_2m
+SilverPlains:
+  soil_heat_flux: Fg_8cma, Fg_8cmb, Fg_8cmc
+  soil_temperature: Ts_10cma, Ts_10cmb, Ts_10cmc, Ts_30cma
+  soil_moisture: Sws_10cma, Sws_10cmb, Sws_10cmc, Sws_30cma
+SnowGum:
+  soil_heat_flux: Fg_0.08ma, Fg_0.08mb
+  soil_temperature: Ts_0.1ma, Ts_0.1mb, Ts_0.3ma
+  soil_moisture: Sws_0.1ma, Sws_0.1mb, Sws_0.3ma
+SturtPlains:
+  soil_heat_flux: Fg_0.08ma1, Fg_0.08ma2
+  soil_temperature: Ts_0.05mb, Ts_0.08ma, Ts_0.5mb
+  soil_moisture: Sws_0.05mb, Sws_0.5mb
+TiTreeEast:
+  soil_heat_flux: Fg_0.16ma
+  soil_temperature: Ts_0.1ma
+  soil_moisture: Sws_0.1ma, Sws_0.35ma, Sws_0.6ma, Sws_0.85ma
+Tumbarumba:
+  soil_heat_flux: Fg_0.16ma, Fg_0.16mb
+  soil_temperature: Ts_0.09ma, Ts_0.09mb
+  soil_moisture: Sws_0.15ma, Sws_0.5ma, Sws_0.7ma, Sws_1.25ma
+Wellington:
+  soil_heat_flux: Fg_0.08ma, Fg_0.08mb, Fg_0.08mc, Fg_0.08md
+  soil_temperature: Ts_0.04ma, Ts_0.04mb, Ts_0.04mc, Ts_0.04md
+  soil_moisture: Sws_0.05ma, Sws_0.05mb, Sws_0.05mc, Sws_0.05md
+Whroo:
+  soil_heat_flux: Fg_0.08ma, Fg_0.08mb, Fg_0.08md
+  soil_temperature: Ts_0.08ma, Ts_0.08mb, Ts_0.08mc, Ts_0.08md
+  soil_moisture: Sws_0.05me, Sws_0.1me, Sws_0.2me, Sws_0.4me, Sws_0.75me, Sws_1me
+WombatStateForest:
+  soil_heat_flux: Fg_0.13ma, Fg_0.16mb
+  soil_temperature: Ts_0.11ma, Ts_0.11mb
+  soil_moisture: Sws_0.1ma, Sws_0.2ma, Sws_0.4ma, Sws_0.6ma
+Yanco:
+  soil_heat_flux: Fg_0.08ma, Fg_0.08mb, Fg_0.08mc, Fg_0.08md, Fg_0.08me
+  soil_temperature: Ts_0.05ma, Ts_0.05mb, Ts_0.05mc, Ts_0.05md, Ts_0.05me
+  soil_moisture: Sws_0.1ma, Sws_0.1mb, Sws_0.1mc, Sws_0.1md, Sws_0.1me

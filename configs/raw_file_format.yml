@@ -1,0 +1,57 @@
+TOA5:
+  header_lines:
+    info: 0
+    variable: 1 
+    units: 2 
+    sampling: 3
+  separator: ','
+  non_numeric_cols:
+    - TIMESTAMP
+  time_variables: 
+    TIMESTAMP: 0
+  na_values: NAN
+  unique_file_id: TOA5
+  quoting: 2
+  info_fields:
+    - format
+    - station_name
+    - logger_type
+    - serial_num
+    - OS_version
+    - program_name
+    - program_sig
+    - table_name
+  dummy_info: 
+    - TOA5 
+    - NoStation
+    - CR1000
+    - 9999
+    - cr1000.std.99.99
+    - CPU:noprogram.cr1
+    - 9999
+    - default_table
+EddyPro:
+  header_lines:
+    variable: 0 
+    units: 1 
+  separator: "\t"
+  non_numeric_cols:
+    - DATAH
+    - filename
+    - date
+    - time
+  time_variables: 
+    date: 2
+    time: 3
+  na_values: NaN
+  unique_file_id: DATAH
+  quoting: 0
+  dummy_info: 
+    - EddyPro
+    - SmartFlux
+    - SmartFlux
+    - 9999
+    - OS
+    - CPU:noprogram.cr1
+    - 9999
+    - default_table

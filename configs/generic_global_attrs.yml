@@ -1,0 +1,15 @@
+Conventions: CF-1.8
+acknowledgement: "This work used eddy covariance data collected by the TERN Ecosystem\
+  \ \nProcesses facility. Ecosystem Processes would like to acknowledge the financial\
+  \ support of the \nAustralian Federal Government via the National Collaborative\
+  \ Research Infrastructure Scheme \nand the Education Investment Fund."
+comment: CF metadataOzFlux standard variable names
+featureType: timeSeries
+license: https://creativecommons.org/licenses/by/4.0/
+license_name: CC BY 4.0
+metadata_link: http://www.ozflux.org.au/monitoringsites/<site>/index.html
+ozflux_link: http://ozflux.org.au/
+publisher_name: TERN Ecosystem ProcessesOzFlux
+processing_level: L1
+data_link: http://data.ozflux.org.au/
+site_name: <site>
