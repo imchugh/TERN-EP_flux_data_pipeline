@@ -18,8 +18,8 @@ from typing import Dict, Optional
 
 from infrastructure.paths import get_local_stream_path
 
-from services.domain.variable_definition_builder import build_variable_definition, VariableDefinition
-from services.domain.variable_metadata_validator import validate_L1_config_structure
+from services.domain.metadata.variable_definition_builder import build_variable_definition, VariableDefinition
+from services.domain.metadata.variable_metadata_validator import validate_L1_config_structure
 from services.domain.variable_syntax_parser import NameParser
 from services.domain.config_loader import load_config_file_from_name
 
@@ -31,6 +31,26 @@ from services.domain.config_loader import load_config_file_from_name
 ###############################################################################
 ### BEGIN CLASSES ###
 ###############################################################################
+
+# -----------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class InputConfig:
+    name: str
+    units: str
+    file: str
+    instrument: str
+    diag_type: Optional[str]
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+
+@dataclass(frozen=True)
+class VariableConfigFlat:
+    height: str
+    statistic_type: str
+    inputs: tuple[InputConfig, ...]
+# -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
 
@@ -219,11 +239,12 @@ def load_runtime_config(file_path: Path) -> SiteRuntimeConfig:
             raise ValueError(
                 f"Variable '{variable}': canonical quantity '{quantity}' not found"
             )
-            
-        # Merge raw config + parsed name + canonical metadata
+        
+        # Merge raw config + parsed name + canonical metadata into a simple 
+        # metadata structure
         var_def = build_variable_definition(
             site_var_name=variable,
-            raw_config=dict(raw_cfg),
+            raw_cfg=flatten_variable_config(var_cfg=raw_cfg),
             parsed_name=parsed_name,
             canonical=canonical_metadata[quantity]
             )
@@ -235,6 +256,39 @@ def load_runtime_config(file_path: Path) -> SiteRuntimeConfig:
         system_type=validated_config.system_type,
         variables=site_variables
         )
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+def flatten_variable_config(var_cfg) -> VariableConfigFlat:
+    """
+    Convert pydantic variable validation object into a simple flat dataclass.
+
+    Args:
+        var_cfg: DESCRIPTION.
+
+    Returns:
+        VariableConfigFlat: DESCRIPTION.
+
+    """
+    
+    inputs = []
+
+    for raw_name, input_cfg in var_cfg.input_variables.items():
+        inputs.append(
+            InputConfig(
+                name=raw_name,
+                units=input_cfg.units,
+                file=input_cfg.file,
+                instrument=input_cfg.instrument,
+                diag_type=input_cfg.diag_type,
+            )
+        )
+
+    return VariableConfigFlat(
+        height=var_cfg.height,
+        statistic_type=var_cfg.statistic_type,
+        inputs=tuple(inputs),
+    )
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
@@ -251,14 +305,18 @@ def load_runtime_config_by_site(site: str) -> SiteRuntimeConfig:
 
     """
     
-    # Get base directory
-    file_path = get_local_stream_path(
-        resource='configs', 
-        stream='site_config_files',
-        )
+    # # Get base directory
+    # file_path = get_local_stream_path(
+    #     resource='configs', 
+    #     stream='site_config_files',
+    #     )
+    
+    
     
     # Temporary hack
-    file_path = file_path.parent / 'Test' / f'{site}.yml'
+    # file_path = file_path.parent / 'Test' / f'{site}.yml'
+    
+    file_path = Path(f'/opt/TERN_EP/site_configs/new_exp/{site}.yml')
     
     # Do static validation
     return load_runtime_config(file_path=file_path)

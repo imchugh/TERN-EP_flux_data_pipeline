@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Mar  2 14:34:02 2026
+
+@author: imchugh
+Simple validation function to ensure that (in order):
+    1) the file names specified in the site variable map exist in the directory 
+    structure, and; 
+    2) the variable names are found in the header of the specified file.
+"""
+
+###############################################################################
+### BEGIN IMPORTS ###
+###############################################################################
+
+from pathlib import Path
+
+from services.domain.data.raw_data_loader import get_header_adapter
+from infrastructure.file_io import get_backup_files
+
+###############################################################################
+### END IMPORTS ###
+###############################################################################
+
+
+###############################################################################
+### BEGIN FUNCTIONS ###
+###############################################################################
+
+# -----------------------------------------------------------------------------
+
+def validate_raw_data_source(
+    file_path: Path, variables: list, system_type: str, 
+    raise_if_missing: bool=False
+    ) -> None:
+    """
+    Validate raw data files exist and contain expected variables.
+    """
+
+    if not file_path.exists():
+        raise FileNotFoundError(f"Expected file missing: {file_path}")
+
+    header_adapter = get_header_adapter(system_type=system_type)
+    header_line = set(header_adapter.load(file_path=file_path)['variable'])
+
+    missing = [v for v in variables if v not in header_line]
+    
+    if len(missing) == 0:
+        return missing
+
+    if len(missing) != 0:
+        if raise_if_missing:
+            raise ValueError(f"{file_path} missing variables: {missing}")
+    
+    return missing
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+
+def validate_raw_data_sources(
+        file_map: dict[Path, list[str]], system_type: str) -> None:
+    """
+    Validate raw data files exist and contain expected variables.
+    """
+
+    for file_path, variables in file_map.items():
+
+        file_path = file_path.parent / f'{file_path.name}.dat'
+        
+        if not file_path.exists():
+            raise FileNotFoundError(f"Expected file missing: {file_path}")
+
+        missing = validate_raw_data_source(
+            file_path=file_path, 
+            variables=variables, 
+            system_type=system_type
+            )
+
+
+        if len(missing) == 0:
+            continue
+            
+        variables = missing
+        backups = get_backup_files(file_path=file_path)
+        for backup_file_path in backups:
+            missing = validate_raw_data_source(
+                file_path=backup_file_path, 
+                variables=missing, 
+                system_type=system_type
+                )            
+            if len(missing) == 0:
+                continue
+            variables = missing
+            
+        if missing:
+            raise ValueError(
+                f"{file_path} missing variables: {missing}"
+            )
+# -----------------------------------------------------------------------------
+                
+###############################################################################
+### END FUNCTIONS ###
+###############################################################################                

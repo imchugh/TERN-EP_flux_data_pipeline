@@ -52,11 +52,14 @@ def build_new_dict(site, attrs):
     new_dict = attrs.copy()
     name = new_dict.pop('name')
     sub_attrs = {}
-    sub_attrs['instrument'] = new_dict.pop('instrument')
+    sub_attrs['instrument'] = new_dict.pop('instrument').replace('[','').replace(']', '')
+    sub_attrs['units'] = new_dict.pop('units')
+    if 'diag_type' in new_dict.keys():
+        sub_attrs['diag_type'] = new_dict.pop('diag_type')
     if 'file' in new_dict:
-        sub_attrs['file'] = new_dict.pop('file')
+        sub_attrs['file'] = new_dict.pop('file').split('.')[0]
     else:
-        sub_attrs['file'] = f'{site}_{new_dict.pop("logger")}_{new_dict.pop("table")}.dat'
+        sub_attrs['file'] = f'{site}_{new_dict.pop("logger")}_{new_dict.pop("table")}'
     new_dict['input_variables'] = {name: sub_attrs}
     return new_dict
 
