@@ -77,7 +77,6 @@ def validate_raw_data_sources(
             system_type=system_type
             )
 
-
         if len(missing) == 0:
             continue
             

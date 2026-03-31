@@ -6,7 +6,6 @@ local:
       status_xlsx: Status/network_status.xlsx
       status_geojson: Status/network_status.json
       site_metadata: Site_metadata
-      RTMC_images: RTMC
   configs:
     base_path: /store/Config_files
     stream:
@@ -14,15 +13,10 @@ local:
       nc_dim_attrs: Network/PFP/nc_dim_attrs.yml
       pfp_std_names: Network/PFP/pfp_std_names.yml
       all_site_metadata: Network/Metadata/site_metadata.yml
-      site_master_list: Network/Metadata/site_master_list.yml
       raw_file_configs: Network/Metadata/file_configs.yml
       tasks: Network/Tasks/tasks.yml
-      hardware: Site_based/Hardware/<site>_hardware.yml
-      variables_pfp: Site_based/Variables/<site>_pfp_variables.yml
-      variables_vis: Site_based/Variables/<site>_vis_variables.yml
       site_config_files: Sites/Operational
       site_variables: Sites/Operational/<site>.yml
-      site_xl: Site_based/xl_configs
       secrets: Secrets/logins.yml
   configs_new:
     base_path: /store/Config_files

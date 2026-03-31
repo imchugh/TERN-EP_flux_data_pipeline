@@ -26,6 +26,7 @@ from typing import Optional
 
 @dataclass(frozen=True)
 class RawVariableMetadata:
+    
     raw_name: str
     raw_units: str
     file: str
@@ -35,6 +36,8 @@ class RawVariableMetadata:
     quantity: str
 
     diag_type: Optional[str] = None
+    begin: Optional[str] = None
+    end: Optional[str] = None
     instrument_type: Optional[str] = None
     vertical_location: Optional[str] = None
     horizontal_location: Optional[str] = None
@@ -61,47 +64,57 @@ class VariableDefinition:
     canonical: CanonicalVariableMetadata
 # -----------------------------------------------------------------------------
 
+###############################################################################
+### END CLASSES ###
+###############################################################################
+
+
+###############################################################################
+### BEGIN FUNCTIONS ###
+###############################################################################
+
 # -----------------------------------------------------------------------------
 
 def build_variable_definition(
     site_var_name: str,
     raw_cfg: any,
-    parsed_name: dict,
-    canonical: dict
+    parsed_name_elems: dict,
+    canonical_metadata: dict
     ) -> VariableDefinition:
-
+    
     # 1. Merge YAML + parsed name into RawVariableMetadata
     raw_inputs = []
-
-    for input_cfg in raw_cfg.inputs:
+    for raw_name, cfg in raw_cfg.input_variables.items():
         raw_inputs.append(
             RawVariableMetadata(
-                raw_name = input_cfg.name,
-                raw_units = input_cfg.units,
-                instrument = input_cfg.instrument,
+                raw_name = raw_name,
+                raw_units = cfg.units,
+                instrument = cfg.instrument,
                 height = raw_cfg.height,
                 statistic_type = raw_cfg.statistic_type,
-                file = input_cfg.file,
-                diag_type = input_cfg.diag_type,
-                quantity = parsed_name.get("quantity"),
-                instrument_type = parsed_name.get("instrument_type"),
-                vertical_location = parsed_name.get("vertical_location"),
-                horizontal_location = parsed_name.get("horizontal_location"),
-                replicate = parsed_name.get("replicate"),
+                file = cfg.file,
+                diag_type = cfg.diag_type,
+                begin = cfg.begin,
+                end = cfg.end,
+                quantity = parsed_name_elems.get("quantity"),
+                instrument_type = parsed_name_elems.get("instrument_type"),
+                vertical_location = parsed_name_elems.get("vertical_location"),
+                horizontal_location = parsed_name_elems.get("horizontal_location"),
+                replicate = parsed_name_elems.get("replicate"),
                 )
             )
-
+    
     # 2 Build canonical metadata object
-    canonical_meta = CanonicalVariableMetadata(**canonical)
+    canonical_meta = CanonicalVariableMetadata(**canonical_metadata)
 
     # 3 Return immutable VariableDefinition
     return VariableDefinition(
         site_variable_name = site_var_name,
         raw = tuple(raw_inputs),
         canonical = canonical_meta
-    )
+        )
 # -----------------------------------------------------------------------------
 
 ###############################################################################
-### END CLASSES ###
+### END FUNCTIONS ###
 ###############################################################################
