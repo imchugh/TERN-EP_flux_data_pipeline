@@ -14,10 +14,12 @@ Simple validation function to ensure that (in order):
 ### BEGIN IMPORTS ###
 ###############################################################################
 
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Set
 
+from services.domain.metadata.file_mapping_service import FileGroup
 from services.domain.data.raw_data_loader import get_header_adapter
-from infrastructure.file_io import get_backup_files
 
 ###############################################################################
 ### END IMPORTS ###
@@ -25,8 +27,41 @@ from infrastructure.file_io import get_backup_files
 
 
 ###############################################################################
+### BEGIN CLASSES ###
+###############################################################################
+
+@dataclass
+class ValidationResult:
+    group: str
+    found: Set[str]
+    missing: Set[str]
+
+###############################################################################
+### END CLASSES ###
+###############################################################################
+
+
+###############################################################################
 ### BEGIN FUNCTIONS ###
 ###############################################################################
+
+def validate_file_group(group: FileGroup) -> ValidationResult:
+
+    available: Set[str] = set()
+    header_adapter = get_header_adapter(system_type=group.system_type)
+
+    for file in group.all_files:
+        header_vars = header_adapter.load(file)['variable']  # your existing logic
+        available.update(header_vars)
+
+    expected = group.variables
+    missing = expected - available
+
+    return ValidationResult(
+        group=group.group,
+        found=available & expected,
+        missing=missing,
+    )
 
 # -----------------------------------------------------------------------------
 
@@ -56,47 +91,47 @@ def validate_raw_data_source(
     return missing
 # -----------------------------------------------------------------------------
 
-# -----------------------------------------------------------------------------
+# # -----------------------------------------------------------------------------
 
-def validate_raw_data_sources(
-        file_map: dict[Path, list[str]], system_type: str) -> None:
-    """
-    Validate raw data files exist and contain expected variables.
-    """
+# def validate_raw_data_sources(
+#         file_map: dict[Path, list[str]], system_type: str) -> None:
+#     """
+#     Validate raw data files exist and contain expected variables.
+#     """
 
-    for file_path, variables in file_map.items():
+#     for file_path, variables in file_map.items():
 
-        file_path = file_path.parent / f'{file_path.name}.dat'
+#         file_path = file_path.parent / f'{file_path.name}.dat'
         
-        if not file_path.exists():
-            raise FileNotFoundError(f"Expected file missing: {file_path}")
+#         if not file_path.exists():
+#             raise FileNotFoundError(f"Expected file missing: {file_path}")
 
-        missing = validate_raw_data_source(
-            file_path=file_path, 
-            variables=variables, 
-            system_type=system_type
-            )
+#         missing = validate_raw_data_source(
+#             file_path=file_path, 
+#             variables=variables, 
+#             system_type=system_type
+#             )
 
-        if len(missing) == 0:
-            continue
+#         if len(missing) == 0:
+#             continue
             
-        variables = missing
-        backups = get_backup_files(file_path=file_path)
-        for backup_file_path in backups:
-            missing = validate_raw_data_source(
-                file_path=backup_file_path, 
-                variables=missing, 
-                system_type=system_type
-                )            
-            if len(missing) == 0:
-                continue
-            variables = missing
+#         variables = missing
+#         backups = get_backup_files(file_path=file_path)
+#         for backup_file_path in backups:
+#             missing = validate_raw_data_source(
+#                 file_path=backup_file_path, 
+#                 variables=missing, 
+#                 system_type=system_type
+#                 )            
+#             if len(missing) == 0:
+#                 continue
+#             variables = missing
             
-        if missing:
-            raise ValueError(
-                f"{file_path} missing variables: {missing}"
-            )
-# -----------------------------------------------------------------------------
+#         if missing:
+#             raise ValueError(
+#                 f"{file_path} missing variables: {missing}"
+#             )
+# # -----------------------------------------------------------------------------
                 
 ###############################################################################
 ### END FUNCTIONS ###

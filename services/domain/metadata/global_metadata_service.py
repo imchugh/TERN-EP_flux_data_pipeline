@@ -17,7 +17,8 @@ from datetime import datetime
 
 from infrastructure import paths, external_io, file_io
 from infrastructure.geospatial import get_timezone, get_UTC_offset
-from services.domain import config_loader, dereference
+from services.domain.metadata import dereference
+from services.domain.utils import config_loader
 
 ###############################################################################
 ### END IMPORTS ###

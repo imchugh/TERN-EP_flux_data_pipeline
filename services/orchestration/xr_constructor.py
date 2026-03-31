@@ -13,12 +13,10 @@ Created on Tue Mar 10 09:00:40 2026
 import pandas as pd
 import xarray as xr
 
-from services.domain.metadata_config_service import SiteRuntimeConfig
-from services.domain import (
-    file_mapping_service, raw_data_loader, conversion_service,
-    global_metadata_service
-    )
-from services.domain.raw_data_integrity_validator import validate_raw_data_integrity
+from services.domain.metadata.variable_metadata_service import SiteRuntimeConfig
+from services.domain.metadata import file_mapping_service, global_metadata_service
+from services.domain.data import raw_data_loader, conversion_service
+from infrastructure.data_conditioning import condition_dataframe
 
 ###############################################################################
 ### END IMPORTS ###
@@ -48,24 +46,59 @@ def build_variable_registry(
 
     for canonical_name, var_cfg in runtime_cfg.variables.items():
 
-        registry[var_cfg.raw.raw_name] = {
-            "canonical_name": canonical_name,
-            "fundamental_quantity": var_cfg.raw.quantity,
-            "site_units": getattr(
-                var_cfg.raw, "raw_units", var_cfg.canonical.standard_units
-                ),
-            "attrs": {
-                "height": var_cfg.raw.height,
-                "instrument": var_cfg.raw.instrument,
-                "long_name": var_cfg.canonical.long_name,
-                "standard_name": var_cfg.canonical.standard_name,
-                "statistic_type": var_cfg.raw.statistic_type,
-                "units": var_cfg.canonical.standard_units,
-                },
-            }
+        for variable in var_cfg.raw:
+            
+            registry[variable.raw_name] = {
+                "canonical_name": canonical_name,
+                "fundamental_quantity": variable.quantity,
+                "site_units": getattr(
+                    variable.raw_units, 
+                    "raw_units", var_cfg.canonical.standard_units
+                    ),
+                "attrs": {
+                    "height": variable.height,
+                    "instrument": variable.instrument,
+                    "long_name": var_cfg.canonical.long_name,
+                    "standard_name": var_cfg.canonical.standard_name,
+                    "statistic_type": variable.statistic_type,
+                    "units": var_cfg.canonical.standard_units,
+                    },
+                }
 
     return registry
 # -----------------------------------------------------------------------------
+
+# # -----------------------------------------------------------------------------
+# def build_attrs_registry(runtime_cfg: SiteRuntimeConfig) -> dict:
+    
+#     registry = {}
+    
+#     for canonical_name, var_cfg in runtime_cfg.variables.items():
+        
+#         if len(var_cfg.raw) > 1:
+            
+#             rslt = {}
+            
+#             for var_attrs in var_cfg.raw:
+                
+#                 rslt = {
+#                     "height": variable.height,
+#                     "instrument": variable.instrument,
+#                     "long_name": var_cfg.canonical.long_name,
+#                     "standard_name": var_cfg.canonical.standard_name,
+#                     "statistic_type": variable.statistic_type,
+#                     "units": var_cfg.canonical.standard_units,
+#                     }
+                
+#                  rslt[var_attrs.raw_name] = {
+#                     'instrument': var_attrs.instrument,
+#                     'begin': var_attrs.begin,
+#                     'end': var_attrs.end
+#                     }
+        
+#             registry[canonical_name] = rslt
+#             return registry
+# # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
 def apply_global_metadata(
@@ -154,6 +187,34 @@ def dataframe_to_dataset(df: pd.DataFrame, registry: dict) -> xr.Dataset:
 
 # -----------------------------------------------------------------------------
 
+def convert_dataframe(df: pd.DataFrame, registry: dict):
+    
+    # select only columns we know about
+    cols = [c for c in df.columns if c in registry]
+    df = df[cols].copy()
+
+    # Convert units using domain service
+    for raw_name in cols:
+        site_unit = registry[raw_name]["site_units"]
+        canonical_unit = registry[raw_name]["attrs"]["units"]
+        if site_unit != canonical_unit:
+            converter = conversion_service.get_converter(
+                quantity=registry[raw_name]['fundamental_quantity']
+                )
+            df[raw_name] = converter(df[raw_name], from_units=site_unit)
+
+    # rename to canonical names
+    rename_map = {c: registry[c]["canonical_name"] for c in cols}
+    df = df.rename(columns=rename_map)
+    
+    # Condition
+    df = condition_dataframe(df=df)
+    
+    return df
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+
 def build_site_dataset(runtime_cfg):
     """
     Build the site xarray dataset from raw sources.
@@ -166,27 +227,44 @@ def build_site_dataset(runtime_cfg):
 
     """
 
+    # Create a clean single-layer variable registry from the config
     registry = build_variable_registry(runtime_cfg)
 
-    # services
-    file_map = file_mapping_service.build_file_map(runtime_cfg)
-       
-    # validate raw data integrity
-    validate_raw_data_integrity(
-        file_map=file_map, system_type=runtime_cfg.system_type
-        )
-
+    # Get the file map and use the onboard validator to check variables are available
+    file_map = file_mapping_service.build_file_groups(runtime_cfg)
+    for file, var_map in file_map.items():
+        rslt = var_map.validate()
+        if len(rslt['missing']) > 0:
+            raise RuntimeError(
+                'The following variables were not found in the raw data file group:'
+                f'{rslt["missing"]}'
+                )                  
+            
     # Get loader adapter for system type
     data_adapter = raw_data_loader.get_data_adapter(
         system_type=runtime_cfg.system_type
         )
 
-    # Iterate over files
+    # Iterate over different source file groups
     datasets = []
-    for file, var_list in file_map.items():
+    for file_group, mapper in file_map.items():
+               
+        # Iterate over files (and corresponding variables) 
+        # within file group (master + backups) 
+        df_list = []
+        for file, var_list in mapper.variables_by_file.items():
 
-        # Load file
-        df = data_adapter.load(file_path=file)
+            # Load file
+            df = data_adapter.load(file_path=file)
+            
+            # Do unit and name conversions
+            df = convert_dataframe(df=df, registry=registry)
+            
+            # Add to list
+            df_list.append(df)
+        
+        # Concatenate row-wise (stack data in time since backups do not overlap)
+        combined_df = pd.concat(df_list)
 
         # Convert from pandas dataframe to xarray dataset
         ds_file = dataframe_to_dataset(df, registry)
