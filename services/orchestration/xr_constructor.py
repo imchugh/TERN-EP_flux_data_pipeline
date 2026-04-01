@@ -28,7 +28,29 @@ from infrastructure.data_conditioning import condition_dataframe
 ###############################################################################
 
 # -----------------------------------------------------------------------------
-def build_variable_registry(
+def build_merge_blocks(runtime_cfg: SiteRuntimeConfig):
+    
+    rslt = {}
+    
+    for canonical_name, var_cfg in runtime_cfg.variables.items():
+       
+        if len(var_cfg.raw_inputs) > 1:
+
+            block = {}                          
+            for var_attrs in var_cfg.raw_inputs:
+
+                block[var_attrs.raw_name] = {
+                    'begin': var_attrs.begin, 
+                    'end': var_attrs.end
+                    }
+                
+            rslt[canonical_name] = block
+
+    return rslt
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+def build_input_variable_registry(
         runtime_cfg: SiteRuntimeConfig
         ) -> dict[str, dict[str, str]]:
     """
@@ -46,59 +68,52 @@ def build_variable_registry(
 
     for canonical_name, var_cfg in runtime_cfg.variables.items():
 
-        for variable in var_cfg.raw:
-            
+        for variable in var_cfg.raw_inputs:
+
             registry[variable.raw_name] = {
                 "canonical_name": canonical_name,
-                "fundamental_quantity": variable.quantity,
+                "canonical_units": var_cfg.canonical.standard_units,
+                "fundamental_quantity": var_cfg.quantity,
                 "site_units": getattr(
                     variable.raw_units, 
                     "raw_units", var_cfg.canonical.standard_units
-                    ),
-                "attrs": {
-                    "height": variable.height,
-                    "instrument": variable.instrument,
-                    "long_name": var_cfg.canonical.long_name,
-                    "standard_name": var_cfg.canonical.standard_name,
-                    "statistic_type": variable.statistic_type,
-                    "units": var_cfg.canonical.standard_units,
-                    },
+                    )
                 }
 
     return registry
 # -----------------------------------------------------------------------------
 
-# # -----------------------------------------------------------------------------
-# def build_attrs_registry(runtime_cfg: SiteRuntimeConfig) -> dict:
+# -----------------------------------------------------------------------------
+def build_attrs_registry(runtime_cfg: SiteRuntimeConfig) -> dict:
     
-#     registry = {}
+    registry = {}
     
-#     for canonical_name, var_cfg in runtime_cfg.variables.items():
+    for canonical_name, var_cfg in runtime_cfg.variables.items():
+
+        rslt = {
+            'var_attrs': {
+                "height": var_cfg.height,
+                "instrument": var_cfg.instrument,
+                "long_name": var_cfg.canonical.long_name,
+                "standard_name": var_cfg.canonical.standard_name,
+                "statistic_type": var_cfg.statistic_type,
+                "units": var_cfg.canonical.standard_units,
+                }
+            }
         
-#         if len(var_cfg.raw) > 1:
+        if len(var_cfg.raw_inputs) > 1:
             
-#             rslt = {}
-            
-#             for var_attrs in var_cfg.raw:
-                
-#                 rslt = {
-#                     "height": variable.height,
-#                     "instrument": variable.instrument,
-#                     "long_name": var_cfg.canonical.long_name,
-#                     "standard_name": var_cfg.canonical.standard_name,
-#                     "statistic_type": variable.statistic_type,
-#                     "units": var_cfg.canonical.standard_units,
-#                     }
-                
-#                  rslt[var_attrs.raw_name] = {
-#                     'instrument': var_attrs.instrument,
-#                     'begin': var_attrs.begin,
-#                     'end': var_attrs.end
-#                     }
+            history = {}            
+            for var_attrs in var_cfg.raw_inputs:
+                history[var_attrs.instrument] = {
+                    'begin': var_attrs.begin,
+                    'end': var_attrs.end
+                    }
+            rslt['instrument_history'] = history
         
-#             registry[canonical_name] = rslt
-#             return registry
-# # -----------------------------------------------------------------------------
+        registry[canonical_name] = rslt
+    return registry
+# -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
 def apply_global_metadata(
@@ -139,83 +154,109 @@ def apply_global_metadata(
     return ds
 # -----------------------------------------------------------------------------
 
+# # -----------------------------------------------------------------------------
+
+# def dataframe_to_dataset(df: pd.DataFrame, registry: dict) -> xr.Dataset:
+#     """
+#     Convert dataframe data to subsetted dataset (drop unlisted variables).
+
+#     Args:
+#         df: dataframe.
+#         registry: dict-based variable descriptor.
+
+#     Returns:
+#         ds: dataset.
+
+#     """
+
+#     # select only columns we know about
+#     cols = [c for c in df.columns if c in registry]
+#     df = df[cols].copy()
+
+#     # Convert units using domain service
+#     for raw_name in cols:
+#         site_unit = registry[raw_name]["site_units"]
+#         canonical_unit = registry[raw_name]["canonical_units"]
+#         if site_unit != canonical_unit:
+#             converter = conversion_service.get_converter(
+#                 quantity=registry[raw_name]['fundamental_quantity']
+#                 )
+#             df[raw_name] = converter(df[raw_name], from_units=site_unit)
+
+#     # rename to canonical names
+#     rename_map = {c: registry[c]["canonical_name"] for c in cols}
+#     df = df.rename(columns=rename_map)
+
+#     # Create xarray object
+#     ds = df.to_xarray()
+
+#     # apply metadata
+#     for raw_name in cols:
+
+#         canonical = registry[raw_name]["canonical_name"]
+
+#         ds[canonical].attrs.update(registry[raw_name]["attrs"])
+
+#     return ds
+# # -----------------------------------------------------------------------------
+
 # -----------------------------------------------------------------------------
-
-def dataframe_to_dataset(df: pd.DataFrame, registry: dict) -> xr.Dataset:
+def concat_by_row(
+        mapper, 
+        loader_adapter, 
+        registry: dict[str, dict[str, str]]
+        ) -> pd.DataFrame():
     """
-    Convert dataframe data to subsetted dataset (drop unlisted variables).
-
-    Args:
-        df: dataframe.
-        registry: dict-based variable descriptor.
+    
 
     Returns:
-        ds: dataset.
+        None.
 
     """
-
-    # select only columns we know about
-    cols = [c for c in df.columns if c in registry]
-    df = df[cols].copy()
-
-    # Convert units using domain service
-    for raw_name in cols:
-        site_unit = registry[raw_name]["site_units"]
-        canonical_unit = registry[raw_name]["attrs"]["units"]
-        if site_unit != canonical_unit:
-            converter = conversion_service.get_converter(
-                quantity=registry[raw_name]['fundamental_quantity']
-                )
-            df[raw_name] = converter(df[raw_name], from_units=site_unit)
-
-    # rename to canonical names
-    rename_map = {c: registry[c]["canonical_name"] for c in cols}
-    df = df.rename(columns=rename_map)
-
-    # Create xarray object
-    ds = df.to_xarray()
-
-    # apply metadata
-    for raw_name in cols:
-
-        canonical = registry[raw_name]["canonical_name"]
-
-        ds[canonical].attrs.update(registry[raw_name]["attrs"])
-
-    return ds
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-def convert_dataframe(df: pd.DataFrame, registry: dict):
     
-    # select only columns we know about
-    cols = [c for c in df.columns if c in registry]
-    df = df[cols].copy()
-
-    # Convert units using domain service
-    for raw_name in cols:
-        site_unit = registry[raw_name]["site_units"]
-        canonical_unit = registry[raw_name]["attrs"]["units"]
-        if site_unit != canonical_unit:
-            converter = conversion_service.get_converter(
-                quantity=registry[raw_name]['fundamental_quantity']
-                )
-            df[raw_name] = converter(df[raw_name], from_units=site_unit)
-
-    # rename to canonical names
-    rename_map = {c: registry[c]["canonical_name"] for c in cols}
-    df = df.rename(columns=rename_map)
+    # Get content for each file in group
+    df_list = []
+    for file, var_list in mapper.variables_by_file.items():
+        
+        # Load file
+        df = loader_adapter.load(file_path=file)
     
+        # Subset columns we want
+        cols = [c for c in df.columns if c in registry]
+        df = df[cols].copy()
+
+        # Convert units using conversion service
+        for raw_name in cols:
+            site_unit = registry[raw_name]["site_units"]
+            canonical_unit = registry[raw_name]["canonical_units"]
+            if site_unit != canonical_unit:
+                converter = conversion_service.get_converter(
+                    quantity=registry[raw_name]['fundamental_quantity']
+                    )
+                df[raw_name] = converter(df[raw_name], from_units=site_unit)
+                
+        # Append
+        df_list.append(df)
+        
     # Condition
-    df = condition_dataframe(df=df)
+    return condition_dataframe(
+        df=pd.concat(df_list), 
+        interval_out=30
+        )
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+def merge_columns(df: pd.DataFrame, merge_block):
     
-    return df
+    series_list = []
+    for var_name, dates in merge_block.items():
+        series_list.append(df.loc[dates['begin']: dates['end'], var_name])
+    return pd.concat(series_list)
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
 
-def build_site_dataset(runtime_cfg):
+def build_site_dataframe(runtime_cfg):
     """
     Build the site xarray dataset from raw sources.
 
@@ -228,7 +269,7 @@ def build_site_dataset(runtime_cfg):
     """
 
     # Create a clean single-layer variable registry from the config
-    registry = build_variable_registry(runtime_cfg)
+    input_registry = build_input_variable_registry(runtime_cfg)
 
     # Get the file map and use the onboard validator to check variables are available
     file_map = file_mapping_service.build_file_groups(runtime_cfg)
@@ -241,44 +282,52 @@ def build_site_dataset(runtime_cfg):
                 )                  
             
     # Get loader adapter for system type
-    data_adapter = raw_data_loader.get_data_adapter(
+    loader_adapter = raw_data_loader.get_data_adapter(
         system_type=runtime_cfg.system_type
         )
 
-    # Iterate over different source file groups
+    # Iterate over different source file groups to merge (master + backups) 
+    # via vertical (row-major) concatenation 
+    # -> no time overlap within file groups (backups by definition don't overlap)
     datasets = []
     for file_group, mapper in file_map.items():
                
-        # Iterate over files (and corresponding variables) 
-        # within file group (master + backups) 
-        df_list = []
-        for file, var_list in mapper.variables_by_file.items():
-
-            # Load file
-            df = data_adapter.load(file_path=file)
-            
-            # Do unit and name conversions
-            df = convert_dataframe(df=df, registry=registry)
-            
-            # Add to list
-            df_list.append(df)
+        # Merge file groups 
+        datasets.append(
+            concat_by_row(
+                mapper=mapper, 
+                loader_adapter=loader_adapter, 
+                registry=input_registry
+                )
+            )
+    
+    # Merge separate data files (e.g. from separate tables / logger) via 
+    # horizontal (column-major) concatenation to create complete, pre-merge dataframe
+    df = pd.concat(datasets, axis=1)
+    
+    # Handle vertical merge of separate time series that MAY have time overlap   
+    merge_blocks = build_merge_blocks(runtime_cfg=runtime_cfg)
+    new_df = pd.DataFrame(index=df.index)
+    for canonical_name, block in merge_blocks.items():
+        merge_df = df[block.keys()]
+        df = df.drop(block.keys(), axis=1)
+        new_df[canonical_name] = merge_columns(df=merge_df, merge_block=block)
         
-        # Concatenate row-wise (stack data in time since backups do not overlap)
-        combined_df = pd.concat(df_list)
+    # Rename the variables in the main df
+    rename_dict = {x: input_registry[x]['canonical_name'] for x in df.columns}
+    df = df.rename(rename_dict, axis=1)
+    df = pd.concat([df, new_df], axis=1)
+    
+    # # Merge all
+    # ds = xr.merge(df, compat="override")
 
-        # Convert from pandas dataframe to xarray dataset
-        ds_file = dataframe_to_dataset(df, registry)
-        
-        # Append
-        datasets.append(ds_file)
 
-    # Merge all
-    ds = xr.merge(datasets, compat="override")
 
-    # Apply global metadata to merged data
-    ds = apply_global_metadata(ds=ds, runtime_cfg=runtime_cfg)
 
-    return ds
+    # # Apply global metadata to merged data
+    # ds = apply_global_metadata(ds=ds, runtime_cfg=runtime_cfg)
+
+    return df
 # -----------------------------------------------------------------------------
 
 ###############################################################################

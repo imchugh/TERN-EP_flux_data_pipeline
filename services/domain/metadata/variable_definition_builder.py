@@ -31,17 +31,8 @@ class RawVariableMetadata:
     raw_units: str
     file: str
     instrument: str
-    height: str
-    statistic_type: str
-    quantity: str
-
-    diag_type: Optional[str] = None
     begin: Optional[str] = None
     end: Optional[str] = None
-    instrument_type: Optional[str] = None
-    vertical_location: Optional[str] = None
-    horizontal_location: Optional[str] = None
-    replicate: Optional[str] = None
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
@@ -59,9 +50,24 @@ class CanonicalVariableMetadata:
 
 @dataclass(frozen=True)
 class VariableDefinition:
-    site_variable_name: str
-    raw: RawVariableMetadata
+    
+    # Mandatory attributes
+    variable_name: str
+    instrument: str
+    height: str
+    statistic_type: str
+    quantity: str
+
+    # Mandatory subclasses    
+    raw_inputs: RawVariableMetadata
     canonical: CanonicalVariableMetadata
+    
+    # Optional attributes
+    instrument_type: Optional[str] = None
+    vertical_location: Optional[str] = None
+    horizontal_location: Optional[str] = None
+    replicate: Optional[str] = None
+    diag_type: Optional[str] = None
 # -----------------------------------------------------------------------------
 
 ###############################################################################
@@ -76,7 +82,7 @@ class VariableDefinition:
 # -----------------------------------------------------------------------------
 
 def build_variable_definition(
-    site_var_name: str,
+    var_name: str,
     raw_cfg: any,
     parsed_name_elems: dict,
     canonical_metadata: dict
@@ -90,17 +96,9 @@ def build_variable_definition(
                 raw_name = raw_name,
                 raw_units = cfg.units,
                 instrument = cfg.instrument,
-                height = raw_cfg.height,
-                statistic_type = raw_cfg.statistic_type,
                 file = cfg.file,
-                diag_type = cfg.diag_type,
                 begin = cfg.begin,
-                end = cfg.end,
-                quantity = parsed_name_elems.get("quantity"),
-                instrument_type = parsed_name_elems.get("instrument_type"),
-                vertical_location = parsed_name_elems.get("vertical_location"),
-                horizontal_location = parsed_name_elems.get("horizontal_location"),
-                replicate = parsed_name_elems.get("replicate"),
+                end = cfg.end,                
                 )
             )
     
@@ -109,9 +107,25 @@ def build_variable_definition(
 
     # 3 Return immutable VariableDefinition
     return VariableDefinition(
-        site_variable_name = site_var_name,
-        raw = tuple(raw_inputs),
-        canonical = canonical_meta
+        
+        # Base properties
+        variable_name = var_name,
+        instrument = cfg.instrument,
+        height = raw_cfg.height,
+        statistic_type = raw_cfg.statistic_type,
+        quantity = parsed_name_elems.get("quantity"),
+
+        # Required subclasses
+        raw_inputs = tuple(raw_inputs),
+        canonical = canonical_meta,
+        
+        # Optionals
+        instrument_type = parsed_name_elems.get("instrument_type"),
+        diag_type = cfg.diag_type,
+        vertical_location = parsed_name_elems.get("vertical_location"),
+        horizontal_location = parsed_name_elems.get("horizontal_location"),
+        replicate = parsed_name_elems.get("replicate"),
+        
         )
 # -----------------------------------------------------------------------------
 
