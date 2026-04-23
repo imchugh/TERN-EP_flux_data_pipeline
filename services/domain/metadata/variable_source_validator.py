@@ -90,48 +90,6 @@ def validate_raw_data_source(
     
     return missing
 # -----------------------------------------------------------------------------
-
-# # -----------------------------------------------------------------------------
-
-# def validate_raw_data_sources(
-#         file_map: dict[Path, list[str]], system_type: str) -> None:
-#     """
-#     Validate raw data files exist and contain expected variables.
-#     """
-
-#     for file_path, variables in file_map.items():
-
-#         file_path = file_path.parent / f'{file_path.name}.dat'
-        
-#         if not file_path.exists():
-#             raise FileNotFoundError(f"Expected file missing: {file_path}")
-
-#         missing = validate_raw_data_source(
-#             file_path=file_path, 
-#             variables=variables, 
-#             system_type=system_type
-#             )
-
-#         if len(missing) == 0:
-#             continue
-            
-#         variables = missing
-#         backups = get_backup_files(file_path=file_path)
-#         for backup_file_path in backups:
-#             missing = validate_raw_data_source(
-#                 file_path=backup_file_path, 
-#                 variables=missing, 
-#                 system_type=system_type
-#                 )            
-#             if len(missing) == 0:
-#                 continue
-#             variables = missing
-            
-#         if missing:
-#             raise ValueError(
-#                 f"{file_path} missing variables: {missing}"
-#             )
-# # -----------------------------------------------------------------------------
                 
 ###############################################################################
 ### END FUNCTIONS ###

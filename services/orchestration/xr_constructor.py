@@ -241,7 +241,6 @@ def apply_global_metadata(
         ds.attrs[attr] = metadata.get(attr)
     
     # Add global metadata from runtime_cfg    
-    ds.attrs['system_type'] = runtime_cfg.system_type
     ds.attrs['irga_type'] = runtime_cfg.irga_instrument
     ds.attrs['sonic_type'] = runtime_cfg.sonic_instrument
     
@@ -312,7 +311,7 @@ def collate_resource_package(runtime_cfg: SiteRuntimeConfig) -> dict:
     return {
         "registry": registry,
         "file_groups": file_groups,
-        'system_type': runtime_cfg.system_type
+        # 'system_type': runtime_cfg.system_type
         }
 # -----------------------------------------------------------------------------
 
@@ -359,7 +358,7 @@ def get_merge_blocks(registry: dict[str: VariableSpec]) -> dict:
 # -----------------------------------------------------------------------------
 def canonical_from_registry(
         registry: dict[str: VariableSpec]
-        ) -> dict[str, tuple(VariableSpec)]:
+        ) -> dict[str, tuple[VariableSpec]]:
     """Rebuild the registry so that the common key is canonical variable"""
     
     # Reconstitute canonical variables from registry
@@ -478,15 +477,15 @@ def build_dataframe(res_pkg: dict) -> pd.DataFrame:
 
     """
     
-    # Get the loader for the system type (Campbell or Licor)
-    loader = raw_data_loader.get_data_adapter(
-        system_type=res_pkg['system_type']
-        )
-
     # Step 1: iterate over source file groups to stack master + backups via 
     # vertical (row-major) concatenation 
     dfs = []
     for _, mapper in res_pkg["file_groups"].items():
+        
+        loader = raw_data_loader.get_data_adapter(
+            system_type=mapper.file_format
+            )
+        
         dfs.append(
             process_file_group(
                 mapper=mapper, 
@@ -641,7 +640,7 @@ def transform_variances(
 # -----------------------------------------------------------------------------
 
 def convert_units(
-        df: pd.Dataframe, 
+        df: pd.DataFrame, 
         registry: dict[str, VariableSpec], 
         overrides: dict[str, str]
         ) -> pd.DataFrame:

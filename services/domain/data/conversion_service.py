@@ -34,7 +34,8 @@ VARIANCE_TO_SD_UNITS = {
     'degC^2': 'degC',
     'm^2/s^2': 'm/s',
     'mmol^2/m^6': 'mmol/m^3',
-    'mmol/mol': 'mmol/mol'
+    'mmol/mol': 'mmol/mol',
+    'K^2': 'K'
     }
 
 CONVERSION_REGISTRY = {}
@@ -191,11 +192,6 @@ def get_unit_conversion(quantity):
 # -----------------------------------------------------------------------------
 
 @register_transformation('variance_to_stdev')
-# def transform_variance_to_stdev(data, from_units):
-    
-#     target_units = VARIANCE_TO_SD_UNITS[from_units]
-#     return data**(1/2), target_units
-
 def variance_to_stdev():
     return Transformation(
         apply_data=lambda data: (data ** 0.5),
