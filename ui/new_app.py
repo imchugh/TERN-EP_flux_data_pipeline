@@ -7,13 +7,13 @@ Created on Thu Apr 23 12:07:29 2026
 """
 
 from nicegui import ui
+from pathlib import Path
 import yaml
-import copy
 
-file = '/opt/TERN_EP/site_configs/new_exp/AliceSpringsMulga.yml'
+file = '/opt/TERN_EP/site_configs/new_exp/CowBay.yml'
 
 # --- load config ---
-with open(file, "r") as f:
+with open(Path(file), "r") as f:
     cfg = yaml.safe_load(f)
 
 variables = cfg["variables"]
@@ -24,10 +24,35 @@ variables = cfg["variables"]
 def ind(level: int):
     return ui.column().style(f'margin-left: {level * 24}px')
 
+# -------------------------
+# TOP LEVEL RENDER
+# -------------------------
+def render_top_level(cfg):
 
+    def render_node(key, value):
+
+        if isinstance(value, dict):
+            with ui.expansion(key, value=True).classes('w-full q-pl-none'):
+                for k, v in value.items():
+                    render_node(k, v)
+
+        else:
+            ui.input(label=key, value=str(value)).classes('w-full')
+
+    for k, v in cfg.items():
+        if k == "variables":
+            continue
+
+        render_node(k, v)
+        
+        
 # -------------------------
 # UI STATE
 # -------------------------
+ui.label(Path(file).name).classes("text-h5")
+
+render_top_level(cfg)
+
 with ind(0):
     selected_var = ui.select(
         options=list(variables.keys()),
@@ -158,6 +183,7 @@ def write_back(e):
         return
 
     variables[var][field] = value_input.value
+
 
 
 # -------------------------
