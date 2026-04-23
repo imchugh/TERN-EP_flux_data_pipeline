@@ -54,10 +54,18 @@ ui.label(Path(file).name).classes("text-h5")
 render_top_level(cfg)
 
 with ind(0):
+    
+    sorted_vars = sorted(variables.keys())
     selected_var = ui.select(
-        options=list(variables.keys()),
+        options=sorted_vars,
         label="Variable",
-    )
+        value=sorted_vars[0] if sorted_vars else None,
+        )
+    
+    # selected_var = ui.select(
+    #     options=list(variables.keys()),
+    #     label="Variable",
+    # )
 
 with ind(1):
     selected_field = ui.select(
@@ -76,7 +84,6 @@ with ind(1):
 
 attr_container = ui.column()
 
-
 # -------------------------
 # LEVEL 1: variable → fields
 # -------------------------
@@ -93,7 +100,6 @@ def update_fields():
         selected_field.options = []
         selected_field.value = None
         selected_field.update()
-
         value_input.value = ""
         value_input.update()
         return
@@ -101,11 +107,14 @@ def update_fields():
     fields = list(variables[var].keys())
 
     selected_field.options = fields
-    selected_field.value = None
+
+    default_field = "statistic_type" if "statistic_type" in fields else (fields[0] if fields else None)
+
+    selected_field.value = default_field
     selected_field.update()
 
-    value_input.value = ""
-    value_input.update()
+    if default_field:
+        update_field()
 
 
 # -------------------------
@@ -193,6 +202,9 @@ selected_var.on('update:model-value', lambda e: update_fields())
 selected_field.on('update:model-value', lambda e: update_field())
 selected_input_var.on('update:model-value', lambda e: update_input_var())
 value_input.on('blur', write_back)
+
+# --- INITIALISE UI STATE ---
+update_fields()
 
 def main():
     ui.run()
