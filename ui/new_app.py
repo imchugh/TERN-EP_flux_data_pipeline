@@ -40,6 +40,7 @@ def render_top_level(cfg):
             ui.input(label=key, value=str(value)).classes('w-full')
 
     for k, v in cfg.items():
+        
         if k == "variables":
             continue
 
@@ -71,18 +72,29 @@ with ind(1):
     selected_field = ui.select(
         options=[],
         label="Field",
-    )
+        )
 
 with ind(2):
     selected_input_var = ui.select(
         options=[],
         label="Input Variable",
-    )
+        )
 
 with ind(1):
     value_input = ui.input(label="Value")
 
 attr_container = ui.column()
+
+# input_var_table = ui.table(
+#     columns=[
+#         {"name": "name", "label": "Input Variable", "field": "name"},
+#         {"name": "instrument", "label": "Instrument", "field": "instrument"},
+#         {"name": "begin", "label": "Begin", "field": "begin"},
+#         {"name": "end", "label": "End", "field": "end"},
+#     ],
+#     rows=[],
+#     row_key="name",
+# ).classes("w-full")
 
 # -------------------------
 # LEVEL 1: variable → fields
