@@ -83,18 +83,34 @@ with ind(2):
 with ind(1):
     value_input = ui.input(label="Value")
 
-attr_container = ui.column()
+# attr_container = ui.column()
 
-# input_var_table = ui.table(
-#     columns=[
-#         {"name": "name", "label": "Input Variable", "field": "name"},
-#         {"name": "instrument", "label": "Instrument", "field": "instrument"},
-#         {"name": "begin", "label": "Begin", "field": "begin"},
-#         {"name": "end", "label": "End", "field": "end"},
-#     ],
-#     rows=[],
-#     row_key="name",
-# ).classes("w-full")
+input_var_table = (
+    ui.table(
+        columns=[
+            {"name": "name", "label": "Input Variable", "field": "name"},
+            {"name": "instrument", "label": "Instrument", "field": "instrument"},
+            {"name": "begin", "label": "Begin", "field": "begin"},
+            {"name": "end", "label": "End", "field": "end"},
+            ],
+        rows=[],
+        row_key="name",
+        )
+    .classes("w-full")
+    )
+
+input_var_table.add_slot(
+    "body-cell", r'''
+    <q-td :props="props">
+      <q-input
+        v-model="props.row[props.col.name]"
+        dense
+        borderless
+        @blur="$parent.$emit('edit', props.row)"
+      />
+    </q-td>
+    '''
+    )
 
 # -------------------------
 # LEVEL 1: variable → fields
@@ -106,7 +122,7 @@ def update_fields():
     selected_input_var.value = None
     selected_input_var.update()
 
-    attr_container.clear()
+    # attr_container.clear()
 
     if not var:
         selected_field.options = []
@@ -133,29 +149,25 @@ def update_fields():
 # LEVEL 2: field → value OR input_variables
 # -------------------------
 def update_field():
+    
     var = selected_var.value
     field = selected_field.value
-
-    selected_input_var.options = []
-    selected_input_var.value = None
-    selected_input_var.update()
-
-    attr_container.clear()
 
     if not var or not field:
         value_input.value = ""
         value_input.update()
+        input_var_table.rows = []
+        input_var_table.update()
         return
 
     value = variables[var][field]
 
-    # input_variables branch
+    # NEW table handling
     if field == "input_variables" and isinstance(value, dict):
-        selected_input_var.options = list(value.keys())
-        selected_input_var.update()
-
         value_input.value = ""
         value_input.update()
+
+        update_input_var()
         return
 
     # scalar field
@@ -163,40 +175,41 @@ def update_field():
         value_input.value = str(value)
         value_input.update()
 
+        input_var_table.rows = []
+        input_var_table.update()
 
 # -------------------------
 # LEVEL 3: input_variable → attributes
 # -------------------------
 def update_input_var():
+    
     var = selected_var.value
     field = selected_field.value
-    input_var = selected_input_var.value
 
-    attr_container.clear()
-
-    if not var or field != "input_variables" or not input_var:
+    if not var or field != "input_variables":
+        input_var_table.rows = []
+        input_var_table.update()
         return
 
-    attrs = variables[var][field][input_var]
+    data = variables[var][field]
 
-    with attr_container:
-        with ind(3):
-            for k, v in attrs.items():
+    rows = []
+    for name, attrs in data.items():
+        rows.append({
+            "name": name,
+            "instrument": attrs.get("instrument", ""),
+            "begin": str(attrs.get("begin", "")),
+            "end": str(attrs.get("end", "")),
+        })
 
-                def commit(e, key=k):
-                    variables[var][field][input_var][key] = widget.value
-
-                widget = ui.input(
-                    label=k,
-                    value=str(v)
-                )
-                widget.on('blur', commit)
-
+    input_var_table.rows = rows
+    input_var_table.update()
 
 # -------------------------
-# WRITE BACK (scalar fields)
+# WRITE BACK HANDLERS (scalar fields)
 # -------------------------
 def write_back(e):
+    
     var = selected_var.value
     field = selected_field.value
 
@@ -205,7 +218,21 @@ def write_back(e):
 
     variables[var][field] = value_input.value
 
+def handle_table_edit(e):
+    
+    row = e.args
 
+    var = selected_var.value
+    data = variables[var]["input_variables"]
+
+    name = row["name"]
+
+    if name not in data:
+        return
+
+    data[name]["instrument"] = row.get("instrument")
+    data[name]["begin"] = row.get("begin")
+    data[name]["end"] = row.get("end")
 
 # -------------------------
 # EVENTS
@@ -214,6 +241,7 @@ selected_var.on('update:model-value', lambda e: update_fields())
 selected_field.on('update:model-value', lambda e: update_field())
 selected_input_var.on('update:model-value', lambda e: update_input_var())
 value_input.on('blur', write_back)
+input_var_table.on("edit", handle_table_edit)
 
 # --- INITIALISE UI STATE ---
 update_fields()
