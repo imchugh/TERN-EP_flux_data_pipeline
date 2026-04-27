@@ -10,7 +10,21 @@ from nicegui import ui
 from pathlib import Path
 import yaml
 
+from services.domain.metadata.variable_metadata_validator import StatisticType
+from infrastructure import paths, file_io
+
 file = '/opt/TERN_EP/site_configs/new_exp/CowBay.yml'
+
+
+FILE_LIST = [
+    file.stem for file in 
+        file_io.list_available_files(
+        dir_path=paths.get_local_resource_path(
+            resource='raw_data', stream='flux_slow', site=Path(file).stem
+            ), 
+        pattern='*.dat'
+        )
+    ]
 
 # --- load config ---
 with open(Path(file), "r") as f:
@@ -21,51 +35,54 @@ variables = cfg["variables"]
 # -------------------------
 # TOP LEVEL RENDER (unchanged)
 # -------------------------
-def render_top_level(cfg):
+def render_yaml(key, value, level=0):
+    base_indent = level * 20
+    child_indent = (level + 1) * 20
 
-    for key, value in cfg.items():
+    # --- TOP LEVEL HEADER ---
+    if level == 0:
+        ui.label(key).classes("text-h6")
 
-        # --- top-level section ---
-        with ui.column().classes("w-full"):
+    # --- VARIABLES (special case) ---
+    if key == "variables" and isinstance(value, dict):
+        with ui.column().style(f"margin-left: {child_indent}px"):
 
-            # consistent section header
-            ui.label(key).classes("text-h6")
+            global selected_var
+            selected_var = ui.select(
+                options=sorted(value.keys()),
+                label="Selected variable",
+                value=sorted(value.keys())[0] if value else None,
+            ).classes("w-64")
 
-            # --- VARIABLES (special case) ---
-            if key == "variables":
+            global var_container
+            var_container = ui.column().classes("w-full")
 
-                with ui.column().style("margin-left: 20px"):
-            
-                    with ui.row().classes("items-center gap-4"):
-                        global selected_var
-                        selected_var = ui.select(
-                            options=sorted(value.keys()),
-                            label="Variable",
-                            value=sorted(value.keys())[0] if value else None,
-                        ).classes("w-64")
-            
-                    global var_container
-                    var_container = ui.column().classes("w-full")
-            
+        return
+
+    # --- DICT ---
+    if isinstance(value, dict):
+    
+        for k, v in value.items():
+    
+            if level == 0:
+                # top-level children: just recurse
+                render_yaml(k, v, level + 1)
+    
             else:
+                # render label at THIS level
+                with ui.column().style(f"margin-left: {level * 20}px"):
+                    ui.label(k).classes("text-subtitle2")
+    
+                # recurse WITHOUT adding extra visual indent
+                render_yaml(k, v, level + 1)
 
-                def render_node(k, v, level=1):
-                    with ui.column().style(f"margin-left: {level * 20}px"):
-                
-                        if isinstance(v, dict):
-                            ui.label(k).classes("text-subtitle2")
-                            for kk, vv in v.items():
-                                render_node(kk, vv, level + 1)
-                        else:
-                            ui.input(label=k, value=str(v)).classes("w-full")
-                
-                # ✅ SAFE ENTRY POINT
-                if isinstance(value, dict):
-                    for k, v in value.items():
-                        render_node(k, v, level=1)
-                else:
-                    # top-level scalar (e.g. site: CowBay)
-                    ui.input(label=key, value=str(value)).classes("w-full")
+    # --- SCALAR ---
+    else:
+        with ui.column().style(f"margin-left: {child_indent}px"):
+            ui.input(
+                label=None if level == 0 else key,   # ← fixes duplicate "site"
+                value="" if value is None else str(value)
+            ).classes("w-full")
 
 # -------------------------
 # BUILD TABLE ROWS
@@ -117,21 +134,24 @@ def render_variable():
     data = variables[var]
 
     with var_container:
-
-        # # Variable name
-        # ui.label(var).classes("text-h6")
-
+       
         # statistic_type
         with ui.row().classes("items-center").style("margin-left: 20px"):
             ui.label("statistic_type").classes("w-40")
-            stat_input = ui.input(
-                value=str(data.get("statistic_type", ""))
-            ).classes("w-64")
-
-            stat_input.on(
-                "blur",
-                lambda e: data.update({"statistic_type": stat_input.value})
+        
+            options = [e.value for e in StatisticType]
+            current = data.get("statistic_type")
+        
+            stat_select = ui.select(
+                options=options,
+                value=current if current in options else None,
+                ).classes("w-64")
+        
+            stat_select.on(
+                "update:model-value",
+                lambda e: data.update({"statistic_type": stat_select.value})
             )
+
 
         # height
         with ui.row().classes("items-center").style("margin-left: 20px"):
@@ -163,18 +183,8 @@ def render_variable():
 # -------------------------
 ui.label(Path(file).name).classes("text-h5")
 
-render_top_level(cfg)
-
-# with ui.row().classes("w-full gap-4"):
-
-#     selected_var = ui.select(
-#         options=sorted(variables.keys()),
-#         label="Variable",
-#         value=sorted(variables.keys())[0] if variables else None,
-#     ).classes("w-64")
-
-# # container for YAML-like rendering
-# var_container = ui.column().classes("w-full")
+for k, v in cfg.items():
+    render_yaml(k, v, level=0)
 
 # table (single instance)
 input_var_table = (
@@ -209,6 +219,22 @@ input_var_table.add_slot(
     '''
     )
 
+input_var_table.add_slot(
+    "body-cell-file", r'''
+    <q-td :props="props">
+      <q-select
+        v-model="props.row.file"
+        :options="''' + str(FILE_LIST) + r'''"
+        dense
+        borderless
+        emit-value
+        map-options
+        @update:model-value="$parent.$emit('edit', props.row)"
+      />
+    </q-td>
+    '''
+)
+
 input_var_table.on("edit", handle_table_edit)
 
 # events
@@ -220,7 +246,6 @@ render_variable()
 
 def main():
     ui.run()
-
 
 if __name__ in {"__main__", "__mp_main__"}:
     main()
