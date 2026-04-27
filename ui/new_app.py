@@ -18,27 +18,54 @@ with open(Path(file), "r") as f:
 
 variables = cfg["variables"]
 
-variables = cfg["variables"]
-
 # -------------------------
 # TOP LEVEL RENDER (unchanged)
 # -------------------------
 def render_top_level(cfg):
 
-    def render_node(key, value):
+    for key, value in cfg.items():
 
-        if isinstance(value, dict):
-            with ui.expansion(key, value=True).classes('w-full q-pl-none'):
-                for k, v in value.items():
-                    render_node(k, v)
-        else:
-            ui.input(label=key, value=str(value)).classes('w-full')
+        # --- top-level section ---
+        with ui.column().classes("w-full"):
 
-    for k, v in cfg.items():
-        if k == "variables":
-            continue
-        render_node(k, v)
+            # consistent section header
+            ui.label(key).classes("text-h6")
 
+            # --- VARIABLES (special case) ---
+            if key == "variables":
+
+                with ui.column().style("margin-left: 20px"):
+            
+                    with ui.row().classes("items-center gap-4"):
+                        global selected_var
+                        selected_var = ui.select(
+                            options=sorted(value.keys()),
+                            label="Variable",
+                            value=sorted(value.keys())[0] if value else None,
+                        ).classes("w-64")
+            
+                    global var_container
+                    var_container = ui.column().classes("w-full")
+            
+            else:
+
+                def render_node(k, v, level=1):
+                    with ui.column().style(f"margin-left: {level * 20}px"):
+                
+                        if isinstance(v, dict):
+                            ui.label(k).classes("text-subtitle2")
+                            for kk, vv in v.items():
+                                render_node(kk, vv, level + 1)
+                        else:
+                            ui.input(label=k, value=str(v)).classes("w-full")
+                
+                # ✅ SAFE ENTRY POINT
+                if isinstance(value, dict):
+                    for k, v in value.items():
+                        render_node(k, v, level=1)
+                else:
+                    # top-level scalar (e.g. site: CowBay)
+                    ui.input(label=key, value=str(value)).classes("w-full")
 
 # -------------------------
 # BUILD TABLE ROWS
@@ -91,8 +118,8 @@ def render_variable():
 
     with var_container:
 
-        # Variable name
-        ui.label(var).classes("text-h6")
+        # # Variable name
+        # ui.label(var).classes("text-h6")
 
         # statistic_type
         with ui.row().classes("items-center").style("margin-left: 20px"):
@@ -138,16 +165,16 @@ ui.label(Path(file).name).classes("text-h5")
 
 render_top_level(cfg)
 
-with ui.row().classes("w-full gap-4"):
+# with ui.row().classes("w-full gap-4"):
 
-    selected_var = ui.select(
-        options=sorted(variables.keys()),
-        label="Variable",
-        value=sorted(variables.keys())[0] if variables else None,
-    ).classes("w-64")
+#     selected_var = ui.select(
+#         options=sorted(variables.keys()),
+#         label="Variable",
+#         value=sorted(variables.keys())[0] if variables else None,
+#     ).classes("w-64")
 
-# container for YAML-like rendering
-var_container = ui.column().classes("w-full")
+# # container for YAML-like rendering
+# var_container = ui.column().classes("w-full")
 
 # table (single instance)
 input_var_table = (
