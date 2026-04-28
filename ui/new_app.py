@@ -21,7 +21,7 @@ import yaml
 from domain.enums import StatisticType, FileType
 from infrastructure import paths, file_io
 
-file = '/opt/TERN_EP/site_configs/new_exp/CowBay.yml'
+file = '/opt/TERN_EP/site_configs/new_exp/CumberlandPlain.yml'
 
 
 FILE_LIST = [
@@ -131,8 +131,8 @@ def render_yaml(key, value, level=0):
             # -------------------------
             # OVERRIDES HEADER
             # -------------------------
-            with ui.row():
-                ui.label("overrides").classes("text-subtitle2")
+            # with ui.row():
+            #     ui.label("overrides").classes("text-subtitle2")
     
             # ensure structure exists
             if "overrides" not in value or value["overrides"] is None:
@@ -141,21 +141,27 @@ def render_yaml(key, value, level=0):
             # -------------------------
             # OVERRIDES TABLE
             # -------------------------
-            with ui.column().style("margin-left: 20px"):
-    
+            with ui.row().classes("items-start"):
+                
+                # LEFT: label (anchor point)
+                ui.label("overrides").classes("w-40")
+                
                 override_rows = [
                     {"file": k, "type": v}
-                    for k, v in value["overrides"].items()
-                ]
-    
-                overrides_table = ui.table(
-                    columns=[
-                        {"name": "file", "label": "File", "field": "file"},
-                        {"name": "type", "label": "Type", "field": "type"},
-                    ],
-                    rows=override_rows,
-                    row_key="file",
-                ).classes("w-full")
+                    for k, v in value.get("overrides", {}).items()
+                    ]
+                
+                # RIGHT: table (always aligned)
+                with ui.column().classes("flex-grow"):
+                    
+                    overrides_table = ui.table(
+                        columns=[
+                            {"name": "file", "label": "File", "field": "file"},
+                            {"name": "type", "label": "Type", "field": "type"},
+                        ],
+                        rows=override_rows,
+                        row_key="file",
+                    ).classes("w-full")
     
                 # editable file name
                 overrides_table.add_slot(
