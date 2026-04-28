@@ -10,7 +10,7 @@ from nicegui import ui
 from pathlib import Path
 import yaml
 
-from domain import StatisticType
+from domain.enums import StatisticType, FileType
 from infrastructure import paths, file_io
 
 file = '/opt/TERN_EP/site_configs/new_exp/CowBay.yml'
@@ -25,6 +25,17 @@ FILE_LIST = [
         pattern='*.dat'
         )
     ]
+
+file_type_options = [e.name for e in FileType]
+
+def get_variable_list(file_group, file_format):
+    
+    base_path = paths.get_local_stream_path(
+        resource='raw_data', stream='flux_slow'
+        )
+    for file in FILE_LIST:
+        master = file_group
+        file_io.get_backup_files()
 
 # --- load config ---
 with open(Path(file), "r") as f:
@@ -58,6 +69,32 @@ def render_yaml(key, value, level=0):
             var_container = ui.column().classes("w-full")
 
         return
+    
+    if key == "file_formats" and isinstance(value, dict):
+
+        with ui.column().style(f"margin-left: {20}px"):
+
+            # --- DEFAULT DROPDOWN ---
+            with ui.row().classes("items-center"):
+                ui.label("default").classes("w-40")
+    
+                current = value.get("default")
+    
+                default_select = ui.select(
+                    options=file_type_options,
+                    value=current if current in file_type_options else None,
+                ).classes("w-64")
+    
+                def update_default(e):
+                    value["default"] = default_select.value
+    
+                default_select.on("update:model-value", update_default)
+    
+            # --- render any OTHER keys normally ---
+            for k, v in value.items():
+                if k == "default":
+                    continue
+                render_yaml(k, v, level + 1)
 
     # --- DICT ---
     if isinstance(value, dict):
