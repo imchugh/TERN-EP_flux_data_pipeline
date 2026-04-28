@@ -6,6 +6,14 @@ Created on Thu Apr 23 12:07:29 2026
 @author: imchugh
 """
 
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Apr 23 12:07:29 2026
+
+@author: imchugh
+"""
+
 from nicegui import ui
 from pathlib import Path
 import yaml
@@ -34,7 +42,8 @@ def get_variable_list(file_group, file_format):
         resource='raw_data', stream='flux_slow'
         )
     for file in FILE_LIST:
-        master = file_group
+        ext = FileType[file_format].extension
+        master = f'{file_group}.{ext}'
         file_io.get_backup_files()
 
 # --- load config ---
@@ -47,6 +56,7 @@ variables = cfg["variables"]
 # TOP LEVEL RENDER (unchanged)
 # -------------------------
 def render_yaml(key, value, level=0):
+
     base_indent = level * 20
     child_indent = (level + 1) * 20
 
@@ -70,10 +80,36 @@ def render_yaml(key, value, level=0):
 
         return
     
+    # if key == "file_formats" and isinstance(value, dict):
+
+    #     with ui.column().style(f"margin-left: {20}px"):
+
+    #         # --- DEFAULT DROPDOWN ---
+    #         with ui.row().classes("items-center"):
+    #             ui.label("default").classes("w-40")
+    
+    #             current = value.get("default")
+    
+    #             default_select = ui.select(
+    #                 options=file_type_options,
+    #                 value=current if current in file_type_options else None,
+    #             ).classes("w-64")
+    
+    #             def update_default(e):
+    #                 value["default"] = default_select.value
+    
+    #             default_select.on("update:model-value", update_default)
+    
+    #         # --- render any OTHER keys normally ---
+    #         for k, v in value.items():
+    #             if k == "default":
+    #                 continue
+    #             render_yaml(k, v, level + 1)
+
     if key == "file_formats" and isinstance(value, dict):
-
+    
         with ui.column().style(f"margin-left: {20}px"):
-
+    
             # --- DEFAULT DROPDOWN ---
             with ui.row().classes("items-center"):
                 ui.label("default").classes("w-40")
@@ -95,6 +131,9 @@ def render_yaml(key, value, level=0):
                 if k == "default":
                     continue
                 render_yaml(k, v, level + 1)
+    
+        return  # ← THIS LINE FIXES YOUR ISSUE
+
 
     # --- DICT ---
     if isinstance(value, dict):
