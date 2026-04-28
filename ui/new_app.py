@@ -10,7 +10,7 @@ from nicegui import ui
 from pathlib import Path
 import yaml
 
-from services.domain.metadata.variable_metadata_validator import StatisticType
+from domain import StatisticType
 from infrastructure import paths, file_io
 
 file = '/opt/TERN_EP/site_configs/new_exp/CowBay.yml'
@@ -187,6 +187,10 @@ for k, v in cfg.items():
     render_yaml(k, v, level=0)
 
 # table (single instance)
+
+# -------------------------
+# Input variable table
+# -------------------------
 input_var_table = (
     ui.table(
         columns=[
