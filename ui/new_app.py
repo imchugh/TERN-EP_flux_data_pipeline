@@ -110,7 +110,9 @@ def render_yaml(key, value, level=0):
     
         with ui.column().style(f"margin-left: {20}px"):
     
-            # --- DEFAULT DROPDOWN ---
+            # -------------------------
+            # DEFAULT
+            # -------------------------
             with ui.row().classes("items-center"):
                 ui.label("default").classes("w-40")
     
@@ -126,13 +128,85 @@ def render_yaml(key, value, level=0):
     
                 default_select.on("update:model-value", update_default)
     
-            # --- render any OTHER keys normally ---
-            for k, v in value.items():
-                if k == "default":
-                    continue
-                render_yaml(k, v, level + 1)
+            # -------------------------
+            # OVERRIDES HEADER
+            # -------------------------
+            with ui.row():
+                ui.label("overrides").classes("text-subtitle2")
     
-        return  # ← THIS LINE FIXES YOUR ISSUE
+            # ensure structure exists
+            if "overrides" not in value or value["overrides"] is None:
+                value["overrides"] = {}
+    
+            # -------------------------
+            # OVERRIDES TABLE
+            # -------------------------
+            with ui.column().style("margin-left: 20px"):
+    
+                override_rows = [
+                    {"file": k, "type": v}
+                    for k, v in value["overrides"].items()
+                ]
+    
+                overrides_table = ui.table(
+                    columns=[
+                        {"name": "file", "label": "File", "field": "file"},
+                        {"name": "type", "label": "Type", "field": "type"},
+                    ],
+                    rows=override_rows,
+                    row_key="file",
+                ).classes("w-full")
+    
+                # editable file name
+                overrides_table.add_slot(
+                    "body-cell-file", r'''
+                    <q-td :props="props">
+                      <q-input
+                        v-model="props.row.file"
+                        dense
+                        borderless
+                        @blur="$parent.$emit('edit', props.row, 'file')"
+                      />
+                    </q-td>
+                    '''
+                )
+    
+                # dropdown for type
+                overrides_table.add_slot(
+                    "body-cell-type", r'''
+                    <q-td :props="props">
+                      <q-select
+                        v-model="props.row.type"
+                        :options="''' + str(file_type_options) + r'''"
+                        dense
+                        borderless
+                        emit-value
+                        map-options
+                        @update:model-value="$parent.$emit('edit', props.row, 'type')"
+                      />
+                    </q-td>
+                    '''
+                )
+    
+                def handle_override_edit(e):
+                    row, field = e.args
+    
+                    overrides = value["overrides"]
+    
+                    # rename key if file name changed
+                    if field == "file":
+                        old_keys = list(overrides.keys())
+                        for k in old_keys:
+                            if overrides[k] == row["type"]:
+                                if k != row["file"]:
+                                    overrides[row["file"]] = overrides.pop(k)
+                                break
+                    else:
+                        overrides[row["file"]] = row["type"]
+    
+                overrides_table.on("edit", handle_override_edit)
+    
+        return
 
 
     # --- DICT ---
