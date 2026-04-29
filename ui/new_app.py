@@ -131,8 +131,6 @@ def render_yaml(key, value, level=0):
             # -------------------------
             # OVERRIDES HEADER
             # -------------------------
-            # with ui.row():
-            #     ui.label("overrides").classes("text-subtitle2")
     
             # ensure structure exists
             if "overrides" not in value or value["overrides"] is None:
@@ -147,7 +145,7 @@ def render_yaml(key, value, level=0):
                 ui.label("overrides").classes("w-40")
                 
                 override_rows = [
-                    {"file": k, "type": v}
+                    {"file": k, "type": v, "_original_file": k}
                     for k, v in value.get("overrides", {}).items()
                     ]
                 
@@ -167,15 +165,18 @@ def render_yaml(key, value, level=0):
                 overrides_table.add_slot(
                     "body-cell-file", r'''
                     <q-td :props="props">
-                      <q-input
+                      <q-select
                         v-model="props.row.file"
+                        :options="''' + str(FILE_LIST) + r'''"
                         dense
                         borderless
-                        @blur="$parent.$emit('edit', props.row, 'file')"
+                        emit-value
+                        map-options
+                        @update:model-value="$parent.$emit('edit', props.row, 'file')"
                       />
                     </q-td>
                     '''
-                )
+                    )
     
                 # dropdown for type
                 overrides_table.add_slot(
@@ -196,19 +197,19 @@ def render_yaml(key, value, level=0):
     
                 def handle_override_edit(e):
                     row, field = e.args
-    
                     overrides = value["overrides"]
-    
-                    # rename key if file name changed
-                    if field == "file":
-                        old_keys = list(overrides.keys())
-                        for k in old_keys:
-                            if overrides[k] == row["type"]:
-                                if k != row["file"]:
-                                    overrides[row["file"]] = overrides.pop(k)
-                                break
-                    else:
-                        overrides[row["file"]] = row["type"]
+                
+                    original = row["_original_file"]
+                    new_file = row["file"]
+                    new_type = row["type"]
+                
+                    # rename key if needed
+                    if original != new_file:
+                        overrides[new_file] = overrides.pop(original)
+                        row["_original_file"] = new_file
+                
+                    # always update type
+                    overrides[new_file] = new_type
     
                 overrides_table.on("edit", handle_override_edit)
     
