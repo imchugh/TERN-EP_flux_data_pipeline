@@ -313,15 +313,26 @@ def handle_table_edit(e):
 
     # 🔥 NEW: update variable options when file changes
     if new_file and new_file != old_file:
-        data[name]["_var_options"] = get_file_variables(
-            file_group=new_file, file_format=FILE_FORMATS[new_file]
+
+        options = get_file_variables(
+                file_group=new_file,
+                file_format=FILE_FORMATS[new_file]
             )
-
-        # optional but recommended: reset variable if invalid
-        if data[name].get("name") not in data[name]["_var_options"]:
+        
+        # update backend
+        data[name]["_var_options"] = options
+    
+        # 🔥 update frontend row (this is what the dropdown uses)
+        row["_var_options"] = options
+    
+        # reset invalid variable
+        if row.get("name") not in options:
+            row["name"] = None
             data[name]["name"] = None
-
-    data[name]["file"] = row.get("file")
+    
+        # 🔥 force UI refresh
+        input_var_table.update()
+            
     data[name]["begin"] = normalise_date(row.get("begin"))
     data[name]["end"] = normalise_date(row.get("end"))
 
