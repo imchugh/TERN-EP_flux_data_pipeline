@@ -21,7 +21,7 @@ import yaml
 from domain.enums import StatisticType, FileType
 from infrastructure import paths, file_io
 
-file = '/opt/TERN_EP/site_configs/new_exp/CumberlandPlain.yml'
+file = '/opt/TERN_EP/site_configs/new_exp/CowBay.yml'
 
 
 # FILE_LIST = [
@@ -287,12 +287,56 @@ def handle_table_edit(e):
     if name not in data:
         return
 
+    def normalise_date(value):
+        return None if value in ("", None) else value
+
+    # --- write edits ---
     data[name]["instrument"] = row.get("instrument")
     data[name]["units"] = row.get("units")
     data[name]["file"] = row.get("file")
-    data[name]["begin"] = row.get("begin")
-    data[name]["end"] = row.get("end")
+    data[name]["begin"] = normalise_date(row.get("begin"))
+    data[name]["end"] = normalise_date(row.get("end"))
 
+    # --- validate AFTER update ---
+    try:
+        validate_ranges(data)
+    except ValueError as e:
+        ui.notify(str(e), color="red")
+
+def validate_ranges(data):
+    # extract and sort by begin (None = earliest)
+    def sort_key(item):
+        begin = item[1].get("begin")
+        return begin or "0000-00-00"
+
+    items = sorted(data.items(), key=sort_key)
+
+    prev_end = None
+
+    for i, (name, attrs) in enumerate(items):
+        begin = attrs.get("begin")
+        end = attrs.get("end")
+
+        # first can have begin = None
+        if i == 0:
+            pass
+        else:
+            if begin is None:
+                raise ValueError(f"{name}: begin cannot be None unless first segment")
+
+        # last can have end = None
+        if i == len(items) - 1:
+            pass
+        else:
+            if end is None:
+                raise ValueError(f"{name}: end cannot be None unless last segment")
+
+        # check overlap
+        if prev_end and begin and begin < prev_end:
+            raise ValueError(f"{name}: overlaps previous segment")
+
+        if end:
+            prev_end = end
 
 # -------------------------
 # RENDER VARIABLE (core)
@@ -408,6 +452,72 @@ input_var_table.add_slot(
         map-options
         @update:model-value="$parent.$emit('edit', props.row)"
       />
+    </q-td>
+    '''
+)
+
+input_var_table.add_slot(
+    "body-cell-begin", r'''
+    <q-td :props="props">
+      <q-input
+        v-model="props.row.begin"
+        dense
+        borderless
+        placeholder="YYYY-MM-DD HH:mm"
+        class="w-full"
+      >
+        <template v-slot:append>
+          <q-icon name="event" class="cursor-pointer">
+            <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+              <div>
+                <q-date
+                  v-model="props.row.begin"
+                  mask="YYYY-MM-DD HH:mm"
+                />
+                <q-time
+                  v-model="props.row.begin"
+                  mask="YYYY-MM-DD HH:mm"
+                  format24h
+                  @update:model-value="$parent.$emit('edit', props.row)"
+                />
+              </div>
+            </q-popup-proxy>
+          </q-icon>
+        </template>
+      </q-input>
+    </q-td>
+    '''
+)
+
+input_var_table.add_slot(
+    "body-cell-end", r'''
+    <q-td :props="props">
+      <q-input
+        v-model="props.row.end"
+        dense
+        borderless
+        placeholder="YYYY-MM-DD HH:mm"
+        class="w-full"
+      >
+        <template v-slot:append>
+          <q-icon name="event" class="cursor-pointer">
+            <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+              <div>
+                <q-date
+                  v-model="props.row.begin"
+                  mask="YYYY-MM-DD HH:mm"
+                />
+                <q-time
+                  v-model="props.row.begin"
+                  mask="YYYY-MM-DD HH:mm"
+                  format24h
+                  @update:model-value="$parent.$emit('edit', props.row)"
+                />
+              </div>
+            </q-popup-proxy>
+          </q-icon>
+        </template>
+      </q-input>
     </q-td>
     '''
 )
