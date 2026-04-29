@@ -20,6 +20,7 @@ import yaml
 
 from domain.enums import StatisticType, FileType
 from infrastructure import paths, file_io
+from services.metadata.file_mapping_service import get_variables_from_file
 
 file = '/opt/TERN_EP/site_configs/new_exp/CowBay.yml'
 
@@ -34,39 +35,42 @@ file = '/opt/TERN_EP/site_configs/new_exp/CowBay.yml'
 #         )
 #     ]
 
+# --- load config ---
+with open(Path(file), "r") as f:
+    cfg = yaml.safe_load(f)
+
+variables = cfg["variables"]
+
 file_type_options = [e.name for e in FileType]
+
+BASE_PATH = paths.get_local_stream_path(
+    resource='raw_data', stream='flux_slow', site=cfg['site']
+    )
 
 def get_file_list():
     
     return [
         file.stem for file in 
             file_io.list_available_files(
-            dir_path=paths.get_local_resource_path(
-                resource='raw_data', stream='flux_slow', site=Path(file).stem
-                ), 
-            pattern=['*.dat', 'Cumberland*.txt']
+            dir_path=BASE_PATH, 
+            pattern=['*.dat', 'Cumberland*.txt'] # Hack to be removed, raw CUP files are in same dir currently
             )
         ]
 
 FILE_LIST = get_file_list()
 
-
-
-def get_variable_list(file_group, file_format):
+variable_cache = {}
+def get_files_list(file_group, file_format):
     
-    base_path = paths.get_local_stream_path(
-        resource='raw_data', stream='flux_slow'
+    if file_group in variable_cache:
+        return variable_cache[file_group]
+    ftype = FileType[file_format]
+    vars_list = get_variables_from_file(
+        file_path=BASE_PATH / f'{file_group}.{ftype.extension}', 
+        system_type=ftype.name
         )
-    for file in FILE_LIST:
-        ext = FileType[file_format].extension
-        master = f'{file_group}.{ext}'
-        file_io.get_backup_files()
-
-# --- load config ---
-with open(Path(file), "r") as f:
-    cfg = yaml.safe_load(f)
-
-variables = cfg["variables"]
+    variable_cache[file_group] = vars_list
+    return vars_list
 
 # -------------------------
 # TOP LEVEL RENDER (unchanged)
@@ -411,7 +415,7 @@ for k, v in cfg.items():
 input_var_table = (
     ui.table(
         columns=[
-            {"name": "name", "label": "Input Variable", "field": "name", "align": "left"},
+            {"name": "name", "label": "Raw Variable name", "field": "name", "align": "left"},
             {"name": "instrument", "label": "Instrument", "field": "instrument", "align": "left"},
             {"name": "units", "label": "Units", "field": "units", "align": "left"},
             {"name": "file", "label": "File", "field": "file", "align": "left"},
@@ -487,7 +491,7 @@ input_var_table.add_slot(
       </q-input>
     </q-td>
     '''
-)
+    )
 
 input_var_table.add_slot(
     "body-cell-end", r'''
@@ -520,7 +524,7 @@ input_var_table.add_slot(
       </q-input>
     </q-td>
     '''
-)
+    )
 
 input_var_table.on("edit", handle_table_edit)
 
