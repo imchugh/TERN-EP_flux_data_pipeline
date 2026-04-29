@@ -24,17 +24,6 @@ from services.metadata.file_mapping_service import get_variables_from_file
 
 file = '/opt/TERN_EP/site_configs/new_exp/CowBay.yml'
 
-
-# FILE_LIST = [
-#     file.stem for file in 
-#         file_io.list_available_files(
-#         dir_path=paths.get_local_resource_path(
-#             resource='raw_data', stream='flux_slow', site=Path(file).stem
-#             ), 
-#         pattern='*.dat'
-#         )
-#     ]
-
 # --- load config ---
 with open(Path(file), "r") as f:
     cfg = yaml.safe_load(f)
@@ -47,20 +36,58 @@ BASE_PATH = paths.get_local_stream_path(
     resource='raw_data', stream='flux_slow', site=cfg['site']
     )
 
-def get_file_list():
+# def get_file_list():
     
-    return [
-        file.stem for file in 
-            file_io.list_available_files(
-            dir_path=BASE_PATH, 
-            pattern=['*.dat', 'Cumberland*.txt'] # Hack to be removed, raw CUP files are in same dir currently
-            )
-        ]
+#     return [
+#         file.stem for file in 
+#             file_io.list_available_files(
+#             dir_path=BASE_PATH, 
+#             pattern=['*.dat', 'Cumberland*.txt'] # Hack to be removed, raw CUP files are in same dir currently
+#             )
+#         ]
 
-FILE_LIST = get_file_list()
+def get_file_formats(cfg):
+    
+    
+    file_formats = cfg.get('file_formats', {})
+
+    default = file_formats.get('default')
+    overrides = file_formats.get('overrides', {}) or {}
+
+    if default is None:
+        raise ValueError("file_formats.default is required")
+
+    # validate default
+    if default not in file_type_options:
+        raise ValueError(f"Invalid default file type: {default}")
+
+    # --- get files from disk ---
+    files_on_disk = file_io.list_available_files(
+        dir_path=BASE_PATH, pattern=['*.dat', 'Cumberland*.txt']
+        )
+
+    files = {f.stem: default for f in files_on_disk}
+
+    # --- apply overrides safely ---
+    for fname, ftype in overrides.items():
+
+        if ftype not in file_type_options:
+            raise ValueError(f"Invalid override type for {fname}: {ftype}")
+
+        # optional: warn if override not in discovered files
+        if fname not in files:
+            # don’t fail — just surface it
+            print(f"Warning: override '{fname}' not found in file list")
+
+        files[fname] = ftype
+
+    return files
+
+FILE_FORMATS = get_file_formats(cfg=cfg)
+FILE_LIST = list(FILE_FORMATS.keys())
 
 variable_cache = {}
-def get_files_list(file_group, file_format):
+def get_file_variables(file_group: str, file_format: str):
     
     if file_group in variable_cache:
         return variable_cache[file_group]
@@ -100,32 +127,6 @@ def render_yaml(key, value, level=0):
 
         return
     
-    # if key == "file_formats" and isinstance(value, dict):
-
-    #     with ui.column().style(f"margin-left: {20}px"):
-
-    #         # --- DEFAULT DROPDOWN ---
-    #         with ui.row().classes("items-center"):
-    #             ui.label("default").classes("w-40")
-    
-    #             current = value.get("default")
-    
-    #             default_select = ui.select(
-    #                 options=file_type_options,
-    #                 value=current if current in file_type_options else None,
-    #             ).classes("w-64")
-    
-    #             def update_default(e):
-    #                 value["default"] = default_select.value
-    
-    #             default_select.on("update:model-value", update_default)
-    
-    #         # --- render any OTHER keys normally ---
-    #         for k, v in value.items():
-    #             if k == "default":
-    #                 continue
-    #             render_yaml(k, v, level + 1)
-
     if key == "file_formats" and isinstance(value, dict):
     
         with ui.column().style(f"margin-left: {20}px"):
@@ -269,6 +270,13 @@ def build_rows(data):
     for name, attrs in data.items():
         rows.append({
             "name": name,
+            "_var_options": (
+                get_file_variables(
+                    file_group=attrs.get("file"), 
+                    file_format=FILE_FORMATS[attrs.get("file")]
+                    )
+                if attrs.get("file") else []
+                ),
             "instrument": attrs.get("instrument", ""),
             "units": attrs.get("units", ""),
             "file": attrs.get("file", ""),
@@ -297,6 +305,22 @@ def handle_table_edit(e):
     # --- write edits ---
     data[name]["instrument"] = row.get("instrument")
     data[name]["units"] = row.get("units")
+
+    # FILE UPDATE
+    old_file = data[name].get("file")
+    new_file = row.get("file")
+    data[name]["file"] = new_file
+
+    # 🔥 NEW: update variable options when file changes
+    if new_file and new_file != old_file:
+        data[name]["_var_options"] = get_file_variables(
+            file_group=new_file, file_format=FILE_FORMATS[new_file]
+            )
+
+        # optional but recommended: reset variable if invalid
+        if data[name].get("name") not in data[name]["_var_options"]:
+            data[name]["name"] = None
+
     data[name]["file"] = row.get("file")
     data[name]["begin"] = normalise_date(row.get("begin"))
     data[name]["end"] = normalise_date(row.get("end"))
@@ -439,6 +463,25 @@ input_var_table.add_slot(
         class="w-full"
         input-class="text-left"
         @blur="$parent.$emit('edit', props.row)"
+      />
+    </q-td>
+    '''
+    )
+
+input_var_table.add_slot(
+    "body-cell-name", r'''
+    <q-td :props="props">
+      <q-select
+        v-model="props.row.name"
+        :options="props.row._var_options || []"
+        dense
+        borderless
+        emit-value
+        map-options
+        placeholder="Select variable"
+        :disable="!props.row.file"
+        @update:model-value="$parent.$emit('edit', props.row)"
+        class="w-full"
       />
     </q-td>
     '''
