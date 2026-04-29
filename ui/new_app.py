@@ -24,17 +24,33 @@ from infrastructure import paths, file_io
 file = '/opt/TERN_EP/site_configs/new_exp/CumberlandPlain.yml'
 
 
-FILE_LIST = [
-    file.stem for file in 
-        file_io.list_available_files(
-        dir_path=paths.get_local_resource_path(
-            resource='raw_data', stream='flux_slow', site=Path(file).stem
-            ), 
-        pattern='*.dat'
-        )
-    ]
+# FILE_LIST = [
+#     file.stem for file in 
+#         file_io.list_available_files(
+#         dir_path=paths.get_local_resource_path(
+#             resource='raw_data', stream='flux_slow', site=Path(file).stem
+#             ), 
+#         pattern='*.dat'
+#         )
+#     ]
 
 file_type_options = [e.name for e in FileType]
+
+def get_file_list():
+    
+    return [
+        file.stem for file in 
+            file_io.list_available_files(
+            dir_path=paths.get_local_resource_path(
+                resource='raw_data', stream='flux_slow', site=Path(file).stem
+                ), 
+            pattern=['*.dat', 'Cumberland*.txt']
+            )
+        ]
+
+FILE_LIST = get_file_list()
+
+
 
 def get_variable_list(file_group, file_format):
     
