@@ -37,6 +37,7 @@ from services.metadata.file_mapping_service import get_variables_from_file
 ###############################################################################
 
 EXCLUDE_VARS = ['TIMESTAMP', 'date', 'time']
+IMMUTABLE_FIELDS = ['site']
 
 file = '/opt/TERN_EP/site_configs/new_exp/CowBay.yml'
 
@@ -154,6 +155,14 @@ def render_yaml(key, value, level=0):
 
     base_indent = level * 20
     child_indent = (level + 1) * 20
+
+    if key in IMMUTABLE_FIELDS:
+        with ui.column().style(f"margin-left: {child_indent}px"):
+            ui.input(
+                label=key,
+                value=str(value),
+            ).classes("w-full").props("readonly")
+        return
 
     # --- TOP LEVEL HEADER ---
     if level == 0:
@@ -315,25 +324,30 @@ def render_yaml(key, value, level=0):
 # -------------------------
 def build_rows(data):
     rows = []
-    for name, attrs in data.items():
-        rows.append({
-            "_key": name,
-            "name": attrs.get("name", name),
-            "_var_options": (
-                get_file_variables(
-                    file_group=attrs.get("file"), 
-                    file_format=FILE_FORMATS[attrs.get("file")]
+    for key, attrs in data.items():
+
+        file = attrs.get("file")
+
+        options = []
+        if file:
+            file_format = FILE_FORMATS[file]
+            if file_format:
+                options = get_file_variables(
+                    file_group=file,
+                    file_format=file_format
                     )
-                if attrs.get("file") else []
-                ),
+
+        rows.append({
+            "_key": key,
+            "name": attrs.get("name", key),
+            "_var_options": options,   # ← ONLY defined here
             "instrument": attrs.get("instrument", ""),
             "units": attrs.get("units", ""),
-            "file": attrs.get("file", ""),
+            "file": file,
             "begin": str(attrs.get("begin", "")),
             "end": str(attrs.get("end", "")),
         })
     return rows
-
 
 # -------------------------
 # WRITE BACK TABLE EDITS
@@ -358,31 +372,15 @@ def handle_table_edit(e):
     # FILE UPDATE
     old_file = data[key].get("file")
     new_file = row.get("file")
-    data[key]["file"] = new_file
-
-    # 🔥 NEW: update variable options when file changes
-    if new_file and new_file != old_file:
-
+       
+    if new_file != old_file:
         data[key]["file"] = new_file
-        # breakpoint()
-        
-        options = get_file_variables(
-                file_group=new_file,
-                file_format=FILE_FORMATS[new_file]
-            )
-        
-        # update backend
-        data[key]["_var_options"] = options
     
-        # 🔥 update frontend row (this is what the dropdown uses)
-        row["_var_options"] = options
-    
+        # reset dependent fields
         data[key]["name"] = None
         data[key]["instrument"] = None
         data[key]["units"] = None
-        
-        # 🔥 force UI refresh
-        # input_var_table.update()
+
         input_var_table.rows = build_rows(data)
         input_var_table.update()
             
