@@ -26,6 +26,7 @@ import yaml
 from domain.enums import StatisticType, FileType
 from infrastructure import paths, file_io
 from services.metadata.file_mapping_service import get_variables_from_file
+from ui.components.input_variable_table import create_input_variable_table
 
 ###############################################################################
 ### END IMPORTS ###
@@ -52,6 +53,9 @@ file_type_options = [e.name for e in FileType]
 BASE_PATH = paths.get_local_stream_path(
     resource='raw_data', stream='flux_slow', site=cfg['site']
     )
+
+
+
 
 # -----------------------------------------------------------------------------
 
@@ -147,6 +151,46 @@ def get_file_variables(file_group: str, file_format: str) -> list[str]:
     return vars_list
 # -----------------------------------------------------------------------------
 
+# -----------------------------------------------------------------------------
+
+def validate_ranges(data):
+    # extract and sort by begin (None = earliest)
+    def sort_key(item):
+        begin = item[1].get("begin")
+        return begin or "0000-00-00"
+
+    items = sorted(data.items(), key=sort_key)
+
+    prev_end = None
+
+    for i, (name, attrs) in enumerate(items):
+        begin = attrs.get("begin")
+        end = attrs.get("end")
+
+        # first can have begin = None
+        if i == 0:
+            pass
+        else:
+            if begin is None:
+                raise ValueError(f"{name}: begin cannot be None unless first segment")
+
+        # last can have end = None
+        if i == len(items) - 1:
+            pass
+        else:
+            if end is None:
+                raise ValueError(f"{name}: end cannot be None unless last segment")
+
+        # check overlap
+        if prev_end and begin and begin < prev_end:
+            raise ValueError(f"{name}: overlaps previous segment")
+
+        if end:
+            prev_end = end
+# -----------------------------------------------------------------------------
+
+
+
 
 # -------------------------
 # TOP LEVEL RENDER (unchanged)
@@ -172,17 +216,17 @@ def render_yaml(key, value, level=0):
     if key == "variables" and isinstance(value, dict):
         with ui.column().style(f"margin-left: {child_indent}px"):
 
-            global selected_var
+            # global selected_var
             selected_var = ui.select(
                 options=sorted(value.keys()),
                 label="Selected variable",
                 value=sorted(value.keys())[0] if value else None,
             ).classes("w-64")
 
-            global var_container
+            # global var_container
             var_container = ui.column().classes("w-full")
 
-        return
+        return selected_var, var_container
     
     if key == "file_formats" and isinstance(value, dict):
     
@@ -319,114 +363,35 @@ def render_yaml(key, value, level=0):
                 value="" if value is None else str(value)
             ).classes("w-full")
 
-# -------------------------
-# BUILD TABLE ROWS
-# -------------------------
-def build_rows(data):
-    rows = []
-    for key, attrs in data.items():
 
-        file = attrs.get("file")
 
-        options = []
-        if file:
-            file_format = FILE_FORMATS[file]
-            if file_format:
-                options = get_file_variables(
-                    file_group=file,
-                    file_format=file_format
-                    )
+selected_var = None
+var_container = None
 
-        rows.append({
-            "_key": key,
-            "name": attrs.get("name", key),
-            "_var_options": options,   # ← ONLY defined here
-            "instrument": attrs.get("instrument", ""),
-            "units": attrs.get("units", ""),
-            "file": file,
-            "begin": str(attrs.get("begin", "")),
-            "end": str(attrs.get("end", "")),
-        })
-    return rows
+for k, v in cfg.items():
+    result = render_yaml(k, v, level=0)
 
-# -------------------------
-# WRITE BACK TABLE EDITS
-# -------------------------
-def handle_table_edit(e):
-    row = e.args
+    if isinstance(result, tuple):
+        selected_var, var_container = result
 
-    var = selected_var.value
-    data = variables[var]["input_variables"]
+# Build the input_variables table
 
-    key = row["_key"]
-    if key not in data:
-        return
+# Context object first
+# context = {
+#     "variables": variables,
+#     "selected_var": selected_var,
+#     "FILE_FORMATS": FILE_FORMATS,
+#     "get_file_variables": get_file_variables,
+#     "validate_ranges": validate_ranges,
+#     }
 
-    def normalise_date(value):
-        return None if value in ("", None) else value
-
-    # --- write edits ---
-    data[key]["instrument"] = row.get("instrument")
-    data[key]["units"] = row.get("units")
-
-    # FILE UPDATE
-    old_file = data[key].get("file")
-    new_file = row.get("file")
-       
-    if new_file != old_file:
-        data[key]["file"] = new_file
-    
-        # reset dependent fields
-        data[key]["name"] = None
-        data[key]["instrument"] = None
-        data[key]["units"] = None
-
-        input_var_table.rows = build_rows(data)
-        input_var_table.update()
-            
-    data[key]["begin"] = normalise_date(row.get("begin"))
-    data[key]["end"] = normalise_date(row.get("end"))
-
-    # --- validate AFTER update ---
-    try:
-        validate_ranges(data)
-    except ValueError as e:
-        ui.notify(str(e), color="red")
-
-def validate_ranges(data):
-    # extract and sort by begin (None = earliest)
-    def sort_key(item):
-        begin = item[1].get("begin")
-        return begin or "0000-00-00"
-
-    items = sorted(data.items(), key=sort_key)
-
-    prev_end = None
-
-    for i, (name, attrs) in enumerate(items):
-        begin = attrs.get("begin")
-        end = attrs.get("end")
-
-        # first can have begin = None
-        if i == 0:
-            pass
-        else:
-            if begin is None:
-                raise ValueError(f"{name}: begin cannot be None unless first segment")
-
-        # last can have end = None
-        if i == len(items) - 1:
-            pass
-        else:
-            if end is None:
-                raise ValueError(f"{name}: end cannot be None unless last segment")
-
-        # check overlap
-        if prev_end and begin and begin < prev_end:
-            raise ValueError(f"{name}: overlaps previous segment")
-
-        if end:
-            prev_end = end
+input_var_table, refresh_table = create_input_variable_table(
+    variables=variables,
+    selected_var=selected_var,
+    get_file_variables=get_file_variables,
+    FILE_FORMATS=FILE_FORMATS,
+    validate_ranges=validate_ranges,
+    )
 
 # -------------------------
 # RENDER VARIABLE (core)
@@ -476,165 +441,170 @@ def render_variable():
         with ui.row().style("margin-left: 20px"):
             ui.label("input_variables").classes("text-subtitle2")
 
-        # table (indented further)
         with ui.column().style("margin-left: 40px"):
+            refresh_table()
 
-            input_var_table.rows = build_rows(
-                data.get("input_variables", {})
-            )
-            input_var_table.update()
+        # # table (indented further)
+        # with ui.column().style("margin-left: 40px"):
+
+        #     input_var_table.rows = build_rows(
+        #         data.get("input_variables", {})
+        #     )
+        #     input_var_table.update()
 
 
 # -------------------------
 # UI
 # -------------------------
-ui.label(Path(file).name).classes("text-h5")
+# ui.label(Path(file).name).classes("text-h5")
 
-for k, v in cfg.items():
-    render_yaml(k, v, level=0)
+# for k, v in cfg.items():
+#     render_yaml(k, v, level=0)
 
 # table (single instance)
 
-# -------------------------
-# Input variable table
-# -------------------------
-input_var_table = (
-    ui.table(
-        columns=[
-            {"name": "file", "label": "File name", "field": "file", "align": "left"},
-            {"name": "name", "label": "Raw variable name", "field": "name", "align": "left"},
-            {"name": "instrument", "label": "Instrument", "field": "instrument", "align": "left"},
-            {"name": "units", "label": "Units", "field": "units", "align": "left"},
-            {"name": "begin", "label": "Start date", "field": "begin", "align": "left"},
-            {"name": "end", "label": "End date", "field": "end", "align": "left"},
-            ],
-        rows=[],
-        row_key="_key",
-    )
-    .classes("w-full")
-)
+# # -------------------------
+# # Input variable table
+# # -------------------------
+# input_var_table = (
+#     ui.table(
+#         columns=[
+#             {"name": "file", "label": "File name", "field": "file", "align": "left"},
+#             {"name": "name", "label": "Raw variable name", "field": "name", "align": "left"},
+#             {"name": "instrument", "label": "Instrument", "field": "instrument", "align": "left"},
+#             {"name": "units", "label": "Units", "field": "units", "align": "left"},
+#             {"name": "begin", "label": "Start date", "field": "begin", "align": "left"},
+#             {"name": "end", "label": "End date", "field": "end", "align": "left"},
+#             ],
+#         rows=[],
+#         row_key="_key",
+#     )
+#     .classes("w-full")
+# )
 
-# editable cells
-input_var_table.add_slot(
-    "body-cell", r'''
-    <q-td :props="props">
-      <q-input
-        v-model="props.row[props.col.name]"
-        dense
-        borderless
-        class="w-full"
-        input-class="text-left"
-        @blur="$parent.$emit('edit', props.row)"
-      />
-    </q-td>
-    '''
-    )
+# # editable cells
+# input_var_table.add_slot(
+#     "body-cell", r'''
+#     <q-td :props="props">
+#       <q-input
+#         v-model="props.row[props.col.name]"
+#         dense
+#         borderless
+#         class="w-full"
+#         input-class="text-left"
+#         @blur="$parent.$emit('edit', props.row)"
+#       />
+#     </q-td>
+#     '''
+#     )
 
-input_var_table.add_slot(
-    "body-cell-name", r'''
-    <q-td :props="props">
-      <q-select
-        v-model="props.row.name"
-        :options="props.row._var_options || []"
-        dense
-        borderless
-        emit-value
-        map-options
-        placeholder="Select variable"
-        :disable="!props.row.file"
-        @update:model-value="$parent.$emit('edit', props.row)"
-        class="w-full"
-      />
-    </q-td>
-    '''
-    )
+# input_var_table.add_slot(
+#     "body-cell-name", r'''
+#     <q-td :props="props">
+#       <q-select
+#         v-model="props.row.name"
+#         :options="props.row._var_options || []"
+#         dense
+#         borderless
+#         emit-value
+#         map-options
+#         placeholder="Select variable"
+#         :disable="!props.row.file"
+#         @update:model-value="$parent.$emit('edit', props.row)"
+#         class="w-full"
+#       />
+#     </q-td>
+#     '''
+#     )
 
-input_var_table.add_slot(
-    "body-cell-file", r'''
-    <q-td :props="props">
-      <q-select
-        v-model="props.row.file"
-        :options="''' + str(FILE_LIST) + r'''"
-        dense
-        borderless
-        emit-value
-        map-options
-        @update:model-value="$parent.$emit('edit', props.row)"
-      />
-    </q-td>
-    '''
-)
+# input_var_table.add_slot(
+#     "body-cell-file", r'''
+#     <q-td :props="props">
+#       <q-select
+#         v-model="props.row.file"
+#         :options="''' + str(FILE_LIST) + r'''"
+#         dense
+#         borderless
+#         emit-value
+#         map-options
+#         @update:model-value="$parent.$emit('edit', props.row)"
+#       />
+#     </q-td>
+#     '''
+# )
 
-input_var_table.add_slot(
-    "body-cell-begin", r'''
-    <q-td :props="props">
-      <q-input
-        v-model="props.row.begin"
-        dense
-        borderless
-        placeholder="YYYY-MM-DD HH:mm"
-        class="w-full"
-      >
-        <template v-slot:append>
-          <q-icon name="event" class="cursor-pointer">
-            <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-              <div>
-                <q-date
-                  v-model="props.row.begin"
-                  mask="YYYY-MM-DD HH:mm"
-                />
-                <q-time
-                  v-model="props.row.begin"
-                  mask="YYYY-MM-DD HH:mm"
-                  format24h
-                  @update:model-value="$parent.$emit('edit', props.row)"
-                />
-              </div>
-            </q-popup-proxy>
-          </q-icon>
-        </template>
-      </q-input>
-    </q-td>
-    '''
-    )
+# input_var_table.add_slot(
+#     "body-cell-begin", r'''
+#     <q-td :props="props">
+#       <q-input
+#         v-model="props.row.begin"
+#         dense
+#         borderless
+#         placeholder="YYYY-MM-DD HH:mm"
+#         class="w-full"
+#       >
+#         <template v-slot:append>
+#           <q-icon name="event" class="cursor-pointer">
+#             <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+#               <div>
+#                 <q-date
+#                   v-model="props.row.begin"
+#                   mask="YYYY-MM-DD HH:mm"
+#                 />
+#                 <q-time
+#                   v-model="props.row.begin"
+#                   mask="YYYY-MM-DD HH:mm"
+#                   format24h
+#                   @update:model-value="$parent.$emit('edit', props.row)"
+#                 />
+#               </div>
+#             </q-popup-proxy>
+#           </q-icon>
+#         </template>
+#       </q-input>
+#     </q-td>
+#     '''
+#     )
 
-input_var_table.add_slot(
-    "body-cell-end", r'''
-    <q-td :props="props">
-      <q-input
-        v-model="props.row.end"
-        dense
-        borderless
-        placeholder="YYYY-MM-DD HH:mm"
-        class="w-full"
-      >
-        <template v-slot:append>
-          <q-icon name="event" class="cursor-pointer">
-            <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-              <div>
-                <q-date
-                  v-model="props.row.end"
-                  mask="YYYY-MM-DD HH:mm"
-                />
-                <q-time
-                  v-model="props.row.end"
-                  mask="YYYY-MM-DD HH:mm"
-                  format24h
-                  @update:model-value="$parent.$emit('edit', props.row)"
-                />
-              </div>
-            </q-popup-proxy>
-          </q-icon>
-        </template>
-      </q-input>
-    </q-td>
-    '''
-    )
+# input_var_table.add_slot(
+#     "body-cell-end", r'''
+#     <q-td :props="props">
+#       <q-input
+#         v-model="props.row.end"
+#         dense
+#         borderless
+#         placeholder="YYYY-MM-DD HH:mm"
+#         class="w-full"
+#       >
+#         <template v-slot:append>
+#           <q-icon name="event" class="cursor-pointer">
+#             <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+#               <div>
+#                 <q-date
+#                   v-model="props.row.end"
+#                   mask="YYYY-MM-DD HH:mm"
+#                 />
+#                 <q-time
+#                   v-model="props.row.end"
+#                   mask="YYYY-MM-DD HH:mm"
+#                   format24h
+#                   @update:model-value="$parent.$emit('edit', props.row)"
+#                 />
+#               </div>
+#             </q-popup-proxy>
+#           </q-icon>
+#         </template>
+#       </q-input>
+#     </q-td>
+#     '''
+#     )
 
-input_var_table.on("edit", handle_table_edit)
+# input_var_table.on("edit", handle_table_edit)
 
 # events
 selected_var.on('update:model-value', lambda e: render_variable())
+
+
 
 # init
 render_variable()
