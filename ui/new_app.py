@@ -54,7 +54,9 @@ BASE_PATH = paths.get_local_stream_path(
     resource='raw_data', stream='flux_slow', site=cfg['site']
     )
 
-
+###############################################################################
+### END INITS ###
+###############################################################################
 
 
 # -----------------------------------------------------------------------------
@@ -189,8 +191,94 @@ def validate_ranges(data):
             prev_end = end
 # -----------------------------------------------------------------------------
 
+# -----------------------------------------------------------------------------
 
+def build_rows(data):
+    rows = []
+    for key, attrs in data.items():
 
+        file = attrs.get("file")
+
+        options = []
+        if file:
+            file_format = FILE_FORMATS.get(file)
+            if file_format:
+                options = get_file_variables(file, file_format)
+
+        rows.append({
+            "_key": key,
+            "name": attrs.get("name", key),
+            "_var_options": options,
+            "instrument": attrs.get("instrument", ""),
+            "units": attrs.get("units", ""),
+            "file": file,
+            "begin": str(attrs.get("begin", "")),
+            "end": str(attrs.get("end", "")),
+        })
+    return rows
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+
+def get_rows():
+    var = selected_var.value
+    if not var:
+        return []
+    return build_rows(variables[var]["input_variables"])
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+
+def handle_table_edit(row):
+
+    var = selected_var.value
+    data = variables[var]["input_variables"]
+
+    key = row["_key"]
+    if key not in data:
+        return
+
+    def normalise_date(value):
+        return None if value in ("", None) else value
+
+    old_file = data[key].get("file")
+    new_file = row.get("file")
+
+    # 🔥 FILE CHANGE (early exit)
+    if new_file != old_file:
+
+        data[key]["file"] = new_file
+        data[key]["name"] = None
+        data[key]["instrument"] = None
+        data[key]["units"] = None
+
+        refresh_table()
+        return
+
+    # normal updates
+    data[key]["instrument"] = row.get("instrument")
+    data[key]["units"] = row.get("units")
+
+    selected_name = row.get("name")
+    if selected_name is not None:
+        file = data[key].get("file")
+        if file:
+            valid = get_file_variables(file, FILE_FORMATS[file])
+            if selected_name in valid:
+                data[key]["name"] = selected_name
+        else:
+            data[key]["name"] = selected_name
+
+    data[key]["begin"] = normalise_date(row.get("begin"))
+    data[key]["end"] = normalise_date(row.get("end"))
+
+    try:
+        validate_ranges(data)
+    except ValueError as e:
+        ui.notify(str(e), color="red")
+
+    refresh_table()
+# -----------------------------------------------------------------------------
 
 # -------------------------
 # TOP LEVEL RENDER (unchanged)
@@ -365,8 +453,8 @@ def render_yaml(key, value, level=0):
 
 
 
-selected_var = None
-var_container = None
+# selected_var = None
+# var_container = None
 
 for k, v in cfg.items():
     result = render_yaml(k, v, level=0)
@@ -375,22 +463,10 @@ for k, v in cfg.items():
         selected_var, var_container = result
 
 # Build the input_variables table
-
-# Context object first
-# context = {
-#     "variables": variables,
-#     "selected_var": selected_var,
-#     "FILE_FORMATS": FILE_FORMATS,
-#     "get_file_variables": get_file_variables,
-#     "validate_ranges": validate_ranges,
-#     }
-
 input_var_table, refresh_table = create_input_variable_table(
-    variables=variables,
-    selected_var=selected_var,
-    get_file_variables=get_file_variables,
-    FILE_FORMATS=FILE_FORMATS,
-    validate_ranges=validate_ranges,
+    get_rows=get_rows,
+    on_edit=handle_table_edit,
+    file_list=FILE_LIST,
     )
 
 # -------------------------
