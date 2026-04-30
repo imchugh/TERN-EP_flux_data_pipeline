@@ -36,16 +36,6 @@ BASE_PATH = paths.get_local_stream_path(
     resource='raw_data', stream='flux_slow', site=cfg['site']
     )
 
-# def get_file_list():
-    
-#     return [
-#         file.stem for file in 
-#             file_io.list_available_files(
-#             dir_path=BASE_PATH, 
-#             pattern=['*.dat', 'Cumberland*.txt'] # Hack to be removed, raw CUP files are in same dir currently
-#             )
-#         ]
-
 def get_file_formats(cfg):
     
     
@@ -269,6 +259,7 @@ def build_rows(data):
     rows = []
     for name, attrs in data.items():
         rows.append({
+            "_key": name,
             "name": name,
             "_var_options": (
                 get_file_variables(
@@ -295,7 +286,7 @@ def handle_table_edit(e):
     var = selected_var.value
     data = variables[var]["input_variables"]
 
-    name = row["name"]
+    name = row["_key"]
     if name not in data:
         return
 
@@ -314,6 +305,8 @@ def handle_table_edit(e):
     # 🔥 NEW: update variable options when file changes
     if new_file and new_file != old_file:
 
+        # breakpoint()
+        
         options = get_file_variables(
                 file_group=new_file,
                 file_format=FILE_FORMATS[new_file]
@@ -331,6 +324,8 @@ def handle_table_edit(e):
             data[name]["name"] = None
     
         # 🔥 force UI refresh
+        # input_var_table.update()
+        input_var_table.rows = build_rows(data)
         input_var_table.update()
             
     data[name]["begin"] = normalise_date(row.get("begin"))
@@ -450,15 +445,15 @@ for k, v in cfg.items():
 input_var_table = (
     ui.table(
         columns=[
-            {"name": "name", "label": "Raw Variable name", "field": "name", "align": "left"},
+            {"name": "file", "label": "File name", "field": "file", "align": "left"},
+            {"name": "name", "label": "Raw variable name", "field": "name", "align": "left"},
             {"name": "instrument", "label": "Instrument", "field": "instrument", "align": "left"},
             {"name": "units", "label": "Units", "field": "units", "align": "left"},
-            {"name": "file", "label": "File", "field": "file", "align": "left"},
-            {"name": "begin", "label": "Begin", "field": "begin", "align": "left"},
-            {"name": "end", "label": "End", "field": "end", "align": "left"},
+            {"name": "begin", "label": "Start date", "field": "begin", "align": "left"},
+            {"name": "end", "label": "End date", "field": "end", "align": "left"},
             ],
         rows=[],
-        row_key="name",
+        row_key="_key",
     )
     .classes("w-full")
 )
@@ -562,11 +557,11 @@ input_var_table.add_slot(
             <q-popup-proxy cover transition-show="scale" transition-hide="scale">
               <div>
                 <q-date
-                  v-model="props.row.begin"
+                  v-model="props.row.end"
                   mask="YYYY-MM-DD HH:mm"
                 />
                 <q-time
-                  v-model="props.row.begin"
+                  v-model="props.row.end"
                   mask="YYYY-MM-DD HH:mm"
                   format24h
                   @update:model-value="$parent.$emit('edit', props.row)"
