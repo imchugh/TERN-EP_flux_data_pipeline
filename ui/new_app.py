@@ -13,14 +13,28 @@ Created on Thu Apr 23 12:07:29 2026
 
 @author: imchugh
 """
+###############################################################################
+### BEGIN IMPORTS ###
+###############################################################################
 
 from nicegui import ui
 from pathlib import Path
 import yaml
 
+# -----------------------------------------------------------------------------
+
 from domain.enums import StatisticType, FileType
 from infrastructure import paths, file_io
 from services.metadata.file_mapping_service import get_variables_from_file
+
+###############################################################################
+### END IMPORTS ###
+###############################################################################
+
+
+###############################################################################
+### BEGIN INITS ###
+###############################################################################
 
 EXCLUDE_VARS = ['TIMESTAMP', 'date', 'time']
 
@@ -38,52 +52,87 @@ BASE_PATH = paths.get_local_stream_path(
     resource='raw_data', stream='flux_slow', site=cfg['site']
     )
 
-def get_file_formats(cfg):
-    
-    
-    file_formats = cfg.get('file_formats', {})
+# -----------------------------------------------------------------------------
 
+def get_file_formats(cfg: dict) -> dict[str, str]:
+    """
+    Get a dict with available files (key) and their formats (value).
+
+    Args:
+        cfg: the loaded config file dict.
+
+    Raises:
+        ValueError: raised if defaults missing or file format not supported.
+
+    Returns:
+        files: files with formats.
+
+    """
+    
+    # Get format-related dicts
+    file_formats = cfg.get('file_formats', {})
     default = file_formats.get('default')
     overrides = file_formats.get('overrides', {}) or {}
 
+    # Check for default
     if default is None:
         raise ValueError("file_formats.default is required")
 
-    # validate default
+    # Validate default
     if default not in file_type_options:
         raise ValueError(f"Invalid default file type: {default}")
 
-    # --- get files from disk ---
+    # Get files from disk
     files_on_disk = file_io.list_available_files(
         dir_path=BASE_PATH, pattern=['*.dat', 'Cumberland*.txt']
         )
-
     files = {f.stem: default for f in files_on_disk}
 
-    # --- apply overrides safely ---
+    # Apply overrides safely
     for fname, ftype in overrides.items():
 
         if ftype not in file_type_options:
             raise ValueError(f"Invalid override type for {fname}: {ftype}")
 
-        # optional: warn if override not in discovered files
+        # Warn if override not in discovered files -> raise?
         if fname not in files:
-            # don’t fail — just surface it
             print(f"Warning: override '{fname}' not found in file list")
 
         files[fname] = ftype
 
     return files
 
+# Assign formats and file lists
 FILE_FORMATS = get_file_formats(cfg=cfg)
 FILE_LIST = list(FILE_FORMATS.keys())
+# -----------------------------------------------------------------------------
 
+# -----------------------------------------------------------------------------
+
+# Lazy load and cache variables available in header of passed file.
 variable_cache = {}
-def get_file_variables(file_group: str, file_format: str):
+def get_file_variables(file_group: str, file_format: str) -> list[str]:
+    """
+    Get the list of variables in the headers of the passed file group 
+    (master file and any backups).
+
+    Args:
+        file_group: file name without extension.
+        file_format: the format of the file group to load.
+
+    Returns:
+        variable list from file header.
+
+    """
     
+    # Only load if not in the cache; otherwise return
     if file_group in variable_cache:
         return variable_cache[file_group]
+    
+    # Get format
     ftype = FileType[file_format]
+    
+    # Get the variable list and filter out (time-based) variables for exclusion.
     vars_list = [
         variable for variable in get_variables_from_file(
             file_path=BASE_PATH / f'{file_group}.{ftype.extension}', 
@@ -91,8 +140,12 @@ def get_file_variables(file_group: str, file_format: str):
             )
         if variable not in EXCLUDE_VARS
         ]
+    
+    # Assign variables to cache
     variable_cache[file_group] = vars_list
     return vars_list
+# -----------------------------------------------------------------------------
+
 
 # -------------------------
 # TOP LEVEL RENDER (unchanged)
