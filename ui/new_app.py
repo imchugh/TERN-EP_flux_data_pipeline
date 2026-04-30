@@ -22,6 +22,8 @@ from domain.enums import StatisticType, FileType
 from infrastructure import paths, file_io
 from services.metadata.file_mapping_service import get_variables_from_file
 
+EXCLUDE_VARS = ['TIMESTAMP', 'date', 'time']
+
 file = '/opt/TERN_EP/site_configs/new_exp/CowBay.yml'
 
 # --- load config ---
@@ -82,10 +84,13 @@ def get_file_variables(file_group: str, file_format: str):
     if file_group in variable_cache:
         return variable_cache[file_group]
     ftype = FileType[file_format]
-    vars_list = get_variables_from_file(
-        file_path=BASE_PATH / f'{file_group}.{ftype.extension}', 
-        system_type=ftype.name
-        )
+    vars_list = [
+        variable for variable in get_variables_from_file(
+            file_path=BASE_PATH / f'{file_group}.{ftype.extension}', 
+            system_type=ftype.name
+            )
+        if variable not in EXCLUDE_VARS
+        ]
     variable_cache[file_group] = vars_list
     return vars_list
 
@@ -260,7 +265,7 @@ def build_rows(data):
     for name, attrs in data.items():
         rows.append({
             "_key": name,
-            "name": name,
+            "name": attrs.get("name", name),
             "_var_options": (
                 get_file_variables(
                     file_group=attrs.get("file"), 
@@ -286,25 +291,26 @@ def handle_table_edit(e):
     var = selected_var.value
     data = variables[var]["input_variables"]
 
-    name = row["_key"]
-    if name not in data:
+    key = row["_key"]
+    if key not in data:
         return
 
     def normalise_date(value):
         return None if value in ("", None) else value
 
     # --- write edits ---
-    data[name]["instrument"] = row.get("instrument")
-    data[name]["units"] = row.get("units")
+    data[key]["instrument"] = row.get("instrument")
+    data[key]["units"] = row.get("units")
 
     # FILE UPDATE
-    old_file = data[name].get("file")
+    old_file = data[key].get("file")
     new_file = row.get("file")
-    data[name]["file"] = new_file
+    data[key]["file"] = new_file
 
     # 🔥 NEW: update variable options when file changes
     if new_file and new_file != old_file:
 
+        data[key]["file"] = new_file
         # breakpoint()
         
         options = get_file_variables(
@@ -313,23 +319,22 @@ def handle_table_edit(e):
             )
         
         # update backend
-        data[name]["_var_options"] = options
+        data[key]["_var_options"] = options
     
         # 🔥 update frontend row (this is what the dropdown uses)
         row["_var_options"] = options
     
-        # reset invalid variable
-        if row.get("name") not in options:
-            row["name"] = None
-            data[name]["name"] = None
-    
+        data[key]["name"] = None
+        data[key]["instrument"] = None
+        data[key]["units"] = None
+        
         # 🔥 force UI refresh
         # input_var_table.update()
         input_var_table.rows = build_rows(data)
         input_var_table.update()
             
-    data[name]["begin"] = normalise_date(row.get("begin"))
-    data[name]["end"] = normalise_date(row.get("end"))
+    data[key]["begin"] = normalise_date(row.get("begin"))
+    data[key]["end"] = normalise_date(row.get("end"))
 
     # --- validate AFTER update ---
     try:
