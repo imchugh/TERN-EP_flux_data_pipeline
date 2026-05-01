@@ -26,7 +26,9 @@ import yaml
 from domain.enums import StatisticType, FileType
 from infrastructure import paths, file_io
 from services.metadata.file_mapping_service import get_variables_from_file
-from ui.components.input_variable_table import create_input_variable_table
+from ui.components.component_config import (
+    create_input_variable_table, create_file_formats_editor
+    )
 
 ###############################################################################
 ### END IMPORTS ###
@@ -280,6 +282,41 @@ def handle_table_edit(row):
     refresh_table()
 # -----------------------------------------------------------------------------
 
+def get_file_formats_state():
+    ff = cfg.get("file_formats", {})
+
+    return {
+        "default": ff.get("default"),
+        "overrides": ff.get("overrides", {}) or {}
+    }
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+
+def handle_file_formats_change(event):
+    ff = cfg.setdefault("file_formats", {})
+
+    if event["type"] == "default":
+        ff["default"] = event["value"]
+
+    elif event["type"] == "override_type":
+        overrides = ff.setdefault("overrides", {})
+        overrides[event["file"]] = event["value"]
+
+    elif event["type"] == "override_file":
+        overrides = ff.setdefault("overrides", {})
+
+        old = event["old_file"]
+        new = event["new_file"]
+
+        if old in overrides:
+            overrides[new] = overrides.pop(old)
+
+    elif event["type"] == "delete_override":
+        overrides = ff.setdefault("overrides", {})
+        overrides.pop(event["file"], None)
+# -----------------------------------------------------------------------------
+
 # -------------------------
 # TOP LEVEL RENDER (unchanged)
 # -------------------------
@@ -317,113 +354,124 @@ def render_yaml(key, value, level=0):
         return selected_var, var_container
     
     if key == "file_formats" and isinstance(value, dict):
-    
-        with ui.column().style(f"margin-left: {20}px"):
-    
-            # -------------------------
-            # DEFAULT
-            # -------------------------
-            with ui.row().classes("items-center"):
-                ui.label("default").classes("w-40")
-    
-                current = value.get("default")
-    
-                default_select = ui.select(
-                    options=file_type_options,
-                    value=current if current in file_type_options else None,
-                ).classes("w-64")
-    
-                def update_default(e):
-                    value["default"] = default_select.value
-    
-                default_select.on("update:model-value", update_default)
-    
-            # -------------------------
-            # OVERRIDES HEADER
-            # -------------------------
-    
-            # ensure structure exists
-            if "overrides" not in value or value["overrides"] is None:
-                value["overrides"] = {}
-    
-            # -------------------------
-            # OVERRIDES TABLE
-            # -------------------------
-            with ui.row().classes("items-start"):
-                
-                # LEFT: label (anchor point)
-                ui.label("overrides").classes("w-40")
-                
-                override_rows = [
-                    {"file": k, "type": v, "_original_file": k}
-                    for k, v in value.get("overrides", {}).items()
-                    ]
-                
-                # RIGHT: table (always aligned)
-                with ui.column().classes("flex-grow"):
-                    
-                    overrides_table = ui.table(
-                        columns=[
-                            {"name": "file", "label": "File", "field": "file"},
-                            {"name": "type", "label": "Type", "field": "type"},
-                        ],
-                        rows=override_rows,
-                        row_key="file",
-                    ).classes("w-full")
-    
-                # editable file name
-                overrides_table.add_slot(
-                    "body-cell-file", r'''
-                    <q-td :props="props">
-                      <q-select
-                        v-model="props.row.file"
-                        :options="''' + str(FILE_LIST) + r'''"
-                        dense
-                        borderless
-                        emit-value
-                        map-options
-                        @update:model-value="$parent.$emit('edit', props.row, 'file')"
-                      />
-                    </q-td>
-                    '''
-                    )
-    
-                # dropdown for type
-                overrides_table.add_slot(
-                    "body-cell-type", r'''
-                    <q-td :props="props">
-                      <q-select
-                        v-model="props.row.type"
-                        :options="''' + str(file_type_options) + r'''"
-                        dense
-                        borderless
-                        emit-value
-                        map-options
-                        @update:model-value="$parent.$emit('edit', props.row, 'type')"
-                      />
-                    </q-td>
-                    '''
+        
+        with ui.column().style("margin-left: 20px"):
+
+            ff_component, ff_refresh = create_file_formats_editor(
+                get_file_formats_state=get_file_formats_state,
+                on_change=handle_file_formats_change,
+                file_list=FILE_LIST,
+                file_type_options=file_type_options,
                 )
-    
-                def handle_override_edit(e):
-                    row, field = e.args
-                    overrides = value["overrides"]
-                
-                    original = row["_original_file"]
-                    new_file = row["file"]
-                    new_type = row["type"]
-                
-                    # rename key if needed
-                    if original != new_file:
-                        overrides[new_file] = overrides.pop(original)
-                        row["_original_file"] = new_file
-                
-                    # always update type
-                    overrides[new_file] = new_type
-    
-                overrides_table.on("edit", handle_override_edit)
-    
+        
         return
+    
+        # with ui.column().style(f"margin-left: {20}px"):
+    
+        #     # -------------------------
+        #     # DEFAULT
+        #     # -------------------------
+        #     with ui.row().classes("items-center"):
+        #         ui.label("default").classes("w-40")
+    
+        #         current = value.get("default")
+    
+        #         default_select = ui.select(
+        #             options=file_type_options,
+        #             value=current if current in file_type_options else None,
+        #         ).classes("w-64")
+    
+        #         def update_default(e):
+        #             value["default"] = default_select.value
+    
+        #         default_select.on("update:model-value", update_default)
+    
+        #     # -------------------------
+        #     # OVERRIDES HEADER
+        #     # -------------------------
+    
+        #     # ensure structure exists
+        #     if "overrides" not in value or value["overrides"] is None:
+        #         value["overrides"] = {}
+    
+        #     # -------------------------
+        #     # OVERRIDES TABLE
+        #     # -------------------------
+        #     with ui.row().classes("items-start"):
+                
+        #         # LEFT: label (anchor point)
+        #         ui.label("overrides").classes("w-40")
+                
+        #         override_rows = [
+        #             {"file": k, "type": v, "_original_file": k}
+        #             for k, v in value.get("overrides", {}).items()
+        #             ]
+                
+        #         # RIGHT: table (always aligned)
+        #         with ui.column().classes("flex-grow"):
+                    
+        #             overrides_table = ui.table(
+        #                 columns=[
+        #                     {"name": "file", "label": "File", "field": "file"},
+        #                     {"name": "type", "label": "Type", "field": "type"},
+        #                 ],
+        #                 rows=override_rows,
+        #                 row_key="file",
+        #             ).classes("w-full")
+    
+        #         # editable file name
+        #         overrides_table.add_slot(
+        #             "body-cell-file", r'''
+        #             <q-td :props="props">
+        #               <q-select
+        #                 v-model="props.row.file"
+        #                 :options="''' + str(FILE_LIST) + r'''"
+        #                 dense
+        #                 borderless
+        #                 emit-value
+        #                 map-options
+        #                 @update:model-value="$parent.$emit('edit', props.row, 'file')"
+        #               />
+        #             </q-td>
+        #             '''
+        #             )
+    
+        #         # dropdown for type
+        #         overrides_table.add_slot(
+        #             "body-cell-type", r'''
+        #             <q-td :props="props">
+        #               <q-select
+        #                 v-model="props.row.type"
+        #                 :options="''' + str(file_type_options) + r'''"
+        #                 dense
+        #                 borderless
+        #                 emit-value
+        #                 map-options
+        #                 @update:model-value="$parent.$emit('edit', props.row, 'type')"
+        #               />
+        #             </q-td>
+        #             '''
+        #         )
+    
+        #         def handle_override_edit(e):
+        #             row, field = e.args
+        #             overrides = value["overrides"]
+                
+        #             original = row["_original_file"]
+        #             new_file = row["file"]
+        #             new_type = row["type"]
+                
+        #             # rename key if needed
+        #             if original != new_file:
+        #                 overrides[new_file] = overrides.pop(original)
+        #                 row["_original_file"] = new_file
+                
+        #             # always update type
+        #             overrides[new_file] = new_type
+    
+        #         overrides_table.on("edit", handle_override_edit)
+    
+        # return
 
 
     # --- DICT ---
