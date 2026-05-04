@@ -24,8 +24,10 @@ import yaml
 # -----------------------------------------------------------------------------
 
 from domain.enums import StatisticType, FileType
+# from domain.data_models.metadata_classes import CanonicalVariableMetadata
 from infrastructure import paths, file_io
 from services.metadata.file_mapping_service import get_variables_from_file
+from services import config_loader
 from ui.components.component_config import (
     create_input_variable_table, create_file_formats_editor
     )
@@ -44,9 +46,7 @@ IMMUTABLE_FIELDS = ['site']
 
 file = '/opt/TERN_EP/site_configs/new_exp/CowBay.yml'
 
-# --- load config ---
-with open(Path(file), "r") as f:
-    cfg = yaml.safe_load(f)
+cfg = config_loader.load_config_file(file=file)
 
 variables = cfg["variables"]
 
@@ -56,10 +56,24 @@ BASE_PATH = paths.get_local_stream_path(
     resource='raw_data', stream='flux_slow', site=cfg['site']
     )
 
+def validate_canonical_variables(cfg):
+    
+    
+    pass
+
 ###############################################################################
 ### END INITS ###
 ###############################################################################
 
+
+# -----------------------------------------------------------------------------
+def get_input_units():
+    
+    metadata = config_loader.load_config_file_from_name('canonical_variables')
+    return {key: cfg.get('valid_input_units') for key, cfg in metadata.items()}
+
+INPUT_UNITS = get_input_units()
+# -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
 
@@ -577,158 +591,8 @@ def render_variable():
         #     input_var_table.update()
 
 
-# -------------------------
-# UI
-# -------------------------
-# ui.label(Path(file).name).classes("text-h5")
-
-# for k, v in cfg.items():
-#     render_yaml(k, v, level=0)
-
-# table (single instance)
-
-# # -------------------------
-# # Input variable table
-# # -------------------------
-# input_var_table = (
-#     ui.table(
-#         columns=[
-#             {"name": "file", "label": "File name", "field": "file", "align": "left"},
-#             {"name": "name", "label": "Raw variable name", "field": "name", "align": "left"},
-#             {"name": "instrument", "label": "Instrument", "field": "instrument", "align": "left"},
-#             {"name": "units", "label": "Units", "field": "units", "align": "left"},
-#             {"name": "begin", "label": "Start date", "field": "begin", "align": "left"},
-#             {"name": "end", "label": "End date", "field": "end", "align": "left"},
-#             ],
-#         rows=[],
-#         row_key="_key",
-#     )
-#     .classes("w-full")
-# )
-
-# # editable cells
-# input_var_table.add_slot(
-#     "body-cell", r'''
-#     <q-td :props="props">
-#       <q-input
-#         v-model="props.row[props.col.name]"
-#         dense
-#         borderless
-#         class="w-full"
-#         input-class="text-left"
-#         @blur="$parent.$emit('edit', props.row)"
-#       />
-#     </q-td>
-#     '''
-#     )
-
-# input_var_table.add_slot(
-#     "body-cell-name", r'''
-#     <q-td :props="props">
-#       <q-select
-#         v-model="props.row.name"
-#         :options="props.row._var_options || []"
-#         dense
-#         borderless
-#         emit-value
-#         map-options
-#         placeholder="Select variable"
-#         :disable="!props.row.file"
-#         @update:model-value="$parent.$emit('edit', props.row)"
-#         class="w-full"
-#       />
-#     </q-td>
-#     '''
-#     )
-
-# input_var_table.add_slot(
-#     "body-cell-file", r'''
-#     <q-td :props="props">
-#       <q-select
-#         v-model="props.row.file"
-#         :options="''' + str(FILE_LIST) + r'''"
-#         dense
-#         borderless
-#         emit-value
-#         map-options
-#         @update:model-value="$parent.$emit('edit', props.row)"
-#       />
-#     </q-td>
-#     '''
-# )
-
-# input_var_table.add_slot(
-#     "body-cell-begin", r'''
-#     <q-td :props="props">
-#       <q-input
-#         v-model="props.row.begin"
-#         dense
-#         borderless
-#         placeholder="YYYY-MM-DD HH:mm"
-#         class="w-full"
-#       >
-#         <template v-slot:append>
-#           <q-icon name="event" class="cursor-pointer">
-#             <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-#               <div>
-#                 <q-date
-#                   v-model="props.row.begin"
-#                   mask="YYYY-MM-DD HH:mm"
-#                 />
-#                 <q-time
-#                   v-model="props.row.begin"
-#                   mask="YYYY-MM-DD HH:mm"
-#                   format24h
-#                   @update:model-value="$parent.$emit('edit', props.row)"
-#                 />
-#               </div>
-#             </q-popup-proxy>
-#           </q-icon>
-#         </template>
-#       </q-input>
-#     </q-td>
-#     '''
-#     )
-
-# input_var_table.add_slot(
-#     "body-cell-end", r'''
-#     <q-td :props="props">
-#       <q-input
-#         v-model="props.row.end"
-#         dense
-#         borderless
-#         placeholder="YYYY-MM-DD HH:mm"
-#         class="w-full"
-#       >
-#         <template v-slot:append>
-#           <q-icon name="event" class="cursor-pointer">
-#             <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-#               <div>
-#                 <q-date
-#                   v-model="props.row.end"
-#                   mask="YYYY-MM-DD HH:mm"
-#                 />
-#                 <q-time
-#                   v-model="props.row.end"
-#                   mask="YYYY-MM-DD HH:mm"
-#                   format24h
-#                   @update:model-value="$parent.$emit('edit', props.row)"
-#                 />
-#               </div>
-#             </q-popup-proxy>
-#           </q-icon>
-#         </template>
-#       </q-input>
-#     </q-td>
-#     '''
-#     )
-
-# input_var_table.on("edit", handle_table_edit)
-
 # events
 selected_var.on('update:model-value', lambda e: render_variable())
-
-
 
 # init
 render_variable()

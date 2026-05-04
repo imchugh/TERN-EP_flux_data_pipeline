@@ -42,6 +42,7 @@ class CanonicalVariableMetadata:
     long_name: str
     standard_name: str
     standard_units: str
+    valid_input_units: str | None
     plausible_min: Optional[float] = None
     plausible_max: Optional[float] = None
 # -----------------------------------------------------------------------------
@@ -74,63 +75,3 @@ class VariableDefinition:
 ### END CLASSES ###
 ###############################################################################
 
-
-###############################################################################
-### BEGIN FUNCTIONS ###
-###############################################################################
-
-# -----------------------------------------------------------------------------
-
-def build_variable_definition(
-    var_name: str,
-    raw_cfg: any,
-    parsed_name_elems: dict,
-    canonical_metadata: dict
-    ) -> VariableDefinition:
-    
-    # breakpoint()
-    
-    # 1. Merge YAML + parsed name into RawVariableMetadata
-    raw_inputs = []
-    for raw_name, cfg in raw_cfg.input_variables.items():
-        raw_inputs.append(
-            RawVariableMetadata(
-                raw_name = raw_name,
-                raw_units = cfg.units,
-                instrument = cfg.instrument,
-                file = cfg.file,
-                begin = cfg.begin,
-                end = cfg.end,                
-                )
-            )
-    
-    # 2 Build canonical metadata object
-    canonical_meta = CanonicalVariableMetadata(**canonical_metadata)
-
-    # 3 Return immutable VariableDefinition
-    return VariableDefinition(
-        
-        # Base properties
-        variable_name = var_name,
-        instrument = cfg.instrument,
-        height = raw_cfg.height,
-        statistic_type = raw_cfg.statistic_type,
-        quantity = parsed_name_elems.get("quantity"),
-
-        # Required subclasses
-        raw_inputs = tuple(raw_inputs),
-        canonical = canonical_meta,
-        
-        # Optionals
-        instrument_type = parsed_name_elems.get("instrument_type"),
-        diag_type = cfg.diag_type,
-        vertical_location = parsed_name_elems.get("vertical_location"),
-        horizontal_location = parsed_name_elems.get("horizontal_location"),
-        replicate = parsed_name_elems.get("replicate"),
-        
-        )
-# -----------------------------------------------------------------------------
-
-###############################################################################
-### END FUNCTIONS ###
-###############################################################################
