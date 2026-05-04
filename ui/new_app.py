@@ -18,15 +18,13 @@ Created on Thu Apr 23 12:07:29 2026
 ###############################################################################
 
 from nicegui import ui
-from pathlib import Path
-import yaml
 
 # -----------------------------------------------------------------------------
 
 from domain.enums import StatisticType, FileType
-# from domain.data_models.metadata_classes import CanonicalVariableMetadata
 from infrastructure import paths, file_io
 from services.metadata.file_mapping_service import get_variables_from_file
+from services.metadata.variable_syntax_parser import NameParser
 from services import config_loader
 from ui.components.component_config import (
     create_input_variable_table, create_file_formats_editor
@@ -43,6 +41,10 @@ from ui.components.component_config import (
 
 EXCLUDE_VARS = ['TIMESTAMP', 'date', 'time']
 IMMUTABLE_FIELDS = ['site']
+CANONICAL_VARS = config_loader.load_config_file_from_name(
+    'canonical_variables'
+    )
+name_parser = NameParser()
 
 file = '/opt/TERN_EP/site_configs/new_exp/CowBay.yml'
 
@@ -56,23 +58,18 @@ BASE_PATH = paths.get_local_stream_path(
     resource='raw_data', stream='flux_slow', site=cfg['site']
     )
 
-def validate_canonical_variables(cfg):
-    
-    
-    pass
-
 ###############################################################################
 ### END INITS ###
 ###############################################################################
 
 
 # -----------------------------------------------------------------------------
-def get_input_units():
+# def get_input_units():
     
-    metadata = config_loader.load_config_file_from_name('canonical_variables')
-    return {key: cfg.get('valid_input_units') for key, cfg in metadata.items()}
+#     metadata = config_loader.load_config_file_from_name('canonical_variables')
+#     return {key: cfg.get('valid_input_units') for key, cfg in metadata.items()}
 
-INPUT_UNITS = get_input_units()
+# INPUT_UNITS = get_input_units()
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
@@ -172,6 +169,8 @@ def get_file_variables(file_group: str, file_format: str) -> list[str]:
 # -----------------------------------------------------------------------------
 
 def validate_ranges(data):
+    """Parse date fields"""
+    
     # extract and sort by begin (None = earliest)
     def sort_key(item):
         begin = item[1].get("begin")
@@ -210,6 +209,16 @@ def validate_ranges(data):
 # -----------------------------------------------------------------------------
 
 def build_rows(data):
+    
+    def normalize_units(value):
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return value
+        if isinstance(value, str):
+            return [value]   # single string case
+        return []
+    
     rows = []
     for key, attrs in data.items():
 
@@ -221,6 +230,17 @@ def build_rows(data):
             if file_format:
                 options = get_file_variables(file, file_format)
 
+        quantity = extract_quantity_safe(selected_var.value)
+
+        valid_units = []
+        if quantity and quantity in CANONICAL_VARS:
+            valid_units = [
+                {"label": u, "value": u}
+                for u in normalize_units(
+                    value=CANONICAL_VARS[quantity]["valid_input_units"]
+                    )
+                ]
+
         rows.append({
             "_key": key,
             "name": attrs.get("name", key),
@@ -230,7 +250,9 @@ def build_rows(data):
             "file": file,
             "begin": str(attrs.get("begin", "")),
             "end": str(attrs.get("end", "")),
+            "_valid_units": valid_units,
         })
+        
     return rows
 # -----------------------------------------------------------------------------
 
@@ -254,13 +276,14 @@ def handle_table_edit(row):
     if key not in data:
         return
 
+    # Force python NoneType
     def normalise_date(value):
         return None if value in ("", None) else value
 
     old_file = data[key].get("file")
     new_file = row.get("file")
 
-    # 🔥 FILE CHANGE (early exit)
+    # If file changes, early exit
     if new_file != old_file:
 
         data[key]["file"] = new_file
@@ -276,24 +299,49 @@ def handle_table_edit(row):
     data[key]["units"] = row.get("units")
 
     selected_name = row.get("name")
+        
     if selected_name is not None:
+    
         file = data[key].get("file")
+    
         if file:
             valid = get_file_variables(file, FILE_FORMATS[file])
-            if selected_name in valid:
-                data[key]["name"] = selected_name
-        else:
-            data[key]["name"] = selected_name
+            if selected_name not in valid:
+                refresh_table()
+                return
+       
+        data[key]["name"] = selected_name
+    
+           
+        # no unit-option logic here anymore
+        # only validate selected unit exists if you want
+        
+        selected_units = row.get("units")
+        if selected_units is not None:
+            data[key]["units"] = selected_units
 
+    # Handle dates
+    # Ensure they are are not empty strings
     data[key]["begin"] = normalise_date(row.get("begin"))
     data[key]["end"] = normalise_date(row.get("end"))
 
+    # Do validity checks on dates
     try:
         validate_ranges(data)
     except ValueError as e:
         ui.notify(str(e), color="red")
 
     refresh_table()
+    
+def extract_quantity_safe(name: str | None) -> str | None:
+    if not name:
+        return None
+    try:
+        return name_parser.parse_variable_name(name).quantity
+    except Exception:
+        # fallback for partial / invalid names
+        return name.split("_")[0] if "_" in name else name
+    
 # -----------------------------------------------------------------------------
 
 def get_file_formats_state():
@@ -380,114 +428,6 @@ def render_yaml(key, value, level=0):
         
         return
     
-        # with ui.column().style(f"margin-left: {20}px"):
-    
-        #     # -------------------------
-        #     # DEFAULT
-        #     # -------------------------
-        #     with ui.row().classes("items-center"):
-        #         ui.label("default").classes("w-40")
-    
-        #         current = value.get("default")
-    
-        #         default_select = ui.select(
-        #             options=file_type_options,
-        #             value=current if current in file_type_options else None,
-        #         ).classes("w-64")
-    
-        #         def update_default(e):
-        #             value["default"] = default_select.value
-    
-        #         default_select.on("update:model-value", update_default)
-    
-        #     # -------------------------
-        #     # OVERRIDES HEADER
-        #     # -------------------------
-    
-        #     # ensure structure exists
-        #     if "overrides" not in value or value["overrides"] is None:
-        #         value["overrides"] = {}
-    
-        #     # -------------------------
-        #     # OVERRIDES TABLE
-        #     # -------------------------
-        #     with ui.row().classes("items-start"):
-                
-        #         # LEFT: label (anchor point)
-        #         ui.label("overrides").classes("w-40")
-                
-        #         override_rows = [
-        #             {"file": k, "type": v, "_original_file": k}
-        #             for k, v in value.get("overrides", {}).items()
-        #             ]
-                
-        #         # RIGHT: table (always aligned)
-        #         with ui.column().classes("flex-grow"):
-                    
-        #             overrides_table = ui.table(
-        #                 columns=[
-        #                     {"name": "file", "label": "File", "field": "file"},
-        #                     {"name": "type", "label": "Type", "field": "type"},
-        #                 ],
-        #                 rows=override_rows,
-        #                 row_key="file",
-        #             ).classes("w-full")
-    
-        #         # editable file name
-        #         overrides_table.add_slot(
-        #             "body-cell-file", r'''
-        #             <q-td :props="props">
-        #               <q-select
-        #                 v-model="props.row.file"
-        #                 :options="''' + str(FILE_LIST) + r'''"
-        #                 dense
-        #                 borderless
-        #                 emit-value
-        #                 map-options
-        #                 @update:model-value="$parent.$emit('edit', props.row, 'file')"
-        #               />
-        #             </q-td>
-        #             '''
-        #             )
-    
-        #         # dropdown for type
-        #         overrides_table.add_slot(
-        #             "body-cell-type", r'''
-        #             <q-td :props="props">
-        #               <q-select
-        #                 v-model="props.row.type"
-        #                 :options="''' + str(file_type_options) + r'''"
-        #                 dense
-        #                 borderless
-        #                 emit-value
-        #                 map-options
-        #                 @update:model-value="$parent.$emit('edit', props.row, 'type')"
-        #               />
-        #             </q-td>
-        #             '''
-        #         )
-    
-        #         def handle_override_edit(e):
-        #             row, field = e.args
-        #             overrides = value["overrides"]
-                
-        #             original = row["_original_file"]
-        #             new_file = row["file"]
-        #             new_type = row["type"]
-                
-        #             # rename key if needed
-        #             if original != new_file:
-        #                 overrides[new_file] = overrides.pop(original)
-        #                 row["_original_file"] = new_file
-                
-        #             # always update type
-        #             overrides[new_file] = new_type
-    
-        #         overrides_table.on("edit", handle_override_edit)
-    
-        # return
-
-
     # --- DICT ---
     if isinstance(value, dict):
     
@@ -581,14 +521,6 @@ def render_variable():
 
         with ui.column().style("margin-left: 40px"):
             refresh_table()
-
-        # # table (indented further)
-        # with ui.column().style("margin-left: 40px"):
-
-        #     input_var_table.rows = build_rows(
-        #         data.get("input_variables", {})
-        #     )
-        #     input_var_table.update()
 
 
 # events

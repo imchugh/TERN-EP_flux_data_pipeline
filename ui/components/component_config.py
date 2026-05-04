@@ -63,7 +63,26 @@ def create_input_variable_table(
           />
         </q-td>
         '''
-    )
+        )
+    
+    # Configure unit slot
+    input_var_table.add_slot(
+        "body-cell-units", r'''
+        <q-td :props="props">
+          <q-select
+            v-model="props.row.units"
+            :options="props.row._valid_units"
+            option-label="label"
+            option-value="value"
+            dense
+            borderless
+            emit-value
+            map-options
+            @update:model-value="$parent.$emit('edit', props.row)"
+          />
+        </q-td>
+        '''
+        )
     
     # Configure start date slot
     input_var_table.add_slot(
