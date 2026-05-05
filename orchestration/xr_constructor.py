@@ -23,12 +23,12 @@ from typing import Callable
 
 # -----------------------------------------------------------------------------
 
-from services.domain.metadata.variable_metadata_service import (
+from services.metadata.variable_metadata_service import (
     SiteRuntimeConfig, load_runtime_config_by_site
     )
-from services.domain.metadata import file_mapping_service, global_metadata_service
-from services.domain.metadata.file_mapping_service import FileGroup
-from services.domain.data import raw_data_loader, conversion_service
+from services.metadata import file_mapping_service, global_metadata_service
+from services.metadata.file_mapping_service import FileGroup
+from services.data import raw_data_loader, conversion_service
 from infrastructure.data_conditioning import condition_dataframe
 
 ###############################################################################

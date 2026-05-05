@@ -115,18 +115,18 @@ def build_variable_definition(
         instrument = cfg.instrument,
         height = raw_cfg.height,
         statistic_type = raw_cfg.statistic_type,
-        quantity = parsed_name_elems.get("quantity"),
+        quantity = parsed_name_elems.quantity,
 
         # Required subclasses
         raw_inputs = tuple(raw_inputs),
         canonical = canonical_meta,
         
         # Optionals
-        instrument_type = parsed_name_elems.get("instrument_type"),
+        instrument_type = parsed_name_elems.instrument_type,
         diag_type = cfg.diag_type,
-        vertical_location = parsed_name_elems.get("vertical_location"),
-        horizontal_location = parsed_name_elems.get("horizontal_location"),
-        replicate = parsed_name_elems.get("replicate"),
+        vertical_location = parsed_name_elems.vertical_location,
+        horizontal_location = parsed_name_elems.horizontal_location,
+        replicate = parsed_name_elems.replicate,
         
         )
 # -----------------------------------------------------------------------------
