@@ -14,10 +14,12 @@ Simple validation function to ensure that (in order):
 ### BEGIN IMPORTS ###
 ###############################################################################
 
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Set
 
-from services.domain.raw_data_loader import get_header_adapter
-from infrastructure.file_io import read_lines
+from services.domain.metadata.file_mapping_service import FileGroup
+from services.domain.data.raw_data_loader import get_header_adapter
 
 ###############################################################################
 ### END IMPORTS ###
@@ -28,31 +30,67 @@ from infrastructure.file_io import read_lines
 ### BEGIN CLASSES ###
 ###############################################################################
 
-def validate_raw_data_integrity(
-        file_map: dict[Path, list[str]], system_type: str) -> None:
+@dataclass
+class ValidationResult:
+    group: str
+    found: Set[str]
+    missing: Set[str]
+
+###############################################################################
+### END CLASSES ###
+###############################################################################
+
+
+###############################################################################
+### BEGIN FUNCTIONS ###
+###############################################################################
+
+def validate_file_group(group: FileGroup) -> ValidationResult:
+
+    available: Set[str] = set()
+    header_adapter = get_header_adapter(system_type=group.system_type)
+
+    for file in group.all_files:
+        header_vars = header_adapter.load(file)['variable']  # your existing logic
+        available.update(header_vars)
+
+    expected = group.variables
+    missing = expected - available
+
+    return ValidationResult(
+        group=group.group,
+        found=available & expected,
+        missing=missing,
+    )
+
+# -----------------------------------------------------------------------------
+
+def validate_raw_data_source(
+    file_path: Path, variables: list, system_type: str, 
+    raise_if_missing: bool=False
+    ) -> None:
     """
     Validate raw data files exist and contain expected variables.
     """
 
-    for file_path, variables in file_map.items():
+    if not file_path.exists():
+        raise FileNotFoundError(f"Expected file missing: {file_path}")
 
-        if not file_path.exists():
-            raise FileNotFoundError(f"Expected file missing: {file_path}")
+    header_adapter = get_header_adapter(system_type=system_type)
+    header_line = set(header_adapter.load(file_path=file_path)['variable'])
 
-        header_adapter = get_header_adapter(system_type=system_type)
-        header_line = header_adapter.load(file_path=file_path)
+    missing = [v for v in variables if v not in header_line]
+    
+    if len(missing) == 0:
+        return missing
 
-        header_line = read_lines(file_path=file_path, begin=1, end=1)[0]
-
-        header = set(header_line)
-
-        missing = [v for v in variables if v not in header]
-
-        if missing:
-            raise ValueError(
-                f"{file_path} missing variables: {missing}"
-            )
+    if len(missing) != 0:
+        if raise_if_missing:
+            raise ValueError(f"{file_path} missing variables: {missing}")
+    
+    return missing
+# -----------------------------------------------------------------------------
                 
 ###############################################################################
-### END CLASSES ###
+### END FUNCTIONS ###
 ###############################################################################                

@@ -42,6 +42,11 @@ from infrastructure.data_conditioning import condition_dataframe
 
 TRANSFORM_SUFFIXES = {'variance_to_stdev': ('Vr', 'Sd')}
 TRANSFORM_STATS = {'variance_to_stdev': ('variance', 'standard_deviation')}
+ATTRS_SUBSET = [
+    'site_name', 'fluxnet_id', 'latitude', 'longitude', 'time_step', 
+    'time_zone', 'canopy_height', 'tower_height', 'soil', 'vegetation', 
+    'system_type', 'elevation'
+    ]
 
 ###############################################################################
 ### END INITS ###
@@ -67,6 +72,7 @@ class VariableSpec:
     
     # xarray variables attrs
     height: int
+    height_range: tuple[float, float]
     instrument: str
     long_name: str
     standard_name: str
@@ -154,6 +160,7 @@ def build_var_attrs_from_registry(
         main_spec = var_specs[-1]
         attrs = {
             "height": main_spec.height,
+            "height_range": main_spec.height_range,
             "instrument": main_spec.instrument,
             "long_name": main_spec.long_name,
             "standard_name": main_spec.standard_name,
@@ -223,26 +230,20 @@ def apply_global_metadata(
         ds: augmented dataset.
 
     """
-    
-    # Define subset of global attributes
-    ATTRS_LIST = [
-        'site_name', 'fluxnet_id', 'latitude', 'longitude', 'time_step', 
-        'time_zone', 'canopy_height', 'tower_height', 'soil', 'vegetation', 
-        'system_type', 'altitude'
-        ]
-    
+          
     # Retrieve global metadata from global_metadata_service
     metadata = global_metadata_service.get_site_metadata(
         site=runtime_cfg.site_name
         )
     
-    # Add only requested metadata fields
-    for attr in ATTRS_LIST:
+    # Add only metadata fields in subset
+    for attr in ATTRS_SUBSET:
         ds.attrs[attr] = metadata.get(attr)
-    
+   
     # Add global metadata from runtime_cfg    
     ds.attrs['irga_type'] = runtime_cfg.irga_instrument
     ds.attrs['sonic_type'] = runtime_cfg.sonic_instrument
+    ds.attrs['flux_system'] = runtime_cfg.flux_system
     
     return ds
 # -----------------------------------------------------------------------------
@@ -426,6 +427,7 @@ def build_raw_variable_registry(
                         statistic_type=var_cfg.statistic_type
                         ),
                     height=var_cfg.height,
+                    height_range=var_cfg.height_range,
                     instrument=var_attrs.instrument,
                     
                     # --- provenance ---

@@ -7,16 +7,9 @@ local:
       status_geojson: Status/network_status.json
       site_metadata: Site_metadata
   configs:
-    base_path: /store/Config_files
+    base_path: /opt/TERN_EP
     stream:
-      nc_generic_attrs: Network/PFP/generic_global_attrs.yml
-      nc_dim_attrs: Network/PFP/nc_dim_attrs.yml
-      pfp_std_names: Network/PFP/pfp_std_names.yml
-      all_site_metadata: Network/Metadata/site_metadata.yml
-      raw_file_configs: Network/Metadata/file_configs.yml
-      tasks: Network/Tasks/tasks.yml
-      site_config_files: Sites/Operational
-      site_variables: Sites/Operational/<site>.yml
+      site_config_files: site_configs/operational
       secrets: Secrets/logins.yml
   configs_new:
     base_path: /store/Config_files

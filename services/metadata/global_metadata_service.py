@@ -11,10 +11,11 @@ This script fetches flux station details from TERN's SPARQL endpoint
 ### BEGIN IMPORTS ###
 ###############################################################################
 
-from datetime import datetime
+from typing import Callable, Dict, Iterable
 
 # -----------------------------------------------------------------------------
 
+from domain.data_models.metadata_classes import SiteMetadata
 from infrastructure import paths, external_io, file_io
 from infrastructure.geospatial import get_timezone, get_UTC_offset
 from services.metadata import dereference
@@ -56,118 +57,122 @@ _METADATA_CACHE = None
 ### BEGIN CLASSES ###
 ###############################################################################
 
+
+
+
 # -----------------------------------------------------------------------------
-class SiteMetadata(dict):
+
+class InvalidSiteError(KeyError):
+    pass
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+
+class SiteRegistry:
     """
-    Lightweight metadata container.
+    Canonical access point for site metadata.
 
-    Provides:
-    - automatic type formatting
-    - attribute-style access
-    - dictionary behaviour
+    Responsibilities:
+    - Load site metadata from a configured source
+    - Cache results for the lifetime of the process
+    - Provide safe lookup + validation
     """
 
-    DATA_DTYPES = {
-        'id': str,
-        'fluxnet_id': str,
-        'date_commissioned': datetime,
-        'date_decommissioned': datetime,
-        'latitude': float,
-        'longitude': float,
-        'elevation': float,
-        'time_step': int,
-        'freq_hz': int,
-        'soil': str,
-        'tower_height': float,
-        'vegetation': str,
-        'canopy_height': float,
-        'time_zone': str,
-        'UTC_offset': float,
-    }
+    def __init__(self, loader: Callable[[], dict[str, dict]]):
+        """
+        Args:
+            loader: function that returns raw metadata dict
+                    {site_name: {field: value}}
+        """
+        self._loader = loader
+        self._cache: Dict[str, SiteMetadata] | None = None
 
-    # -------------------------------------------------------------------------
+    # ------------------------------------------------------------------
 
-    def __init__(self, data: dict):
+    def _load(self) -> Dict[str, SiteMetadata]:
+        raw = self._loader()
 
-        formatted = {}
-
-        for key, value in data.items():
-
-            if value in (None, "", "nan"):
-                formatted[key] = None
-                continue
-
-            dtype = self.DATA_DTYPES.get(key)
-
-            try:
-
-                if dtype is float:
-                    formatted[key] = float(value)
-
-                elif dtype is int:
-                    formatted[key] = int(float(value))
-
-                elif dtype is str:
-                    formatted[key] = str(value)
-
-                elif dtype is datetime:
-                    formatted[key] = datetime.fromisoformat(value)
-
-                else:
-                    formatted[key] = value
-
-            except Exception:
-                formatted[key] = value
-
-        super().__init__(formatted)
-    # -------------------------------------------------------------------------
-    
-    # -------------------------------------------------------------------------    
-    
-    def __getattr__(self, key):
-        
-        try:
-            return self[key]
-        except KeyError:
-            raise AttributeError(key)
-    # -------------------------------------------------------------------------
-    
-    # -------------------------------------------------------------------------
-    
-    def __setattr__(self, key, value):
-        
-        raise AttributeError("SiteMetadata is immutable")
-    # -------------------------------------------------------------------------        
-
-    # -------------------------------------------------------------------------
-    def __dir__(self):
-        
-        return sorted(set(super().__dir__()) | set(self.keys()))
-    # -------------------------------------------------------------------------    
-
-    # -------------------------------------------------------------------------
-    def __repr__(self):
-        
-        label = self.get("site_name", None)
-        if label:
-            return f"<SiteMetadata {label}>"
-        return f"<SiteMetadata {self.get('site_name','unknown')}>"
-    # -------------------------------------------------------------------------
-
-    # -------------------------------------------------------------------------
-    
-    def to_yaml_dict(self):
-
+        # Convert to domain objects
         return {
-            k: (v.isoformat() if isinstance(v, datetime) else v)
-            for k, v in self.items()
+            site: SiteMetadata(data)
+            for site, data in raw.items()
+        }
+
+    # ------------------------------------------------------------------
+
+    def _ensure_loaded(self) -> None:
+        if self._cache is None:
+            self._cache = self._load()
+
+    # ------------------------------------------------------------------
+
+    def all(self) -> Dict[str, SiteMetadata]:
+        """Return all site metadata."""
+        self._ensure_loaded()
+        return self._cache  # safe: immutable objects
+
+    # ------------------------------------------------------------------
+
+    def names(self) -> set[str]:
+        """Return set of valid site names."""
+        self._ensure_loaded()
+        return set(self._cache.keys())
+
+    # ------------------------------------------------------------------
+
+    def exists(self, site: str) -> bool:
+        """Check if site is valid."""
+        self._ensure_loaded()
+        return site in self._cache
+
+    # ------------------------------------------------------------------
+
+    def get(self, site: str) -> SiteMetadata:
+        """Get metadata for a site or raise."""
+        self._ensure_loaded()
+
+        try:
+            return self._cache[site]
+        except KeyError:
+            raise InvalidSiteError(f"Invalid site: {site}")
+
+    # ------------------------------------------------------------------
+
+    def require(self, site: str) -> SiteMetadata:
+        """
+        Same as get(), but semantically clearer for validation steps.
+        """
+        return self.get(site)
+
+    # ------------------------------------------------------------------
+
+    def filter(self, sites: Iterable[str]) -> Dict[str, SiteMetadata]:
+        """
+        Return metadata for a subset of sites, validating all.
+        """
+        self._ensure_loaded()
+
+        missing = [s for s in sites if s not in self._cache]
+        if missing:
+            raise InvalidSiteError(f"Invalid sites: {missing}")
+
+        return {s: self._cache[s] for s in sites}
+
+    # -------------------------------------------------------------------------
+
+    def active(self) -> dict[str, SiteMetadata]:
+        """Return only active (non-decommissioned) sites."""
+        self._ensure_loaded()
+        return {
+            name: meta
+            for name, meta in self._cache.items()
+            if meta.date_decommissioned is None
             }
-    # -------------------------------------------------------------------------    
 
 # -----------------------------------------------------------------------------
 
 ###############################################################################
-### END CLASSES ###
+### BEGIN CLASSES ###
 ###############################################################################
 
 
@@ -177,6 +182,18 @@ class SiteMetadata(dict):
    
 # -----------------------------------------------------------------------------
 # QUERY LOAD / EXECUTION UTILITIES
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+
+def rdf_loader() -> dict[str, dict]:
+    return get_flux_tower_fields_from_rdf()
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+
+def yml_loader() -> dict[str, dict]:
+    return config_loader.load_config_file_from_name('global_metadata')
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
@@ -289,7 +306,7 @@ def parse_sparql_bindings(bindings: list[dict]) -> list[dict]:
     return [
         {key: val['value'] for key, val in row.items()}
         for row in bindings
-    ]
+        ]
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
@@ -314,7 +331,7 @@ def get_flux_tower_predicates_from_rdf() -> dict:
     return {
         row["predicate"].split("/")[-1]: row["predicate"]
         for row in rows
-    }
+        }
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
