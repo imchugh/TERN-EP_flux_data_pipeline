@@ -42,7 +42,7 @@ ALIAS_DICT = {
     'Tumbarumba2': 'Tumbarumba',
     'Wellington Research Station Flux Tower': 'Wellington',
     'Wombat Forest 2':'WombatForest'
-}
+    }
 
 _SPARQL_CACHE = None
 _CREDS_CACHE = None

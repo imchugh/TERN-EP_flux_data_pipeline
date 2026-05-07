@@ -10,7 +10,7 @@ local:
     base_path: /opt/TERN_EP
     stream:
       site_config_files: site_configs/operational
-      secrets: Secrets/logins.yml
+      secrets: secrets/logins.yml
   configs_new:
     base_path: /store/Config_files
     stream:
