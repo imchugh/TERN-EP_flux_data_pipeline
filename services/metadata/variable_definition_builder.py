@@ -16,6 +16,7 @@ Created on Thu Mar  5 12:12:51 2026
 # -----------------------------------------------------------------------------
 
 from domain.data_models import metadata_classes
+from domain.enums import VariableType
 
 ###############################################################################
 ### END IMPORTS ###
@@ -25,6 +26,35 @@ from domain.data_models import metadata_classes
 ###############################################################################
 ### BEGIN FUNCTIONS ###
 ###############################################################################
+
+# -----------------------------------------------------------------------------
+def build_canonical_quantity_definition(
+        canonical_metadata, 
+        variable_type: VariableType=VariableType.CONTINUOUS
+        ):
+    
+    qc_dummy = {
+        'plausible_max': None,
+        'plausible_min': None,
+        'standard_units': 'dimensionless',
+        'valid_input_units': ['dimensionless']
+        }
+    
+    canonical_out = canonical_metadata.copy()
+    
+    if variable_type == 'quality_flag':
+        
+        long_name = canonical_out.get('long_name')
+        if long_name is not None:
+            canonical_out['long_name'] = f'{long_name} quality flag'
+        standard_name = canonical_out.get('standard_name')
+        if standard_name is not None:
+            canonical_out['standard_name'] = f'{standard_name}_quality_flag'
+            
+        canonical_out.update(qc_dummy)
+        
+    return metadata_classes.CanonicalVariableMetadata(**canonical_out)
+# -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
 
@@ -62,6 +92,7 @@ def build_variable_definition(
         instrument = cfg.instrument,
         height = raw_cfg.height,
         statistic_type = raw_cfg.statistic_type,
+        variable_type = raw_cfg.variable_type,
         quantity = parsed_name_elems.quantity,
 
         # Required subclasses
