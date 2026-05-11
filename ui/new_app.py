@@ -42,11 +42,11 @@ from ui.components.component_config import (
 EXCLUDE_VARS = ['TIMESTAMP', 'date', 'time']
 IMMUTABLE_FIELDS = ['site']
 CANONICAL_VARS = config_loader.load_config_file_from_name(
-    'canonical_variables'
+    'canonical_quantities'
     )
 name_parser = NameParser()
 
-file = '/opt/TERN_EP/site_configs/new_exp/CowBay.yml'
+file = '/opt/TERN_EP/site_configs/operational/CowBay.yml'
 
 cfg = config_loader.load_config_file(file=file)
 

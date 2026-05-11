@@ -13,6 +13,8 @@ Created on Wed Mar 11 11:40:22 2026
 from dataclasses import dataclass
 from typing import Callable
 
+from domain.constants import CO2_MOL_MASS, H2O_MOL_MASS, K, R
+
 ###############################################################################
 ### END IMPORTS ###
 ###############################################################################
@@ -21,11 +23,6 @@ from typing import Callable
 ###############################################################################
 ### BEGIN INITS ###
 ###############################################################################
-
-CO2_MOL_MASS = 44
-H2O_MOL_MASS = 18
-K = 273.15
-R = 8.3143
 
 VARIANCE_TO_SD_UNITS = {
     'g^2/m^6': 'g/m^3',
