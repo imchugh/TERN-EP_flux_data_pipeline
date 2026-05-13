@@ -11,7 +11,7 @@ Created on Thu Mar  5 12:12:51 2026
 ###############################################################################
 
 # from dataclasses import dataclass
-# from typing import Optional
+from typing import Any
 
 # -----------------------------------------------------------------------------
 
@@ -60,9 +60,9 @@ def build_canonical_quantity_definition(
 
 def build_variable_definition(
     var_name: str,
-    raw_cfg: any,
-    parsed_name_elems: dict,
-    canonical_metadata: dict
+    raw_cfg: Any,
+    parsed_name_elems: metadata_classes.ParsedVariableName,
+    canonical_metadata: metadata_classes.CanonicalQuantityMetadata,
     ) -> metadata_classes.VariableDefinition:
         
     # 1. Merge YAML + parsed name into RawVariableMetadata
@@ -79,11 +79,6 @@ def build_variable_definition(
                 )
             )
     
-    # 2 Build canonical metadata object
-    canonical_meta = (
-        metadata_classes.CanonicalVariableMetadata(**canonical_metadata)
-        )
-
     # 3 Return immutable VariableDefinition
     return metadata_classes.VariableDefinition(
         
@@ -97,15 +92,10 @@ def build_variable_definition(
 
         # Required subclasses
         raw_inputs = tuple(raw_inputs),
-        canonical = canonical_meta,
+        canonical = canonical_metadata,
+        parsed_name_elems = parsed_name_elems,
         
-        # Optionals
-        height_range = raw_cfg.height_range,        
-        instrument_type = parsed_name_elems.instrument_type,
         diag_type = cfg.diag_type,
-        vertical_location = parsed_name_elems.vertical_location,
-        horizontal_location = parsed_name_elems.horizontal_location,
-        replicate = parsed_name_elems.replicate,
         
         )
 # -----------------------------------------------------------------------------

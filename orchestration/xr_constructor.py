@@ -312,7 +312,6 @@ def collate_resource_package(runtime_cfg: SiteRuntimeConfig) -> dict:
     return {
         "registry": registry,
         "file_groups": file_groups,
-        # 'system_type': runtime_cfg.system_type
         }
 # -----------------------------------------------------------------------------
 
@@ -690,6 +689,7 @@ def convert_units(
                     from_units=site_units
                     )
             except Exception as e:
+                breakpoint()
                 raise RuntimeError(
                     f"Unit conversion failed for {variable} "
                     f"(from {site_units} → {reg_entry.canonical_units})"

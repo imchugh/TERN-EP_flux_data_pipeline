@@ -33,13 +33,3 @@ def resolve_variance_units(
     except KeyError:
         raise ValueError(f"No unit transform defined for unit '{units}'")
 
-# @dataclass(frozen=True)
-# class VarianceTransformer:
-#     variance_to_sd: Callable
-#     sd_to_variance: Callable
-    
-# def get_variance_transformer():
-#     return VarianceTransformer(
-#         variance_to_sd=lambda units: (data ** 0.5),
-#         apply_units=lambda units: VARIANCE_TO_SD_UNITS[units],
-#         )

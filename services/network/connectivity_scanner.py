@@ -17,7 +17,7 @@ from typing import Optional
 # -----------------------------------------------------------------------------
 
 from infrastructure import connections
-from services.foundational import config_loader
+from services import config_loader
 
 ###############################################################################
 ### END IMPORTS ###

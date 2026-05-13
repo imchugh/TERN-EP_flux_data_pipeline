@@ -13,7 +13,7 @@ Created on Wed Mar 11 11:40:22 2026
 from dataclasses import dataclass
 from typing import Callable
 
-from domain.constants import CO2_MOL_MASS, H2O_MOL_MASS, K, R
+from domain.constants import CO2_MOL_MASS, H2O_MOL_MASS, K
 
 ###############################################################################
 ### END IMPORTS ###
@@ -95,7 +95,7 @@ def convert_CO2_flux(data, from_units='mg/m^2/s'):
 
 # -----------------------------------------------------------------------------
 
-@register_conversion("CO2c")
+@register_conversion("CO2c", "CO2c_IRGA")
 def convert_CO2_density(data, from_units='mmol/m^3'):
 
     if from_units == 'mmol/m^3':
