@@ -11,10 +11,6 @@ This script fetches flux station details from TERN's SPARQL endpoint
 ### BEGIN IMPORTS ###
 ###############################################################################
 
-from typing import Callable
-
-# -----------------------------------------------------------------------------
-
 from domain.data_models.metadata_classes import SiteMetadata
 from infrastructure import paths, external_io, file_io
 from infrastructure.datetime_utils import get_timezone, get_UTC_offset
@@ -59,24 +55,9 @@ _METADATA_CACHE = None
 ###############################################################################
 ### BEGIN FUNCTIONS ###
 ###############################################################################
-   
+
 # -----------------------------------------------------------------------------
 # QUERY LOAD / EXECUTION UTILITIES
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-def rdf_loader() -> dict[str, SiteMetadata]:
-    
-    loaded = get_flux_tower_fields_from_rdf()
-    return {key: SiteMetadata(data=value) for key, value in loaded.items()}
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-def yml_loader() -> dict[str, SiteMetadata]:
-    loaded = config_loader.load_config_file_from_name('site_metadata')
-    return {key: SiteMetadata(data=value) for key, value in loaded.items()}
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
@@ -342,21 +323,18 @@ def get_flux_tower_fields_from_rdf(
 
 # -----------------------------------------------------------------------------
 
-def get_flux_tower_fields_from_source(source: str='yml') -> dict:
+def _get_fields_from_source(source: str='yml') -> dict:
     """
-    Convenience wrapper for user-selection of metadata source (yml or rdf).
+    Internal: load raw site fields from yml snapshot or RDF endpoint.
 
     Args:
-        source (str, optional): source identifier. Defaults to 'yml'.
+        source: 'yml' (default) or 'rdf'.
 
     Raises:
-        TypeError: raised if source is not recognised.
-
-    Returns:
-        dict containing all site info.
+        TypeError: if source is not recognised.
 
     """
-    
+
     if source == 'yml':
         return config_loader.load_config_file_from_name('global_metadata')
     if source == 'rdf':
@@ -392,19 +370,23 @@ def write_flux_tower_fields_config(overwrite: bool=False) -> None:
 
 # -----------------------------------------------------------------------------
    
-def get_network_metadata() -> dict[str, SiteMetadata]:
+def get_all_tern_metadata() -> dict[str, SiteMetadata]:
     """
-    Load the metadata from the yml file (or return cached).
+    Return metadata for all TERN sites (cached).
+
+    This is broader than the pipeline registry — it includes decommissioned
+    sites and sites not currently configured in the pipeline. Use
+    SiteRegistry.get_all_metadata() for pipeline sites only.
 
     Returns:
-        the metadata for all sites.
+        dict mapping site name to SiteMetadata for every TERN site.
 
     """
 
     global _METADATA_CACHE
 
     if _METADATA_CACHE is None:
-        fields = get_flux_tower_fields_from_source()
+        fields = _get_fields_from_source()
         _METADATA_CACHE = {
             key: SiteMetadata(value)
             for key, value in fields.items()
@@ -414,20 +396,29 @@ def get_network_metadata() -> dict[str, SiteMetadata]:
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
-def get_site_metadata(site: str) -> SiteMetadata:
+
+def get_tern_site_metadata(site: str) -> SiteMetadata:
     """
-    Load the site metadata from the yml file (or return cached).
+    Return metadata for any TERN site by name (cached).
+
+    Not limited to pipeline sites. Use SiteRegistry.get_metadata() if you
+    want validation that the site is in the pipeline.
 
     Args:
-        site: name of site.
+        site: TERN site name.
 
     Returns:
-        the metadata for the site.
+        SiteMetadata for the requested site.
+
+    Raises:
+        InvalidSiteError: if the site is not found in the TERN metadata.
 
     """
 
-    metadata = get_network_metadata()
-    return metadata[site]
+    metadata = get_all_tern_metadata().get(site)
+    if metadata is None:
+        raise InvalidSiteError(f'No TERN metadata found for site: {site}')
+    return metadata
 # -----------------------------------------------------------------------------
 
 # -------------------------------------------------------------------------------
@@ -450,28 +441,6 @@ def convert_site_label(label: str) -> str:
     
     label_clean = label.replace(' Flux Station', '')
     return ALIAS_DICT.get(label_clean, label_clean).replace(' ', '')
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-def format_canopy_height(meta: dict) -> dict:
-    """
-    Unused at present - if it is formatted to float, it will need to have a single 
-    value.
-
-    Args:
-        meta: metadata?
-
-    Returns:
-        mutated dict.
-
-    """
-    
-    try:
-        meta['canopy_height'] = float(meta['canopy_height'])
-    except (KeyError, TypeError, ValueError):
-        pass
-    return meta
 # -----------------------------------------------------------------------------
 
 ###############################################################################
