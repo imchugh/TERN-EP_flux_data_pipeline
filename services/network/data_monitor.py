@@ -9,23 +9,16 @@ Created on Thu May 14 09:30:42 2026
 import pandas as pd
 from datetime import datetime, timedelta
 
-from infrastructure.datetime_utils import get_local_datetime_now
+from infrastructure import datetime_utils
 from infrastructure import data_functions
 
-from services.metadata.variable_metadata_service import load_runtime_config
-from services.metadata.global_metadata_service import SiteRegistry, yml_loader
-
 from services.data import raw_data_loader
-from domain.constants import DATA_TIME_FORMAT
 
-from infrastructure import paths, datetime_utils
+from infrastructure import paths
 
 MONITOR_VARS = []
 ANALYSIS_PERIODS_DAYS = [1, 7, 30]
-CONFIGS_PATH = paths.get_local_stream_path(
-    resource='configs', 
-    stream='site_config_files'
-    )
+
 
 
 
@@ -121,20 +114,27 @@ def analyse_missing_data(data_cfg, site_cfg):
             file_group=data_cfg.flux_file
             )
         )
-    
-    # Get the datetimes
-    local_now = get_local_datetime_now(
-        tz=site_cfg.time_zone,
-        )
-    local_now_naive = local_now.replace(tzinfo=None)
-    
+       
     # Load the data
     df = adapter.load(file_path=file_path)
-
-    elapsed = (local_now_naive - df.index[-1].to_pydatetime()).days
     
+    # Get the datetimes
+    local_now = datetime_utils.get_local_datetime_now(
+        tz_name=site_cfg.time_zone,
+        )
+    local_now_naive = local_now.replace(tzinfo=None)
+    last_data_record_naive = df.index[-1].to_pydatetime()
+    last_data_record_tzaware = datetime_utils.get_tz_aware_datetime(
+        naive_dt=last_data_record_naive, 
+        tz_name=site_cfg.time_zone,
+        as_iso=True
+        )
+
+    # Calculate delta in days
+    elapsed = (local_now_naive - last_data_record_naive).days
+        
     result = {
-        'last_record': local_now.isoformat(),
+        'last_record': last_data_record_tzaware,
         'days_since_last_record': elapsed 
         }
        

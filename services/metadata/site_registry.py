@@ -133,8 +133,7 @@ class SiteRegistry:
         """Load metadata for a single pipeline site."""
 
         self.require(site)
-        site_alias = SITE_ALIASES.get(site, site)
-        metadata = self.get_all_metadata().get(site_alias)
+        metadata = self.get_all_metadata().get(site)
         if metadata is None:
             raise InvalidSiteError(f'No metadata found for site {site}!')
         return metadata
