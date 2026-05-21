@@ -1,11 +1,8 @@
 local:
   network:
-    base_path: /store/Network
+    base_path: /opt/TERN_EP/network
     stream:
-      status: Status
-      status_xlsx: Status/network_status.xlsx
-      status_geojson: Status/network_status.json
-      site_metadata: Site_metadata
+      state: state
   configs:
     base_path: /opt/TERN_EP
     stream:

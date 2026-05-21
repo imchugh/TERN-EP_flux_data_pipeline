@@ -17,7 +17,7 @@ from typing import Callable, Dict, Iterable
 
 from domain.data_models.metadata_classes import SiteMetadata
 from infrastructure import paths, external_io, file_io
-from infrastructure.geospatial import get_timezone, get_UTC_offset
+from infrastructure.datetime_utils import get_timezone, get_UTC_offset
 from services.metadata import dereference
 from services import config_loader
 
@@ -424,7 +424,6 @@ def get_flux_tower_fields_from_rdf(
 
     # Query and extract the data
     rows = parse_sparql_bindings(run_query(query_key=mode))
-       
     rslt = {}
     
     # Iterate over results

@@ -10,6 +10,7 @@ import ephem
 import datetime as dt
 
 from timezonefinder import TimezoneFinder
+from zoneinfo import ZoneInfo
 from pytz import timezone
 
 #------------------------------------------------------------------------------

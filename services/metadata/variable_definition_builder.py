@@ -95,6 +95,7 @@ def build_variable_definition(
         canonical = canonical_metadata,
         parsed_name_elems = parsed_name_elems,
         
+        # Diagnostic type (worth moving to site-level?)
         diag_type = cfg.diag_type,
         
         )

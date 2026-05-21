@@ -1,116 +1,87 @@
 AliceSpringsMulga:
-  ip: 10.8.1.1
-  ports:
-  - 80
+  host: 10.8.1.1
+  port: 80
 AlpinePeatland:
-  ip: 10.8.1.65
-  ports:
-  - 80
+  host: 10.8.1.65
+  port: 80
 Boolcoomatta:
-  ip: 10.8.1.68
-  ports: 
-  - 80
+  host: 10.8.1.68
+  port: 80
 Boyagin:
-  ip: 10.8.1.2
-  ports:
-  - 80
+  host: 10.8.1.2
+  port: 80
 Calperum:
-  ip: 10.8.1.3
-  ports:
-  - 80
+  host: 10.8.1.3
+  port: 80
 CowBay:
-  ip: 10.8.1.51
-  ports:
-  - 80
+  host: 10.8.1.51
+  port: 80
 CumberlandPlain:
-  ip: 10.8.1.4
-  ports:
-  - 80
+  host: 10.8.1.4
+  port: 80
 Dookie1:
-  ip: 10.8.1.63
-  ports:
-  - 80
+  host: 10.8.1.63
+  port: 80
 Dookie2:
-  ip: 10.8.1.66
-  ports:
-  - 80
+  host: 10.8.1.66
+  port: 80
 Dookie3:
-  ip: 10.8.1.67
-  ports:
-  - 80
+  host: 10.8.1.67
+  port: 80
 Fletcherview:
-  ip: 10.8.1.13
-  ports:
-  - 80
+  host: 10.8.1.13
+  port: 80
 Gingin:
-  ip: 10.8.1.5
-  ports:
-  - 80
+  host: 10.8.1.5
+  port: 80
 GreatWesternWoodlands:
-  ip: 10.8.1.6
-  ports:
-  - 80
+  host: 10.8.1.6
+  port: 80
 HowardSprings:
-  ip: 10.8.1.54
-  ports:
-  - 80
+  host: 10.8.1.54
+  port: 80
 Litchfield:
-  ip: 10.8.1.7
-  ports:
-  - 80
+  host: 10.8.1.7
+  port: 80
 MyallValeA:
-  ip: 10.8.1.61
-  ports:
-  - 9443
+  host: 10.8.1.61
+  port: 9443
 MyallValeB:
-  ip: 10.8.1.62
-  ports:
-  - 9443
+  host: 10.8.1.62
+  port: 9443
 Ridgefield:
-  ip: 10.8.1.57
-  ports:
-  - 80
+  host: 10.8.1.57
+  port: 80
 RobsonCreek:
-  ip: 10.8.1.9
-  ports:
-  - 80
+  host: 10.8.1.9
+  port: 80
 SilverPlains:
-  ip: 10.8.1.53
-  ports:
-  - 80
+  host: 10.8.1.53
+  port: 80
 SnowGum:
-  ip: 10.8.1.55
-  ports:
-  - 9443
+  host: 10.8.1.55
+  port: 9443
 SturtPlains:
-  ip: 10.8.1.56
-  ports:
-  - 80
+  host: 10.8.1.56
+  port: 80
 TiTreeEast:
-  ip: 10.8.1.52
-  ports:
-  - 80
+  host: 10.8.1.52
+  port: 80
 Tumbarumba:
-  ip: 10.8.1.10
-  ports:
-  - 80
+  host: 10.8.1.10
+  port: 80
 Wedgetail:
-  ip: 10.8.1.64
-  ports:
-  - 80
+  host: 10.8.1.64
+  port: 80
 Wellington:
-  ip: 10.8.1.59
-  ports:
-  - 80
+  host: 10.8.1.59
+  port: 80
 Whroo:
-  ip: 10.8.1.14
-  ports:
-  - 80
+  host: 10.8.1.14
+  port: 80
 WombatStateForest:
-  ip: 10.8.1.12
-  ports:
-  - 80
+  host: 10.8.1.12
+  port: 80
 Yanco:
-  ip: 10.8.1.58
-  ports:
-  - 80
+  host: 10.8.1.58
+  port: 80

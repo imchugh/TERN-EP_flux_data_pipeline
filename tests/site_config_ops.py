@@ -76,6 +76,15 @@ def add_flux_system(cfg):
     new_cfg.update({'flux_system': 'TERNFlUX'})
     return {elem: new_cfg[elem] for elem in elem_order}
     
+def add_flux_file(cfg):
+    
+    ID_VAR = 'Fh'
+    elem_order = ['site', 'file_formats', 'flux_system', 'flux_file', 'variables']
+    new_cfg = cfg.copy()
+    file_name = list(cfg['variables'][ID_VAR]['input_variables'].values())[-1]['file']
+    new_cfg.update({'flux_file': file_name})
+    return {elem: new_cfg[elem] for elem in elem_order}
+    
             
         
         

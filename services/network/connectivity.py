@@ -19,15 +19,18 @@ Designed for cron/systemd timer execution.
 
 from __future__ import annotations
 
-import json
 import logging
 from copy import deepcopy
-from datetime import datetime, timezone
+from dataclasses import dataclass
 from pathlib import Path
 
 # -----------------------------------------------------------------------------
 
-from services.network_scanner import scan_network
+from infrastructure.connections import scan_tcp_port, PortScanError
+from infrastructure.file_io import read_json, write_json
+from infrastructure.datetime_utils import get_utc_now
+from infrastructure import paths
+from services import config_loader
 
 ###############################################################################
 ### END IMPORTS ###
@@ -41,22 +44,47 @@ from services.network_scanner import scan_network
 
 logger = logging.getLogger(__name__)
 
-STATE_PATH = Path("/opt/TERN_EP/state/network_last_seen.json")
+SITE_IP = config_loader.load_config_file_from_name('vpn_ip')
+STATE_PATH = (
+    paths.get_local_stream_path(resource='network', stream='state') / 
+    'hardware_connections.json'
+    )
 
 DEFAULT_STATE = {
     "updated_at": None,
     "sites": {}
 }
 
+SUBNET_IP = {'gateway': 1, 'ec': 100, 'soil': 101, 'profile': 102}
+LOGGER_DEFAULT_PORT = 6785
+
 ###############################################################################
 ### END INITS ###
 ###############################################################################
 
-
-
+@dataclass(frozen=True)
+class ConnectivityCheckResult:
+    
+    reachable: bool
+    port: int
+    latency_ms: int | None = None
+    error: str | None = None
+    
 ###############################################################################
 ### BEGIN FUNCTIONS ###
 ###############################################################################
+
+# -----------------------------------------------------------------------------
+def resolve_endpoint(vpn_ip, logger_type='ec'):
+    
+    if logger_type not in SUBNET_IP:
+        raise ValueError(
+            f'Logger type {logger_type} not implemented. '
+            f'Choices: {list(SUBNET_IP.keys())}'
+            )
+    subnet_addr = SUBNET_IP[logger_type]
+    return f'192.168.{str(vpn_ip.split('.')[-1])}.{subnet_addr}'
+# -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
 def load_state(path: Path = STATE_PATH) -> dict:
@@ -67,31 +95,16 @@ def load_state(path: Path = STATE_PATH) -> dict:
     if not path.exists():
         return deepcopy(DEFAULT_STATE)
 
-    with open(path, "r") as f:
-        return json.load(f)
+    return read_json(file_path=path)
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
 def save_state(state: dict, path: Path = STATE_PATH) -> None:
     """
-    Atomically save state file.
+    Save state file.
     """
 
-    tmp_path = path.with_suffix(".tmp")
-
-    with open(tmp_path, "w") as f:
-        json.dump(state, f, indent=2, sort_keys=True)
-
-    tmp_path.replace(path)
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-def utc_now_iso() -> str:
-    """
-    Generate UTC ISO8601 timestamp.
-    """
-
-    return datetime.now(timezone.utc).isoformat()
+    write_json(file_path=path, data=state, sort_keys=True)
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
@@ -114,8 +127,8 @@ def ensure_site_hardware_block(
             "last_success": None,
             "last_latency_ms": None,
             "consecutive_failures": 0,
-        },
-    )
+            },
+        )
 
     return hw_block
 # -----------------------------------------------------------------------------
@@ -130,7 +143,7 @@ def update_state_from_scan(
     Update state using current scan results.
     """
 
-    now = utc_now_iso()
+    now = get_utc_now(as_iso=True)
 
     for site_name, result in scan_results.items():
 
@@ -142,10 +155,10 @@ def update_state_from_scan(
 
         hw_block["last_attempt"] = now
 
-        if result["reachable"]:
+        if result.reachable:
 
             hw_block["last_success"] = now
-            hw_block["last_latency_ms"] = result.get("latency_ms")
+            hw_block["last_latency_ms"] = result.latency_ms
             hw_block["consecutive_failures"] = 0
 
         else:
@@ -158,7 +171,35 @@ def update_state_from_scan(
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
-def run_daily_scan(hardware: str = "gateway") -> dict:
+
+def run_endpoint_scan(host, port):
+    
+    try:
+
+        result = scan_tcp_port(
+            host=host, 
+            port=port
+            )
+
+        output = ConnectivityCheckResult(
+            reachable=True, 
+            port=port, 
+            latency_ms=result.latency_ms
+            )
+
+    except PortScanError as exc:
+
+        output = ConnectivityCheckResult(
+            reachable=False, 
+            port=port,
+            error=exc
+            )
+        
+    return output
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+def run_network_scan(hardware: str="gateway") -> dict:
     """
     Execute network scan and persist state.
     """
@@ -172,14 +213,26 @@ def run_daily_scan(hardware: str = "gateway") -> dict:
     state = load_state()
 
     # Run scan
-    results = scan_network(hardware=hardware)
+    results = {}
+    for site, hardware_config in SITE_IP.items():
+
+        host = hardware_config['host']
+        port = hardware_config['port']
+        if hardware != 'gateway':
+            host = resolve_endpoint(vpn_ip=host, logger_type=hardware)
+            port = LOGGER_DEFAULT_PORT
+            
+        results[site] = run_endpoint_scan(
+            host=host, 
+            port=port
+            )
 
     # Update operational state
     state = update_state_from_scan(
         state=state,
         scan_results=results,
         hardware=hardware,
-    )
+        )
 
     # Persist
     save_state(state)
@@ -195,26 +248,26 @@ def run_daily_scan(hardware: str = "gateway") -> dict:
     return state
 # -----------------------------------------------------------------------------
 
-###############################################################################
-### END FUNCTIONS ###
-###############################################################################
+# ###############################################################################
+# ### END FUNCTIONS ###
+# ###############################################################################
 
 
 
-###############################################################################
-### BEGIN SCRIPT ###
-###############################################################################
+# ###############################################################################
+# ### BEGIN SCRIPT ###
+# ###############################################################################
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
 
-    # Example:
-    # Scan gateways daily
-    run_daily_scan(hardware="gateway")
+#     # Example:
+#     # Scan gateways daily
+#     run_daily_scan(hardware="gateway")
 
-    # Optional:
-    # run_daily_scan(hardware="EC")
-    # run_daily_scan(hardware="soil")
+#     # Optional:
+#     # run_daily_scan(hardware="EC")
+#     # run_daily_scan(hardware="soil")
 
-###############################################################################
-### END SCRIPT ###
-###############################################################################
+# ###############################################################################
+# ### END SCRIPT ###
+# ###############################################################################
