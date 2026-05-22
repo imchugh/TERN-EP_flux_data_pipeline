@@ -8,6 +8,7 @@ Created on Fri May 22 2026
 
 import logging
 import pathlib
+import time
 from typing import Any
 
 import pandas as pd
@@ -18,6 +19,10 @@ from infrastructure import datetime_utils, paths
 logger = logging.getLogger(__name__)
 
 NC_SUFFIX = '_L1.nc'
+# Files modified more recently than this are considered mid-write and skipped.
+# Half-hourly updates mean a 60-second window is conservative enough to avoid
+# false positives once the monitor is scheduled away from the ingest window.
+_WRITE_QUIET_SECS: int = 60
 NULL_RESULT: dict[str, Any] = {
     'last_record': None,
     'days_since_last_record': None,
@@ -73,7 +78,17 @@ def get_latest_nc_file(site: str) -> pathlib.Path:
             f'No L1 NetCDF files found for site "{site}" in {site_dir}'
             )
 
-    return files[-1]
+    now = time.time()
+    stable = [f for f in files if (now - f.stat().st_mtime) >= _WRITE_QUIET_SECS]
+
+    if not stable:
+        logger.warning(
+            'nc_all_files_recently_modified',
+            extra={'site': site, 'quiet_secs': _WRITE_QUIET_SECS},
+            )
+        stable = files
+
+    return stable[-1]
 # -----------------------------------------------------------------------------
 
 
