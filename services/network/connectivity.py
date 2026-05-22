@@ -139,43 +139,6 @@ def ensure_site_hardware_block(
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
-def update_state_from_scan(
-        state: dict[str, Any],
-        scan_results: dict[str, ConnectivityCheckResult],
-        hardware: str,
-        ) -> dict[str, Any]:
-    """
-    Update state using current scan results.
-    """
-
-    now = get_utc_now(as_iso=True)
-
-    for site_name, result in scan_results.items():
-
-        hw_block = ensure_site_hardware_block(
-            state=state,
-            site_name=site_name,
-            hardware=hardware,
-        )
-
-        hw_block["last_attempt"] = now
-
-        if result.reachable:
-
-            hw_block["last_success"] = now
-            hw_block["last_latency_ms"] = result.latency_ms
-            hw_block["consecutive_failures"] = 0
-
-        else:
-
-            hw_block["consecutive_failures"] += 1
-
-    state["updated_at"] = now
-
-    return state
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
 
 def run_endpoint_scan(host: str, port: int) -> ConnectivityCheckResult:
 
@@ -201,56 +164,6 @@ def run_endpoint_scan(host: str, port: int) -> ConnectivityCheckResult:
             )
 
     return output
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-def run_network_scan(hardware: str = "gateway") -> dict[str, Any]:
-    """
-    Execute network scan and persist state.
-    """
-
-    logger.info(
-        "daily_network_scan_start",
-        extra={"hardware": hardware},
-    )
-
-    # Load existing state
-    state = load_state()
-
-    # Run scan
-    results = {}
-    for site, hardware_config in SITE_IP.items():
-
-        host = hardware_config['host']
-        port = hardware_config['port']
-        if hardware != 'gateway':
-            host = resolve_endpoint(vpn_ip=host, logger_type=hardware)
-            port = LOGGER_DEFAULT_PORT
-            
-        results[site] = run_endpoint_scan(
-            host=host, 
-            port=port
-            )
-
-    # Update operational state
-    state = update_state_from_scan(
-        state=state,
-        scan_results=results,
-        hardware=hardware,
-        )
-
-    # Persist
-    save_state(state)
-
-    logger.info(
-        "daily_network_scan_complete",
-        extra={
-            "hardware": hardware,
-            "site_count": len(results),
-        },
-    )
-
-    return state
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
