@@ -19,8 +19,14 @@ from domain.data_models.metadata_classes import SiteMetadata
 
 logger = logging.getLogger(__name__)
 
-MONITOR_VARS = []
+MONITOR_VARS = ['Fco2', 'Fh', 'Fe', 'Fsd']
 ANALYSIS_PERIODS_DAYS = [1, 7, 30]
+NULL_RESULT: dict[str, Any] = {
+    'last_record': None,
+    'days_since_last_record': None,
+    **{f'pct_missing_last_{p}_days': None for p in ANALYSIS_PERIODS_DAYS},
+    'error': None,
+    }
 
 
 # -----------------------------------------------------------------------------

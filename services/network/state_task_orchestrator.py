@@ -50,8 +50,14 @@ from infrastructure.file_io import write_json
 from infrastructure.parallel_executor import run_concurrent
 from services.metadata.site_registry import SiteRegistry, yml_loader
 from services.metadata.variable_metadata_service import load_runtime_config
-from services.network.connectivity import run_site_connectivity
-from services.network.data_monitor import analyse_missing_data
+from services.network.connectivity import (
+    run_site_connectivity,
+    connectivity_sites,
+    persist_connectivity_state,
+    )
+from services.network.data_monitor import analyse_missing_data, NULL_RESULT as MISSING_DATA_NULL_RESULT
+from services.network.logger_monitor import check_logger_status
+from services.network.nc_monitor import check_nc_last_record
 
 logger = logging.getLogger(__name__)
 
@@ -86,13 +92,50 @@ def missing_data_task(site: str) -> dict[str, Any]:
         site: Site name as registered in the pipeline site registry.
 
     Returns:
-        Missing-data analysis result dict for the site.
+        Missing-data analysis result dict for the site, with ``error: null``
+        on success or all data fields set to ``null`` and ``error`` populated
+        on failure.
     """
     context = SITE_REGISTRY.get_context(site=site)
-    return analyse_missing_data(
-        data_cfg=context.runtime_config,
-        site_cfg=context.metadata,
-    )
+    try:
+        return analyse_missing_data(
+            data_cfg=context.runtime_config,
+            site_cfg=context.metadata,
+        ) | {'error': None}
+    except Exception as exc:
+        logger.warning(
+            'missing_data_failed',
+            extra={'site': site, 'error': str(exc)},
+        )
+        return MISSING_DATA_NULL_RESULT | {'error': str(exc)}
+
+
+def logger_status_task(site: str) -> dict[str, Any]:
+    """
+    Adapter: check_logger_status -> site-name interface.
+
+    Args:
+        site: Site name as registered in the VPN IP config.
+
+    Returns:
+        Logger status result dict for the site.
+    """
+
+    return check_logger_status(site=site)
+
+
+def nc_last_record_task(site: str) -> dict[str, Any]:
+    """
+    Adapter: check_nc_last_record -> site-name interface.
+
+    Args:
+        site: Site name as registered in the pipeline site registry.
+
+    Returns:
+        NetCDF last-record result dict for the site.
+    """
+
+    return check_nc_last_record(site=site)
 
 
 def make_connectivity_task(
@@ -160,6 +203,47 @@ def write_state(
 
 
 # ---------------------------------------------------------------------------
+# State task registry
+#
+# Each entry maps directly to the kwargs of run_task_for_all_sites.
+# Add one dict here to register a new state task — nothing else changes.
+# sites=None means run_task_for_all_sites uses the full pipeline registry.
+# connectivity_sites() is evaluated at import time; it reads a static config
+# so this is safe for a daily cron job.
+# ---------------------------------------------------------------------------
+
+_CONNECTIVITY_SITES = connectivity_sites()
+
+STATE_TASK_SPECS: list[dict[str, Any]] = [
+    dict(
+        task=missing_data_task,
+        task_name='missing_data',
+    ),
+    dict(
+        task=nc_last_record_task,
+        task_name='nc_last_record',
+    ),
+    dict(
+        task=logger_status_task,
+        task_name='logger_status',
+        sites=_CONNECTIVITY_SITES,
+    ),
+    dict(
+        task=make_connectivity_task('gateway'),
+        task_name='gateway',
+        sites=_CONNECTIVITY_SITES,
+        persist=persist_connectivity_state,
+    ),
+    dict(
+        task=make_connectivity_task('ec'),
+        task_name='ec',
+        sites=_CONNECTIVITY_SITES,
+        persist=persist_connectivity_state,
+    ),
+]
+
+
+# ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
 
@@ -216,3 +300,30 @@ def run_task_for_all_sites(
         persist(results, task_name)
 
     return {task_name: results}
+
+
+# ---------------------------------------------------------------------------
+# Convenience runner — temporary, for manual testing before wiring into the
+# main task registry. Run with: python -m services.network.state_task_orchestrator
+# ---------------------------------------------------------------------------
+
+def run_all_state_tasks() -> None:
+    """
+    Run every registered state task in sequence and write its state file.
+
+    Iterates ``STATE_TASK_SPECS`` and calls ``run_task_for_all_sites`` for
+    each entry. Tasks fan out concurrently per-site internally; this function
+    itself is sequential across tasks so each state file is written before the
+    next task begins.
+    """
+
+    logger.info("run_all_state_tasks_start", extra={"n_tasks": len(STATE_TASK_SPECS)})
+
+    for spec in STATE_TASK_SPECS:
+        run_task_for_all_sites(**spec)
+
+    logger.info("run_all_state_tasks_complete")
+
+
+if __name__ == '__main__':
+    run_all_state_tasks()
