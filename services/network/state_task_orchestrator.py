@@ -29,12 +29,12 @@ Example:
     )
 
     # Runs a gateway connectivity scan, updating the persistent state file
-    from services.network.connectivity import SITE_IP, persist_connectivity_state
+    from services.network.connectivity import connectivity_sites, persist_connectivity_state
 
     run_task_for_all_sites(
         task=make_connectivity_task(hardware='gateway'),
         task_name='gateway',
-        sites=list(SITE_IP.keys()),
+        sites=connectivity_sites(),
         persist=persist_connectivity_state,
     )
 """
@@ -57,6 +57,9 @@ logger = logging.getLogger(__name__)
 
 STATE_DIR = paths.get_local_stream_path(resource='network', stream='state')
 
+# Shared type alias for the two-argument persist-callback contract.
+type PersistFn = Callable[[dict[str, Any], str], None]
+
 # ---------------------------------------------------------------------------
 # Shared registry — built once at import time, metadata cache pre-warmed
 # before each concurrent run.
@@ -76,7 +79,15 @@ SITE_REGISTRY = SiteRegistry(
 # ---------------------------------------------------------------------------
 
 def missing_data_task(site: str) -> dict[str, Any]:
-    """Adapter: analyse_missing_data -> site-name interface."""
+    """
+    Adapter: analyse_missing_data -> site-name interface.
+
+    Args:
+        site: Site name as registered in the pipeline site registry.
+
+    Returns:
+        Missing-data analysis result dict for the site.
+    """
     context = SITE_REGISTRY.get_context(site=site)
     return analyse_missing_data(
         data_cfg=context.runtime_config,
@@ -86,7 +97,7 @@ def missing_data_task(site: str) -> dict[str, Any]:
 
 def make_connectivity_task(
     hardware: str = "gateway",
-) -> Callable[[str], dict[str, Any]]:
+    ) -> Callable[[str], dict[str, Any]]:
     """
     Factory: return a per-site connectivity task for the given hardware type.
 
@@ -98,7 +109,7 @@ def make_connectivity_task(
             'profile'. Defaults to 'gateway'.
 
     Returns:
-        A callable ``task(site: str) -> dict``.
+        A callable ``task(site: str) -> dict[str, Any]``.
     """
 
     def _task(site: str) -> dict[str, Any]:
@@ -115,7 +126,7 @@ def write_state(
     results: dict[str, Any],
     task_name: str,
     state_dir: Path = STATE_DIR,
-) -> None:
+    ) -> None:
     """
     Write a snapshot state file for a completed task.
 
@@ -128,8 +139,7 @@ def write_state(
             "sites": { "<site>": <result>, ... }
         }
 
-    Matches the ``Callable[[dict, str], None]`` persist interface expected by
-    ``run_task_for_all_sites``.
+    Matches the ``PersistFn`` interface expected by ``run_task_for_all_sites``.
 
     Args:
         results: Per-site result dict as returned by run_task_for_all_sites.
@@ -141,7 +151,7 @@ def write_state(
     payload = {
         "updated_at": get_utc_now(as_iso=True),
         "sites": results,
-    }
+        }
 
     out_path = state_dir / f"{task_name}.json"
     write_json(file_path=out_path, data=payload, sort_keys=True)
@@ -154,17 +164,17 @@ def write_state(
 # ---------------------------------------------------------------------------
 
 def run_task_for_all_sites(
-    task: Callable[[str], Any],
+    task: Callable[[str], dict[str, Any]],
     task_name: str,
     sites: list[str] | None = None,
     max_workers: int = 8,
-    persist: Callable[[dict[str, Any], str], None] | None = write_state,
-) -> dict[str, dict[str, Any]]:
+    persist: PersistFn | None = write_state,
+    ) -> dict[str, dict[str, Any]]:
     """
     Run task concurrently for every configured pipeline site.
 
     Args:
-        task: A callable conforming to ``task(site: str) -> dict``. Tasks are
+        task: A callable conforming to ``task(site: str) -> dict[str, Any]``. Tasks are
             responsible for resolving their own context from the site name.
         task_name: Label used as the top-level key in the returned payload and
             passed as the second argument to ``persist``.
