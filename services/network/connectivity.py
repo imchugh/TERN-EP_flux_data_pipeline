@@ -17,8 +17,6 @@ Designed for cron/systemd timer execution.
 ### BEGIN IMPORTS ###
 ###############################################################################
 
-from __future__ import annotations
-
 import logging
 from copy import deepcopy
 from dataclasses import dataclass
@@ -76,19 +74,19 @@ class ConnectivityCheckResult:
 ###############################################################################
 
 # -----------------------------------------------------------------------------
-def resolve_endpoint(vpn_ip, logger_type='ec'):
-    
+def resolve_endpoint(vpn_ip: str, logger_type: str = 'ec') -> str:
+
     if logger_type not in SUBNET_IP:
         raise ValueError(
             f'Logger type {logger_type} not implemented. '
             f'Choices: {list(SUBNET_IP.keys())}'
             )
     subnet_addr = SUBNET_IP[logger_type]
-    return f'192.168.{str(vpn_ip.split('.')[-1])}.{subnet_addr}'
+    return f'192.168.{vpn_ip.split(".")[-1]}.{subnet_addr}'
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
-def load_state(path: Path = STATE_PATH) -> dict:
+def load_state(path: Path = STATE_PATH) -> dict[str, Any]:
     """
     Load existing network state file.
     """
@@ -100,7 +98,7 @@ def load_state(path: Path = STATE_PATH) -> dict:
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
-def save_state(state: dict, path: Path = STATE_PATH) -> None:
+def save_state(state: dict[str, Any], path: Path = STATE_PATH) -> None:
     """
     Save state file.
     """
@@ -110,10 +108,10 @@ def save_state(state: dict, path: Path = STATE_PATH) -> None:
 
 # -----------------------------------------------------------------------------
 def ensure_site_hardware_block(
-        state: dict,
+        state: dict[str, Any],
         site_name: str,
-        hardware: str
-        ) -> dict:
+        hardware: str,
+        ) -> dict[str, Any]:
     """
     Ensure nested state structure exists.
     """
@@ -136,10 +134,10 @@ def ensure_site_hardware_block(
 
 # -----------------------------------------------------------------------------
 def update_state_from_scan(
-        state: dict,
-        scan_results: dict,
-        hardware: str
-        ) -> dict:
+        state: dict[str, Any],
+        scan_results: dict[str, ConnectivityCheckResult],
+        hardware: str,
+        ) -> dict[str, Any]:
     """
     Update state using current scan results.
     """
@@ -173,34 +171,34 @@ def update_state_from_scan(
 
 # -----------------------------------------------------------------------------
 
-def run_endpoint_scan(host, port):
-    
+def run_endpoint_scan(host: str, port: int) -> ConnectivityCheckResult:
+
     try:
 
         result = scan_tcp_port(
-            host=host, 
-            port=port
+            host=host,
+            port=port,
             )
 
         output = ConnectivityCheckResult(
-            reachable=True, 
-            port=port, 
-            latency_ms=result.latency_ms
+            reachable=True,
+            port=port,
+            latency_ms=result.latency_ms,
             )
 
     except PortScanError as exc:
 
         output = ConnectivityCheckResult(
-            reachable=False, 
+            reachable=False,
             port=port,
-            error=exc
+            error=str(exc),
             )
-        
+
     return output
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
-def run_network_scan(hardware: str="gateway") -> dict:
+def run_network_scan(hardware: str = "gateway") -> dict[str, Any]:
     """
     Execute network scan and persist state.
     """
@@ -297,7 +295,7 @@ def persist_connectivity_state(
     results: dict[str, Any],
     task_name: str,
     path: Path = STATE_PATH,
-) -> None:
+    ) -> None:
     """
     Stateful read-modify-write persist function for connectivity scan results.
 
