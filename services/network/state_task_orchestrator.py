@@ -11,16 +11,16 @@ The orchestrator resolves the SiteContext for each site, fans out the task
 concurrently using a thread pool, and returns a payload keyed by task name,
 ready to be written to a per-task JSON state file.
 
-Usage example
--------------
-results = run_task_for_all_sites(
-    task=missing_data_task,
-    task_name='missing_data_analysis',
-)
+Example:
+    results = run_task_for_all_sites(
+        task=missing_data_task,
+        task_name='missing_data_analysis',
+    )
 """
 
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from infrastructure.parallel_executor import run_concurrent
 from services.metadata.site_registry import SiteContext, SiteRegistry, yml_loader
@@ -47,7 +47,7 @@ SITE_REGISTRY = SiteRegistry(
 # Add one adapter here for each new task; keep adapters thin.
 # ---------------------------------------------------------------------------
 
-def missing_data_task(context: SiteContext) -> dict:
+def missing_data_task(context: SiteContext) -> dict[str, Any]:
     """Adapter: analyse_missing_data -> SiteContext interface."""
     return analyse_missing_data(
         data_cfg=context.runtime_config,
@@ -62,7 +62,7 @@ def run_task_for_all_sites(
     task: Callable[[SiteContext], Any],
     task_name: str,
     max_workers: int = 8,
-    ) -> dict[str, dict]:
+    ) -> dict[str, dict[str, Any]]:
     """
     Run task concurrently for every configured pipeline site.
 
