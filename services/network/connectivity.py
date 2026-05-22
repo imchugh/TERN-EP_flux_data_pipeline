@@ -23,6 +23,7 @@ import logging
 from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 # -----------------------------------------------------------------------------
 
@@ -246,6 +247,100 @@ def run_network_scan(hardware: str="gateway") -> dict:
     )
 
     return state
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+def run_site_connectivity(site: str, hardware: str = "gateway") -> dict[str, Any]:
+    """
+    Run a connectivity check for a single site.
+
+    Intended as the per-site callable for ``run_task_for_all_sites`` in the
+    orchestrator. Returns a plain dict so results are immediately serialisable
+    and consistent with the ``{'error': ...}`` dicts emitted by the concurrent
+    runner on failure.
+
+    Args:
+        site: Site name as it appears in the VPN IP config.
+        hardware: Hardware type to scan. One of 'gateway', 'ec', 'soil',
+            'profile'. Defaults to 'gateway'.
+
+    Returns:
+        Dict with keys: reachable, port, latency_ms, error.
+
+    Raises:
+        KeyError: If site is not present in the VPN IP config.
+    """
+
+    if site not in SITE_IP:
+        raise KeyError(f"Site {site!r} not found in VPN IP config")
+
+    hardware_config = SITE_IP[site]
+    host = hardware_config['host']
+    port = hardware_config['port']
+
+    if hardware != 'gateway':
+        host = resolve_endpoint(vpn_ip=host, logger_type=hardware)
+        port = LOGGER_DEFAULT_PORT
+
+    result = run_endpoint_scan(host=host, port=port)
+
+    return {
+        "reachable": result.reachable,
+        "port": result.port,
+        "latency_ms": result.latency_ms,
+        "error": str(result.error) if result.error is not None else None,
+    }
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+def persist_connectivity_state(
+    results: dict[str, Any],
+    task_name: str,
+    path: Path = STATE_PATH,
+) -> None:
+    """
+    Stateful read-modify-write persist function for connectivity scan results.
+
+    Loads the current state file, merges new results into the per-site hardware
+    block identified by ``task_name``, then writes the updated state back.
+    Matches the ``Callable[[dict, str], None]`` persist interface expected by
+    ``run_task_for_all_sites``.
+
+    Consecutive-failure counters are preserved across runs: a reachable result
+    resets the counter; any other result (unreachable or error dict) increments
+    it.
+
+    Args:
+        results: Per-site results as returned by ``run_site_connectivity``, or
+            ``{'error': <str>}`` dicts emitted by the concurrent runner for
+            sites that raised exceptions.
+        task_name: Hardware type label (e.g. ``'gateway'``, ``'ec'``). Used as
+            the key in each site's hardware block inside the state file.
+        path: State file path. Defaults to the standard connectivity state path.
+    """
+
+    state = load_state(path=path)
+    now = get_utc_now(as_iso=True)
+
+    for site_name, result in results.items():
+
+        hw_block = ensure_site_hardware_block(
+            state=state,
+            site_name=site_name,
+            hardware=task_name,
+        )
+
+        hw_block["last_attempt"] = now
+
+        if isinstance(result, dict) and result.get("reachable"):
+            hw_block["last_success"] = now
+            hw_block["last_latency_ms"] = result.get("latency_ms")
+            hw_block["consecutive_failures"] = 0
+        else:
+            hw_block["consecutive_failures"] += 1
+
+    state["updated_at"] = now
+    save_state(state=state, path=path)
 # -----------------------------------------------------------------------------
 
 # ###############################################################################
