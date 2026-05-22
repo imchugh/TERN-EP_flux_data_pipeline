@@ -74,6 +74,12 @@ class ConnectivityCheckResult:
 ###############################################################################
 
 # -----------------------------------------------------------------------------
+def connectivity_sites() -> list[str]:
+    """Return site names available for connectivity scanning."""
+    return list(SITE_IP.keys())
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
 def resolve_endpoint(vpn_ip: str, logger_type: str = 'ec') -> str:
 
     if logger_type not in SUBNET_IP:
