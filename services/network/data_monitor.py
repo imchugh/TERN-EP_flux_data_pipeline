@@ -12,7 +12,7 @@ from typing import Any
 
 import pandas as pd
 
-from infrastructure import data_functions, datetime_utils, paths
+from infrastructure import data_diagnostics, datetime_utils, paths
 from services.data import raw_data_loader
 from services.metadata.variable_metadata_service import SiteRuntimeConfig
 from domain.data_models.metadata_classes import SiteMetadata
@@ -104,7 +104,7 @@ def get_missing_records(
 
         try:
             missing = (
-                data_functions.analyse_data_gaps(
+                data_diagnostics.analyse_data_gaps(
                     df=analysis_df,
                     interval_minutes=interval_minutes,
                     )['pct_missing']
