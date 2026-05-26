@@ -24,10 +24,11 @@ from typing import Callable
 # -----------------------------------------------------------------------------
 
 from services.metadata.variable_metadata_service import (
-    SiteRuntimeConfig, load_runtime_config_by_site
+    SiteRuntimeConfig, load_runtime_config
     )
-from services.metadata import file_mapping_service, global_metadata_service
+from services.metadata import file_mapping_service
 from services.metadata.file_mapping_service import FileGroup
+from services.metadata.site_registry import SiteRegistry, yml_loader
 from services.data import raw_data_loader, conversion_service
 from infrastructure.data_conditioning import condition_dataframe
 
@@ -43,10 +44,15 @@ from infrastructure.data_conditioning import condition_dataframe
 TRANSFORM_SUFFIXES = {'variance_to_stdev': ('Vr', 'Sd')}
 TRANSFORM_STATS = {'variance_to_stdev': ('variance', 'standard_deviation')}
 ATTRS_SUBSET = [
-    'site_name', 'fluxnet_id', 'latitude', 'longitude', 'time_step', 
-    'time_zone', 'canopy_height', 'tower_height', 'soil', 'vegetation', 
+    'site_name', 'fluxnet_id', 'latitude', 'longitude', 'time_step',
+    'time_zone', 'canopy_height', 'tower_height', 'soil', 'vegetation',
     'system_type', 'elevation'
     ]
+
+SITE_REGISTRY = SiteRegistry(
+    metadata_loader=yml_loader,
+    runtime_config_loader=load_runtime_config,
+    )
 
 ###############################################################################
 ### END INITS ###
@@ -106,8 +112,8 @@ class VariableSpec:
 # -----------------------------------------------------------------------------
 def build_dataset_from_site_name(site_name: str) -> xr.Dataset:
     """Convenience wrapper - avoids loading runtime configuration object"""
-    
-    cfg = load_runtime_config_by_site(site=site_name)
+
+    cfg = SITE_REGISTRY.get_runtime_config(site=site_name)
     return build_dataset_from_cfg(runtime_cfg=cfg)
 # -----------------------------------------------------------------------------
 
@@ -231,10 +237,8 @@ def apply_global_metadata(
 
     """
           
-    # Retrieve global metadata from global_metadata_service
-    metadata = global_metadata_service.get_site_metadata(
-        site=runtime_cfg.site_name
-        )
+    # Retrieve global metadata via the site registry
+    metadata = SITE_REGISTRY.get_metadata(site=runtime_cfg.site_name)
     
     # Add only metadata fields in subset
     for attr in ATTRS_SUBSET:
@@ -260,8 +264,8 @@ def apply_global_metadata(
 # -----------------------------------------------------------------------------
 def build_dataframe_from_site_name(site_name: str) -> pd.DataFrame:
     """Convenience wrapper - avoids loading runtime configuration object"""
-    
-    cfg = load_runtime_config_by_site(site=site_name)
+
+    cfg = SITE_REGISTRY.get_runtime_config(site=site_name)
     return build_dataframe_from_cfg(runtime_cfg=cfg)
 # -----------------------------------------------------------------------------
 
@@ -689,7 +693,6 @@ def convert_units(
                     from_units=site_units
                     )
             except Exception as e:
-                breakpoint()
                 raise RuntimeError(
                     f"Unit conversion failed for {variable} "
                     f"(from {site_units} → {reg_entry.canonical_units})"
