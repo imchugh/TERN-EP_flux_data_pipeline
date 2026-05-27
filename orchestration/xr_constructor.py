@@ -144,18 +144,6 @@ def build_dataset_from_context(ctx: SiteContext) -> xr.Dataset:
 
 # -----------------------------------------------------------------------------
 
-def build_dataset_from_cfg(runtime_cfg: SiteRuntimeConfig) -> xr.Dataset:
-    """Shim for callers that only have a SiteRuntimeConfig.
-
-    Prefer build_dataset_from_context() for new call sites.
-    """
-
-    ctx = SITE_REGISTRY.get_context(site=runtime_cfg.site_name)
-    return build_dataset_from_context(ctx=ctx)
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
 def build_var_attrs_from_registry(
         registry: dict[str: VariableSpec]
         ) -> dict[str: dict]:
