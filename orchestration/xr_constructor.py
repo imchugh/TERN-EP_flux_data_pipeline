@@ -28,7 +28,7 @@ from services.metadata.variable_metadata_service import (
     )
 from services.metadata import file_mapping_service
 from services.metadata.file_mapping_service import FileGroup
-from services.metadata.site_registry import SiteRegistry, yml_loader
+from services.metadata.site_registry import SiteRegistry, SiteContext, yml_loader
 from services.data import raw_data_loader, conversion_service
 from infrastructure.data_conditioning import condition_dataframe
 
@@ -111,30 +111,47 @@ class VariableSpec:
 
 # -----------------------------------------------------------------------------
 def build_dataset_from_site_name(site_name: str) -> xr.Dataset:
-    """Convenience wrapper - avoids loading runtime configuration object"""
+    """Convenience wrapper - resolves site name to context via registry."""
 
-    cfg = SITE_REGISTRY.get_runtime_config(site=site_name)
-    return build_dataset_from_cfg(runtime_cfg=cfg)
+    ctx = SITE_REGISTRY.get_context(site=site_name)
+    return build_dataset_from_context(ctx=ctx)
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+
+def build_dataset_from_context(ctx: SiteContext) -> xr.Dataset:
+    """Build an xarray dataset from a fully-assembled site context."""
+
+    file_groups = file_mapping_service.build_file_groups(ctx.runtime_config)
+    for group in file_groups.values():
+        group.validate()
+
+    registry = build_raw_variable_registry(
+        runtime_cfg=ctx.runtime_config,
+        file_groups=file_groups,
+        )
+
+    df = build_dataframe(file_groups=file_groups, registry=registry)
+
+    attrs = build_var_attrs_from_registry(registry=registry)
+
+    ds = df.to_xarray()
+    ds = apply_variable_metadata(ds, attrs)
+    ds = apply_global_metadata(ds, ctx)
+
+    return ds
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
 
 def build_dataset_from_cfg(runtime_cfg: SiteRuntimeConfig) -> xr.Dataset:
-    """Wrap dataframe function and convert to xarray dataset"""
+    """Shim for callers that only have a SiteRuntimeConfig.
 
-    res_pkg = collate_resource_package(runtime_cfg=runtime_cfg)
-    
-    df = build_dataframe(res_pkg=res_pkg)
-    
-    attrs = build_var_attrs_from_registry(registry=res_pkg['registry'])
+    Prefer build_dataset_from_context() for new call sites.
+    """
 
-    ds = df.to_xarray()
-    
-    ds = apply_variable_metadata(ds, attrs)
-
-    ds = apply_global_metadata(ds, runtime_cfg)
-
-    return ds
+    ctx = SITE_REGISTRY.get_context(site=runtime_cfg.site_name)
+    return build_dataset_from_context(ctx=ctx)
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
@@ -223,32 +240,29 @@ def apply_variable_metadata(
 # -----------------------------------------------------------------------------
 
 def apply_global_metadata(
-        ds: xr.Dataset, runtime_cfg: SiteRuntimeConfig
-        ) -> xr.Dataset:        
+        ds: xr.Dataset, ctx: SiteContext
+        ) -> xr.Dataset:
     """
     Add global attributes.
 
     Args:
         ds: existing xarray dataset.
-        runtime_cfg: config class.
+        ctx: site context holding both runtime config and site metadata.
 
     Returns:
         ds: augmented dataset.
 
     """
-          
-    # Retrieve global metadata via the site registry
-    metadata = SITE_REGISTRY.get_metadata(site=runtime_cfg.site_name)
-    
-    # Add only metadata fields in subset
+
+    # Add site metadata fields
     for attr in ATTRS_SUBSET:
-        ds.attrs[attr] = metadata.get(attr)
-   
-    # Add global metadata from runtime_cfg    
-    ds.attrs['irga_type'] = runtime_cfg.irga_instrument
-    ds.attrs['sonic_type'] = runtime_cfg.sonic_instrument
-    ds.attrs['flux_system'] = runtime_cfg.flux_system
-    
+        ds.attrs[attr] = ctx.metadata.get(attr)
+
+    # Add instrument fields from runtime config
+    ds.attrs['irga_type'] = ctx.runtime_config.irga_instrument
+    ds.attrs['sonic_type'] = ctx.runtime_config.sonic_instrument
+    ds.attrs['flux_system'] = ctx.runtime_config.flux_system
+
     return ds
 # -----------------------------------------------------------------------------
 
@@ -263,7 +277,7 @@ def apply_global_metadata(
 
 # -----------------------------------------------------------------------------
 def build_dataframe_from_site_name(site_name: str) -> pd.DataFrame:
-    """Convenience wrapper - avoids loading runtime configuration object"""
+    """Convenience wrapper - resolves site name to runtime config via registry."""
 
     cfg = SITE_REGISTRY.get_runtime_config(site=site_name)
     return build_dataframe_from_cfg(runtime_cfg=cfg)
@@ -271,52 +285,22 @@ def build_dataframe_from_site_name(site_name: str) -> pd.DataFrame:
 
 # -----------------------------------------------------------------------------
 def build_dataframe_from_cfg(runtime_cfg: SiteRuntimeConfig) -> pd.DataFrame:
-    """Build dataframe from runtime config class"""
-      
-    return build_dataframe(
-        res_pkg=collate_resource_package(runtime_cfg=runtime_cfg)
-        ) 
+    """Build dataframe from runtime config."""
+
+    file_groups = file_mapping_service.build_file_groups(runtime_cfg)
+    for group in file_groups.values():
+        group.validate()
+
+    registry = build_raw_variable_registry(
+        runtime_cfg=runtime_cfg,
+        file_groups=file_groups,
+        )
+
+    return build_dataframe(file_groups=file_groups, registry=registry)
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
 # Begin required resource builds
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-def collate_resource_package(runtime_cfg: SiteRuntimeConfig) -> dict:
-    """
-    Collate the resources required for successful data build.
-
-    Args:
-        runtime_cfg: config class.
-
-    Returns:
-        dict containing registry, file groups and system type.
-
-    """
-
-    # Build file groups containing:
-        # 1 - resolved master and backup files
-        # 2 - expected raw variables across file group, as mapped in config file
-    # Do group validation -> ensures that expected variables are all found 
-    # across file group
-    file_groups = file_mapping_service.build_file_groups(runtime_cfg)
-    for group in file_groups.values():
-        group.validate()
-    
-    # Build raw variable registry containing raw variable name as key and 
-    # dataclass as value (see VariableSpec class for specifications)
-    registry = build_raw_variable_registry(
-        runtime_cfg=runtime_cfg,
-        file_groups=file_groups
-        )
-        
-    # Return the resources
-    return {
-        "registry": registry,
-        "file_groups": file_groups,
-        }
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
@@ -470,44 +454,48 @@ def infer_transform(statistic_type: str | None) -> str | None:
 
 # -----------------------------------------------------------------------------
 
-def build_dataframe(res_pkg: dict) -> pd.DataFrame:
+def build_dataframe(
+        file_groups: dict[str, FileGroup],
+        registry: dict[str, VariableSpec],
+        ) -> pd.DataFrame:
     """
     Build the dataframe.
 
     Args:
-        res_pkg: resource package required for processing.
+        file_groups: file groups produced by build_file_groups.
+        registry: raw variable registry produced by build_raw_variable_registry.
 
     Returns:
         dataframe.
 
     """
-    
-    # Step 1: iterate over source file groups to stack master + backups via 
-    # vertical (row-major) concatenation 
+
+    # Step 1: iterate over source file groups to stack master + backups via
+    # vertical (row-major) concatenation
     dfs = []
-    for _, mapper in res_pkg["file_groups"].items():
-        
+    for _, mapper in file_groups.items():
+
         loader = raw_data_loader.get_data_adapter(
             system_type=mapper.file_format
             )
-        
+
         dfs.append(
             process_file_group(
-                mapper=mapper, 
-                loader=loader, 
-                registry=res_pkg['registry']
+                mapper=mapper,
+                loader=loader,
+                registry=registry,
                 )
             )
 
     # Step 2: horizontal (column-major) concatenation (different tables/loggers)
     df = concat_columns(dfs)
-        
+
     # Step 3: merge overlapping variables
-    merge_blocks = get_merge_blocks(registry=res_pkg['registry'])
+    merge_blocks = get_merge_blocks(registry=registry)
     df = merge_overlapping_variables(df=df, merge_blocks=merge_blocks)
 
     # Step 4: rename to canonical variables
-    df = rename_to_canonical(df, res_pkg["registry"])
+    df = rename_to_canonical(df, registry)
 
     return df
 # -----------------------------------------------------------------------------

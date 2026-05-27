@@ -183,3 +183,30 @@ queries:
     
         }
         ORDER BY ?label
+    
+    get_instrument_vocabulary: |
+        PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+        PREFIX owl: <http://www.w3.org/2002/07/owl#>
+        
+        SELECT DISTINCT ?uri ?label ?altLabel ?broader_chain ?broader_chain_label ?is_top_concept ?broader
+        WHERE {
+            ?uri skos:inScheme <http://linked.data.gov.au/def/tern-cv/a3088b5c-622d-4e25-8a75-4c4961b0dfe8> .
+            ?uri skos:prefLabel ?label .
+            OPTIONAL { ?uri skos:altLabel ?altLabel }
+            OPTIONAL {
+                ?uri skos:broader+ ?broader_chain .
+                ?broader_chain skos:prefLabel ?broader_chain_label .
+            }
+            BIND(
+                EXISTS{
+                    ?uri skos:topConceptOf <http://linked.data.gov.au/def/tern-cv/a3088b5c-622d-4e25-8a75-4c4961b0dfe8>
+                } AS ?is_top_concept
+            )
+            OPTIONAL {
+                ?uri skos:broader ?broader .
+            }
+        
+            FILTER NOT EXISTS {
+                ?uri owl: deprecated true .
+            }
+        }

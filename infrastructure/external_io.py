@@ -101,7 +101,7 @@ def post(
         return response
 
     except requests.RequestException as exc:
-
+        
         raise HTTPRequestError(
             f"POST request failed for {url}: {exc}"
         ) from exc

@@ -396,6 +396,12 @@ def get_all_tern_metadata() -> dict[str, SiteMetadata]:
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
+def get_instrument_vocab():
+    
+    return parse_sparql_bindings(run_query(query_key='get_instrument_vocabulary'))
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
 
 def get_tern_site_metadata(site: str) -> SiteMetadata:
     """
