@@ -75,7 +75,7 @@ def build_dataset_from_site_name(site_name: str) -> xr.Dataset:
 def build_dataset_from_context(ctx: SiteContext) -> xr.Dataset:
     """Build an xarray dataset from a fully-assembled site context."""
 
-    result = _build_dataframe(ctx.runtime_config)
+    result = _build_dataframe(ctx)
 
     ds = result.df.to_xarray()
     ds = _apply_variable_metadata(ds, result.var_attrs)
@@ -102,19 +102,24 @@ def build_dataset_from_cfg(runtime_cfg: SiteRuntimeConfig) -> xr.Dataset:
 # -----------------------------------------------------------------------------
 
 def build_dataframe_from_site_name(site_name: str) -> pd.DataFrame:
-    """Convenience wrapper — resolves site name to runtime config via registry."""
+    """Convenience wrapper — resolves site name to context via registry."""
 
-    cfg = SITE_REGISTRY.get_runtime_config(site=site_name)
-    return build_dataframe_from_cfg(runtime_cfg=cfg)
+    ctx = SITE_REGISTRY.get_context(site=site_name)
+    return _build_dataframe(ctx).df
 
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
 
 def build_dataframe_from_cfg(runtime_cfg: SiteRuntimeConfig) -> pd.DataFrame:
-    """Build canonical dataframe from runtime config."""
+    """
+    Shim for callers that only have a SiteRuntimeConfig.
 
-    return _build_dataframe(runtime_cfg).df
+    Prefer build_dataframe_from_site_name() for new call sites.
+    """
+
+    ctx = SITE_REGISTRY.get_context(site=runtime_cfg.site_name)
+    return _build_dataframe(ctx).df
 
 # -----------------------------------------------------------------------------
 

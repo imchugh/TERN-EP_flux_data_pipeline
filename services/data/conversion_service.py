@@ -95,7 +95,7 @@ def convert_CO2_flux(data, from_units='mg/m^2/s'):
 
 # -----------------------------------------------------------------------------
 
-@register_conversion("CO2c", "CO2c_IRGA")
+@register_conversion("CO2c")
 def convert_CO2_density(data, from_units='mmol/m^3'):
 
     if from_units == 'mmol/m^3':
@@ -104,7 +104,7 @@ def convert_CO2_density(data, from_units='mmol/m^3'):
 
 # -----------------------------------------------------------------------------
 
-@register_conversion('Sig_IRGA', 'SigCO2_IRGA', 'SigH2O_IRGA')
+@register_conversion('Sig', 'SigCO2', 'SigH2O', 'CO2Sig', 'H2OSig')
 def convert_signal_strength(data, from_units='frac'):
 
     if from_units == 'frac':
@@ -113,16 +113,25 @@ def convert_signal_strength(data, from_units='frac'):
 
 # -----------------------------------------------------------------------------
 
-@register_conversion('Diag_IRGA', 'Diag_SONIC')
-def convert_diagnostic(data, n_samples, from_units='valid_count'):
+@register_conversion('Diag')
+def convert_diagnostic(data, n_samples, from_units='invalid_count'):
+    """Convert diagnostic counts to valid_count form.
 
-    if from_units == 'valid_count':
+    Diag variables can be stored as either valid_count or invalid_count.
+    The pipeline standardises to valid_count; invalid_count is converted
+    by subtracting from the total number of samples in the period.
+
+    Note: n_samples must be supplied by the caller; _apply_conversions
+    does not yet pass this — wiring it up is a TODO.
+    """
+
+    if from_units == 'invalid_count':
         return n_samples - data
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
 
-@register_conversion('AH', 'AH_IRGA')
+@register_conversion('AH')
 def convert_H2O_density(data, from_units='mmol/m^3'):
 
     if from_units == 'mmol/m^3':
@@ -173,7 +182,7 @@ def convert_Sws(data, from_units='percent'):
 
 # -----------------------------------------------------------------------------
 
-@register_conversion('Ta', 'Tv_SONIC', 'Tbody_RAD')
+@register_conversion('Ta', 'Tv', 'Tbody')
 def convert_temperature(data, from_units='K'):
 
     if from_units == 'K':
