@@ -21,10 +21,7 @@ pad_humidity(result) -> DataframeBuildResult
 import pandas as pd
 
 from orchestration.dataframe_builder import DataframeBuildResult
-from infrastructure.convert_calc_filter import (
-    calculate_AH_from_RH,
-    calculate_RH_from_AH,
-)
+from services.data.conversion_service import get_calculation
 
 ###############################################################################
 ### END IMPORTS ###
@@ -92,7 +89,7 @@ def pad_humidity(result: DataframeBuildResult) -> DataframeBuildResult:
 
         if rh_col is not None:
             new_col = _derived_name(rh_col, 'RH', 'AH')
-            df[new_col] = calculate_AH_from_RH(
+            df[new_col] = get_calculation('AH')(
                 Ta=df[ta_col], RH=df[rh_col], ps=df[ps_col]
                 )
             var_attrs[new_col] = _build_attrs(
@@ -100,7 +97,7 @@ def pad_humidity(result: DataframeBuildResult) -> DataframeBuildResult:
                 )
         else:
             new_col = _derived_name(ah_col, 'AH', 'RH')
-            df[new_col] = calculate_RH_from_AH(
+            df[new_col] = get_calculation('RH')(
                 AH=df[ah_col], Ta=df[ta_col], ps=df[ps_col]
                 )
             var_attrs[new_col] = _build_attrs(

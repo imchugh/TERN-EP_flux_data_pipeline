@@ -13,7 +13,10 @@ Created on Wed Mar 11 11:40:22 2026
 from dataclasses import dataclass
 from typing import Callable
 
-from domain.constants import CO2_MOL_MASS, H2O_MOL_MASS, K
+import numpy as np
+import pandas as pd
+
+from domain.constants import CO2_MOL_MASS, H2O_MOL_MASS, K, R
 
 ###############################################################################
 ### END IMPORTS ###
@@ -37,6 +40,7 @@ VARIANCE_TO_SD_UNITS = {
 
 CONVERSION_REGISTRY = {}
 TRANSFORMATION_REGISTRY = {}
+CALCULATION_REGISTRY = {}
 
 # -----------------------------------------------------------------------------
 
@@ -55,6 +59,16 @@ def register_transformation(*names):
         for name in names:
             TRANSFORMATION_REGISTRY[name] = obj
         return obj
+    return decorator
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+
+def register_calculation(*quantities):
+    def decorator(func):
+        for q in quantities:
+            CALCULATION_REGISTRY[q] = func
+        return func
     return decorator
 # -----------------------------------------------------------------------------
 
@@ -193,6 +207,44 @@ def convert_temperature(data, from_units='K'):
 
 def get_unit_conversion(quantity):
     return CONVERSION_REGISTRY.get(quantity)
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+
+def get_calculation(quantity):
+    return CALCULATION_REGISTRY.get(quantity)
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+
+@register_calculation('AH')
+def calculate_AH_from_RH(Ta: pd.Series, RH: pd.Series, ps: pd.Series) -> pd.Series:
+    """Derive absolute humidity (g/m³) from air temperature, RH, and pressure."""
+
+    es = _calculate_es(Ta)
+    e = es * RH / 100
+    molar_density = ps * 1000 / ((Ta + K) * R)
+    return e / ps * molar_density * H2O_MOL_MASS
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+
+@register_calculation('RH')
+def calculate_RH_from_AH(AH: pd.Series, Ta: pd.Series, ps: pd.Series) -> pd.Series:
+    """Derive relative humidity (%) from absolute humidity, air temperature, and pressure."""
+
+    molar_density = ps * 1000 / ((Ta + K) * R)
+    e = (AH / H2O_MOL_MASS) / molar_density * ps
+    es = _calculate_es(Ta)
+    return e / es * 100
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+
+def _calculate_es(Ta: pd.Series) -> pd.Series:
+    """Saturation vapour pressure (kPa) from Buck (1996)."""
+
+    return 0.61121 * np.exp((18.678 - Ta / 234.5) * (Ta / (257.14 + Ta)))
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
