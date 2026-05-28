@@ -24,6 +24,7 @@ import xarray as xr
 from services.metadata.variable_metadata_service import SiteRuntimeConfig
 from services.metadata.site_registry import SiteRegistry, SiteContext
 from orchestration.dataframe_builder import build as _build_dataframe
+from orchestration.humidity_pad import pad_humidity
 
 ###############################################################################
 ### END IMPORTS ###
@@ -71,6 +72,7 @@ def build_dataset_from_context(ctx: SiteContext) -> xr.Dataset:
     """Build an xarray dataset from a fully-assembled site context."""
 
     result = _build_dataframe(ctx)
+    result = pad_humidity(result)
 
     ds = result.df.to_xarray()
     ds = _apply_variable_metadata(ds, result.var_attrs)
