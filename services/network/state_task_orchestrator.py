@@ -48,8 +48,7 @@ from infrastructure import paths
 from infrastructure.datetime_utils import get_utc_now
 from infrastructure.file_io import write_json
 from infrastructure.parallel_executor import run_concurrent
-from services.metadata.site_registry import SiteRegistry, yml_loader
-from services.metadata.variable_metadata_service import load_runtime_config
+from services.metadata.site_registry import SiteRegistry
 from services.network.connectivity import (
     run_site_connectivity,
     connectivity_sites,
@@ -71,10 +70,7 @@ type PersistFn = Callable[[dict[str, Any], str], None]
 # before each concurrent run.
 # ---------------------------------------------------------------------------
 
-SITE_REGISTRY = SiteRegistry(
-    metadata_loader=yml_loader,
-    runtime_config_loader=load_runtime_config,
-)
+SITE_REGISTRY = SiteRegistry()
 
 # ---------------------------------------------------------------------------
 # Task adapters

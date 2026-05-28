@@ -19,7 +19,10 @@ from typing import Callable
 from domain.data_models.metadata_classes import SiteMetadata
 from infrastructure import paths
 from services import config_loader
-from services.metadata.variable_metadata_service import SiteRuntimeConfig
+from services.metadata.variable_metadata_service import (
+    SiteRuntimeConfig,
+    load_runtime_config,
+)
 
 # -----------------------------------------------------------------------------
 
@@ -64,13 +67,12 @@ class SiteRegistry:
 
     def __init__(
             self,
-            metadata_loader: Callable[[], dict[str, SiteMetadata]],
-            runtime_config_loader: Callable[[str], SiteRuntimeConfig],
+            metadata_loader: Callable[[], dict[str, SiteMetadata]] = None,
             ):
 
-        self._metadata_loader = metadata_loader
-        self._runtime_config_loader = runtime_config_loader
+        self._metadata_loader = metadata_loader if metadata_loader is not None else yml_loader
         self._metadata_cache: dict[str, SiteMetadata] | None = None
+        self._runtime_config_cache: dict[str, SiteRuntimeConfig] = {}
 
     #--------------------------------------------------------------------------
 
@@ -141,10 +143,18 @@ class SiteRegistry:
     #--------------------------------------------------------------------------
 
     def get_runtime_config(self, site: str) -> SiteRuntimeConfig:
-        """Load runtime configuration for a pipeline site."""
+        """
+        Load runtime configuration for a pipeline site.
 
-        config_path = self.get_config_path(site=site)
-        return self._runtime_config_loader(config_path)
+        Results are cached by site name for the lifetime of this registry
+        instance — subsequent calls return the same object without re-parsing
+        the config file.
+        """
+
+        if site not in self._runtime_config_cache:
+            config_path = self.get_config_path(site=site)
+            self._runtime_config_cache[site] = load_runtime_config(config_path)
+        return self._runtime_config_cache[site]
 
     #--------------------------------------------------------------------------
 

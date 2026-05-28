@@ -21,10 +21,8 @@ import xarray as xr
 
 # -----------------------------------------------------------------------------
 
-from services.metadata.variable_metadata_service import (
-    SiteRuntimeConfig, load_runtime_config
-    )
-from services.metadata.site_registry import SiteRegistry, SiteContext, yml_loader
+from services.metadata.variable_metadata_service import SiteRuntimeConfig
+from services.metadata.site_registry import SiteRegistry, SiteContext
 from orchestration.dataframe_builder import build as _build_dataframe
 
 ###############################################################################
@@ -42,10 +40,7 @@ ATTRS_SUBSET = [
     'system_type', 'elevation'
     ]
 
-SITE_REGISTRY = SiteRegistry(
-    metadata_loader=yml_loader,
-    runtime_config_loader=load_runtime_config,
-    )
+SITE_REGISTRY = SiteRegistry()
 
 ###############################################################################
 ### END INITS ###
