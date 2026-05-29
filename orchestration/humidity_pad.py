@@ -22,6 +22,7 @@ import pandas as pd
 
 from orchestration.dataframe_builder import DataframeBuildResult
 from services.data.conversion_service import get_calculation
+from services.metadata.canonical_quantity_registry import build_canonical_quantity_registry
 
 ###############################################################################
 ### END IMPORTS ###
@@ -33,19 +34,6 @@ from services.data.conversion_service import get_calculation
 ###############################################################################
 
 _HUMIDITY_QUANTITIES = frozenset({'Ta', 'RH', 'AH'})
-
-_CANONICAL_ATTRS = {
-    'AH': {
-        'long_name':     'Absolute humidity',
-        'standard_name': 'mass_concentration_of_water_vapor_in_air',
-        'units':         'g/m^3',
-    },
-    'RH': {
-        'long_name':     'Relative humidity',
-        'standard_name': 'relative_humidity',
-        'units':         'percent',
-    },
-}
 
 ###############################################################################
 ### END INITS ###
@@ -171,17 +159,17 @@ def _derived_name(source_name: str, source_qty: str, new_qty: str) -> str:
 def _build_attrs(source_attrs: dict, quantity: str) -> dict:
     """Build attrs for a derived variable, inheriting spatial/instrument context."""
 
-    canonical = _CANONICAL_ATTRS[quantity]
+    canonical = build_canonical_quantity_registry().get_base_metadata(quantity)
     return {
         'height':             source_attrs['height'],
         'height_range':       source_attrs['height_range'],
         'instrument':         source_attrs['instrument'],
         'instrument_history': source_attrs['instrument_history'],
-        'long_name':          canonical['long_name'],
+        'long_name':          canonical.long_name,
         'quantity':           quantity,
-        'standard_name':      canonical['standard_name'],
+        'standard_name':      canonical.standard_name,
         'statistic_type':     source_attrs['statistic_type'],
-        'units':              canonical['units'],
+        'units':              canonical.standard_units,
     }
 
 # -----------------------------------------------------------------------------
