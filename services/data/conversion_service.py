@@ -10,9 +10,6 @@ Created on Wed Mar 11 11:40:22 2026
 ### BEGIN IMPORTS ###
 ###############################################################################
 
-from dataclasses import dataclass
-from typing import Callable
-
 import numpy as np
 import pandas as pd
 
@@ -27,19 +24,7 @@ from domain.constants import CO2_MOL_MASS, H2O_MOL_MASS, K, R
 ### BEGIN INITS ###
 ###############################################################################
 
-VARIANCE_TO_SD_UNITS = {
-    'g^2/m^6': 'g/m^3',
-    'umol/mol': 'umol/mol',
-    'mg^2/m^6': 'mg/m^3',
-    'degC^2': 'degC',
-    'm^2/s^2': 'm/s',
-    'mmol^2/m^6': 'mmol/m^3',
-    'mmol/mol': 'mmol/mol',
-    'K^2': 'K'
-    }
-
 CONVERSION_REGISTRY = {}
-TRANSFORMATION_REGISTRY = {}
 CALCULATION_REGISTRY = {}
 
 # -----------------------------------------------------------------------------
@@ -49,16 +34,6 @@ def register_conversion(*quantities):
         for q in quantities:
             CONVERSION_REGISTRY[q] = func
         return func
-    return decorator
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-def register_transformation(*names):
-    def decorator(obj):
-        for name in names:
-            TRANSFORMATION_REGISTRY[name] = obj
-        return obj
     return decorator
 # -----------------------------------------------------------------------------
 
@@ -74,23 +49,6 @@ def register_calculation(*quantities):
 
 ###############################################################################
 ### END INITS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN CLASSES ###
-###############################################################################
-
-# -----------------------------------------------------------------------------
-
-@dataclass(frozen=True)
-class Transformation:
-    apply_data: Callable
-    apply_units: Callable
-# -----------------------------------------------------------------------------
-
-###############################################################################
-### END CLASSES ###
 ###############################################################################
 
 
@@ -245,36 +203,6 @@ def _calculate_es(Ta: pd.Series) -> pd.Series:
     """Saturation vapour pressure (kPa) from Buck (1996)."""
 
     return 0.61121 * np.exp((18.678 - Ta / 234.5) * (Ta / (257.14 + Ta)))
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-@register_transformation('variance_to_stdev')
-def variance_to_stdev():
-    return Transformation(
-        apply_data=lambda data: (data ** 0.5),
-        apply_units=lambda units: VARIANCE_TO_SD_UNITS[units],
-        )
-# -----------------------------------------------------------------------------
-
-# # -----------------------------------------------------------------------------
-# @register_transformation('variance_data_to_stdev')
-# def transform_variance_data_to_stdev(data):
-    
-#     return data**(1/2)
-# # -----------------------------------------------------------------------------
-
-# # -----------------------------------------------------------------------------
-# @register_transformation('variance_units_to_stdev')
-# def transform_variance_units_to_stdev(from_units):
-    
-#     return VARIANCE_TO_SD_UNITS[from_units]
-# # -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-def get_statistical_transformation(quantity):
-    return TRANSFORMATION_REGISTRY.get(quantity)
 # -----------------------------------------------------------------------------
 
 ###############################################################################
