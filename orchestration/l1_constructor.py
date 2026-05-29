@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Build L1 xarray datasets from site context objects.
+Build L1 DataFrames and xarray Datasets from a site context.
 
 Public API
 ----------
-build_dataset_from_site_name(site_name)   -> xr.Dataset
-build_dataset_from_context(ctx)           -> xr.Dataset
-build_dataset_from_cfg(runtime_cfg)       -> xr.Dataset  [shim]
-build_dataframe_from_site_name(site_name) -> pd.DataFrame
-build_dataframe_from_cfg(runtime_cfg)     -> pd.DataFrame
+build_dataset_from_site_name(site_name, pad_humidity)   -> xr.Dataset
+build_dataset_from_context(ctx, pad_humidity)           -> xr.Dataset
+build_dataframe_from_site_name(site_name, pad_humidity) -> pd.DataFrame
+build_dataframe_from_context(ctx, pad_humidity)         -> pd.DataFrame
 """
 
 ###############################################################################
@@ -21,10 +20,9 @@ import xarray as xr
 
 # -----------------------------------------------------------------------------
 
-from services.metadata.variable_metadata_service import SiteRuntimeConfig
 from services.metadata.site_registry import SiteRegistry, SiteContext
 from orchestration.dataframe_builder import build as _build_dataframe
-from orchestration.humidity_pad import pad_humidity
+from orchestration.humidity_pad import pad_humidity as _pad_humidity
 
 ###############################################################################
 ### END IMPORTS ###
@@ -58,21 +56,28 @@ SITE_REGISTRY = SiteRegistry()
 
 # -----------------------------------------------------------------------------
 
-def build_dataset_from_site_name(site_name: str) -> xr.Dataset:
+def build_dataset_from_site_name(
+        site_name: str,
+        pad_humidity: bool = True,
+        ) -> xr.Dataset:
     """Convenience wrapper — resolves site name to context via registry."""
 
     ctx = SITE_REGISTRY.get_context(site=site_name)
-    return build_dataset_from_context(ctx=ctx)
+    return build_dataset_from_context(ctx=ctx, pad_humidity=pad_humidity)
 
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
 
-def build_dataset_from_context(ctx: SiteContext) -> xr.Dataset:
-    """Build an xarray dataset from a fully-assembled site context."""
+def build_dataset_from_context(
+        ctx: SiteContext,
+        pad_humidity: bool = True,
+        ) -> xr.Dataset:
+    """Build an L1 xarray dataset from a fully-assembled site context."""
 
     result = _build_dataframe(ctx)
-    result = pad_humidity(result)
+    if pad_humidity:
+        result = _pad_humidity(result)
 
     ds = result.df.to_xarray()
     ds = _apply_variable_metadata(ds, result.var_attrs)
@@ -84,39 +89,29 @@ def build_dataset_from_context(ctx: SiteContext) -> xr.Dataset:
 
 # -----------------------------------------------------------------------------
 
-def build_dataset_from_cfg(runtime_cfg: SiteRuntimeConfig) -> xr.Dataset:
-    """
-    Shim for callers that only have a SiteRuntimeConfig.
-
-    Prefer build_dataset_from_context() for new call sites.
-    """
-
-    ctx = SITE_REGISTRY.get_context(site=runtime_cfg.site_name)
-    return build_dataset_from_context(ctx=ctx)
-
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-def build_dataframe_from_site_name(site_name: str) -> pd.DataFrame:
+def build_dataframe_from_site_name(
+        site_name: str,
+        pad_humidity: bool = True,
+        ) -> pd.DataFrame:
     """Convenience wrapper — resolves site name to context via registry."""
 
     ctx = SITE_REGISTRY.get_context(site=site_name)
-    return _build_dataframe(ctx).df
+    return build_dataframe_from_context(ctx=ctx, pad_humidity=pad_humidity)
 
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
 
-def build_dataframe_from_cfg(runtime_cfg: SiteRuntimeConfig) -> pd.DataFrame:
-    """
-    Shim for callers that only have a SiteRuntimeConfig.
+def build_dataframe_from_context(
+        ctx: SiteContext,
+        pad_humidity: bool = True,
+        ) -> pd.DataFrame:
+    """Build an L1 DataFrame from a fully-assembled site context."""
 
-    Prefer build_dataframe_from_site_name() for new call sites.
-    """
-
-    ctx = SITE_REGISTRY.get_context(site=runtime_cfg.site_name)
-    return _build_dataframe(ctx).df
+    result = _build_dataframe(ctx)
+    if pad_humidity:
+        result = _pad_humidity(result)
+    return result.df
 
 # -----------------------------------------------------------------------------
 
@@ -132,7 +127,6 @@ def _apply_variable_metadata(
         ) -> xr.Dataset:
     """Attach per-variable attribute dicts to dataset variables."""
 
-    # Skip dimension coordinates (e.g. time)
     for variable in [v for v in ds.variables if v not in ds.dims]:
         ds[variable].attrs = var_attrs[variable]
 
