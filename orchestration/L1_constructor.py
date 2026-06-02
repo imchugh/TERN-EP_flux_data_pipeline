@@ -34,9 +34,9 @@ from orchestration.humidity_pad import pad_humidity as _pad_humidity
 ###############################################################################
 
 ATTRS_SUBSET = [
-    'site_name', 'fluxnet_id', 'latitude', 'longitude', 'time_step',
-    'time_zone', 'canopy_height', 'tower_height', 'soil', 'vegetation',
-    'system_type', 'elevation'
+    'site_name', 'fluxnet_id', 'latitude', 'longitude', 'elevation', 
+    'time_step', 'time_zone', 'canopy_height', 'tower_height', 'soil', 
+    'vegetation', 'system_type'
     ]
 
 SITE_REGISTRY = SiteRegistry()
@@ -128,7 +128,7 @@ def _apply_variable_metadata(
     """Attach per-variable attribute dicts to dataset variables."""
 
     for variable in [v for v in ds.variables if v not in ds.dims]:
-        ds[variable].attrs = var_attrs[variable]
+        ds[variable].attrs = {k: v for k, v in var_attrs[variable].items() if v is not None}
 
     return ds
 
@@ -143,11 +143,17 @@ def _apply_global_metadata(
     """Add global attributes from site context."""
 
     for attr in ATTRS_SUBSET:
-        ds.attrs[attr] = ctx.metadata.get(attr)
+        value = ctx.metadata.get(attr)
+        if value is not None:
+            ds.attrs[attr] = value
 
-    ds.attrs['irga_type']  = ctx.runtime_config.irga_instrument
-    ds.attrs['sonic_type'] = ctx.runtime_config.sonic_instrument
-    ds.attrs['flux_system'] = ctx.runtime_config.flux_system
+    for key, value in [
+            ('irga_type',   ctx.runtime_config.irga_instrument),
+            ('sonic_type',  ctx.runtime_config.sonic_instrument),
+            ('flux_system', ctx.runtime_config.flux_system),
+            ]:
+        if value is not None:
+            ds.attrs[key] = value
 
     return ds
 
