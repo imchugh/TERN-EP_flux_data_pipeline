@@ -15,6 +15,7 @@ build_dataframe_from_context(ctx, pad_humidity)         -> pd.DataFrame
 ### BEGIN IMPORTS ###
 ###############################################################################
 
+import datetime
 import pandas as pd
 import xarray as xr
 
@@ -34,9 +35,9 @@ from orchestration.humidity_pad import pad_humidity as _pad_humidity
 ###############################################################################
 
 ATTRS_SUBSET = [
-    'site_name', 'fluxnet_id', 'latitude', 'longitude', 'elevation', 
-    'time_step', 'time_zone', 'canopy_height', 'tower_height', 'soil', 
-    'vegetation', 'system_type'
+    'site_name', 'fluxnet_id', 'latitude', 'longitude', 'elevation',
+    'time_step', 'time_zone', 'canopy_height', 'tower_height', 'soil',
+    'vegetation', 'system_type', 'date_commissioned'
     ]
 
 SITE_REGISTRY = SiteRegistry()
@@ -144,8 +145,11 @@ def _apply_global_metadata(
 
     for attr in ATTRS_SUBSET:
         value = ctx.metadata.get(attr)
-        if value is not None:
-            ds.attrs[attr] = value
+        if value is None:
+            continue
+        if isinstance(value, (datetime.date, datetime.datetime)):
+            value = value.isoformat()
+        ds.attrs[attr] = value
 
     for key, value in [
             ('irga_type',   ctx.runtime_config.irga_instrument),
