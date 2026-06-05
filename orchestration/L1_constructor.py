@@ -5,34 +5,21 @@ Build L1 DataFrames and xarray Datasets from a site context.
 
 Public API
 ----------
-build_dataset_from_site_name(site_name, pad_humidity)   -> xr.Dataset
-build_dataset_from_context(ctx, pad_humidity)           -> xr.Dataset
-build_dataframe_from_site_name(site_name, pad_humidity) -> pd.DataFrame
-build_dataframe_from_context(ctx, pad_humidity)         -> pd.DataFrame
+build_dataset_from_site_name(site_name, pad_humidity, pad_co2, start_date)   -> xr.Dataset
+build_dataset_from_context(ctx, pad_humidity, pad_co2, start_date)           -> xr.Dataset
+build_dataframe_from_site_name(site_name, pad_humidity, pad_co2, start_date) -> pd.DataFrame
+build_dataframe_from_context(ctx, pad_humidity, pad_co2, start_date)         -> pd.DataFrame
 """
-
-###############################################################################
-### BEGIN IMPORTS ###
-###############################################################################
 
 import datetime
 import pandas as pd
 import xarray as xr
 
-# -----------------------------------------------------------------------------
-
 from services.metadata.site_registry import SiteRegistry, SiteContext
 from orchestration.dataframe_builder import build as _build_dataframe
-from orchestration.humidity_pad import pad_humidity as _pad_humidity
+from orchestration.derived_quantities import pad_humidity as _pad_humidity
+from orchestration.derived_quantities import pad_co2 as _pad_co2
 
-###############################################################################
-### END IMPORTS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN INITS ###
-###############################################################################
 
 ATTRS_SUBSET = [
     'site_name', 'fluxnet_id', 'latitude', 'longitude', 'elevation',
@@ -42,43 +29,34 @@ ATTRS_SUBSET = [
 
 SITE_REGISTRY = SiteRegistry()
 
-###############################################################################
-### END INITS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN FUNCTIONS ###
-###############################################################################
-
-# -----------------------------------------------------------------------------
-# Entry points
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
 
 def build_dataset_from_site_name(
         site_name: str,
         pad_humidity: bool = True,
+        pad_co2: bool = True,
+        start_date: pd.Timestamp | None = None,
         ) -> xr.Dataset:
     """Convenience wrapper — resolves site name to context via registry."""
 
     ctx = SITE_REGISTRY.get_context(site=site_name)
-    return build_dataset_from_context(ctx=ctx, pad_humidity=pad_humidity)
+    return build_dataset_from_context(
+        ctx=ctx, pad_humidity=pad_humidity, pad_co2=pad_co2, start_date=start_date
+        )
 
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
 
 def build_dataset_from_context(
         ctx: SiteContext,
         pad_humidity: bool = True,
+        pad_co2: bool = True,
+        start_date: pd.Timestamp | None = None,
         ) -> xr.Dataset:
     """Build an L1 xarray dataset from a fully-assembled site context."""
 
-    result = _build_dataframe(ctx)
+    result = _build_dataframe(ctx, start_date=start_date)
     if pad_humidity:
         result = _pad_humidity(result)
+    if pad_co2:
+        result = _pad_co2(result)
 
     ds = result.df.to_xarray()
     ds = _apply_variable_metadata(ds, result.var_attrs)
@@ -86,41 +64,36 @@ def build_dataset_from_context(
 
     return ds
 
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
 
 def build_dataframe_from_site_name(
         site_name: str,
         pad_humidity: bool = True,
+        pad_co2: bool = True,
+        start_date: pd.Timestamp | None = None,
         ) -> pd.DataFrame:
     """Convenience wrapper — resolves site name to context via registry."""
 
     ctx = SITE_REGISTRY.get_context(site=site_name)
-    return build_dataframe_from_context(ctx=ctx, pad_humidity=pad_humidity)
+    return build_dataframe_from_context(
+        ctx=ctx, pad_humidity=pad_humidity, pad_co2=pad_co2, start_date=start_date
+        )
 
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
 
 def build_dataframe_from_context(
         ctx: SiteContext,
         pad_humidity: bool = True,
+        pad_co2: bool = True,
+        start_date: pd.Timestamp | None = None,
         ) -> pd.DataFrame:
     """Build an L1 DataFrame from a fully-assembled site context."""
 
-    result = _build_dataframe(ctx)
+    result = _build_dataframe(ctx, start_date=start_date)
     if pad_humidity:
         result = _pad_humidity(result)
+    if pad_co2:
+        result = _pad_co2(result)
     return result.df
 
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-# Metadata application
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
 
 def _apply_variable_metadata(
         ds: xr.Dataset,
@@ -133,9 +106,6 @@ def _apply_variable_metadata(
 
     return ds
 
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
 
 def _apply_global_metadata(
         ds: xr.Dataset,
@@ -160,9 +130,3 @@ def _apply_global_metadata(
             ds.attrs[key] = value
 
     return ds
-
-# -----------------------------------------------------------------------------
-
-###############################################################################
-### END FUNCTIONS ###
-###############################################################################
