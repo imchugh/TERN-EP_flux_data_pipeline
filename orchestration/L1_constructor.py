@@ -197,12 +197,13 @@ def _apply_variable_metadata(
         ds: xr.Dataset,
         var_attrs: dict[str, dict],
         ) -> xr.Dataset:
-
+    
     for variable in [v for v in ds.variables if v not in ds.dims]:
-        ds[variable].attrs = {k: v for k, v in var_attrs[variable].items() if v is not None}
+        ds[variable].attrs = {
+            k: v for k, v in var_attrs[variable].items() if v is not None
+            }
 
     return ds
-
 
 def _apply_global_metadata(
         ds: xr.Dataset,
@@ -296,6 +297,7 @@ def _build_registry(
 
         for canonical_name, var_cfg in runtime_cfg.variables.items():
 
+
             for raw_input in var_cfg.raw_inputs:
 
                 if raw_input.file != group_name:
@@ -310,12 +312,8 @@ def _build_registry(
                 else:
                     canonical_units = var_cfg.canonical.standard_units
 
-                if var_cfg.variable_type == VariableType.QUALITY_FLAG:
+                if var_cfg.variable_type in (VariableType.QUALITY_FLAG, VariableType.COUNTER):
                     site_units = 'dimensionless'
-                elif var_cfg.variable_type == VariableType.COUNTER:
-                    site_units = raw_input.raw_units or 'valid_count'
-                    if site_units == 'dimensionless':
-                        site_units = 'valid_count'
                 else:
                     site_units = (
                         raw_input.raw_units or var_cfg.canonical.standard_units
@@ -368,7 +366,7 @@ def _build_var_attrs(registry: dict[str, VariableSpec]) -> dict[str, dict]:
             'quantity':           main_spec.quantity,
             'standard_name':      main_spec.standard_name,
             'statistic_type':     _output_statistic(main_spec),
-            'units':              '1' if main_spec.canonical_units == 'dimensionless' else main_spec.canonical_units,
+            'units':              main_spec.canonical_units,
             }
 
         rslt[_canonical_output_name(main_spec)] = attrs
