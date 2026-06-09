@@ -20,7 +20,7 @@ import xarray as xr
 from dataclasses import dataclass
 from typing import Callable
 
-from domain.enums import StatisticType, VariableType
+from domain.enums import DiagnosticType, StatisticType, VariableType
 from services.metadata.site_registry import SiteRegistry, SiteContext
 from services.metadata.variable_metadata_service import SiteRuntimeConfig
 from services.metadata import file_mapping_service
@@ -68,6 +68,9 @@ class VariableSpec:
     # Temporal validity (instrument changeover merge)
     begin: pd.Timestamp | None
     end: pd.Timestamp | None
+
+    # Diagnostic counter direction (Diag variables only)
+    diag_type: DiagnosticType | None = None
 
 
 @dataclass
@@ -267,6 +270,7 @@ def _build_result(
         registry=registry,
         n_samples=ctx.metadata.n_samples,
         start_date=start_date,
+        flux_file=runtime_cfg.flux_file,
         )
 
     var_attrs = _build_var_attrs(registry=registry)
@@ -334,6 +338,7 @@ def _build_registry(
                     file_group=group_name,
                     begin=raw_input.begin,
                     end=raw_input.end,
+                    diag_type=var_cfg.diag_type,
                     )
 
     return registry
@@ -363,7 +368,7 @@ def _build_var_attrs(registry: dict[str, VariableSpec]) -> dict[str, dict]:
             'quantity':           main_spec.quantity,
             'standard_name':      main_spec.standard_name,
             'statistic_type':     _output_statistic(main_spec),
-            'units':              main_spec.canonical_units,
+            'units':              '1' if main_spec.canonical_units == 'dimensionless' else main_spec.canonical_units,
             }
 
         rslt[_canonical_output_name(main_spec)] = attrs
@@ -437,6 +442,7 @@ def _build_dataframe(
         registry: dict[str, VariableSpec],
         n_samples: int | None = None,
         start_date: pd.Timestamp | None = None,
+        flux_file: str | None = None,
         ) -> pd.DataFrame:
     """
     Build the canonical dataframe.
@@ -446,11 +452,14 @@ def _build_dataframe(
     Step 2 — concatenate all file groups horizontally.
     Step 3 — merge overlapping instrument periods into single columns.
     Step 4 — rename aliased columns to canonical output names.
+    Step 5 — truncate to flux file group's temporal extent, so that ancillary
+              data predating the flux system does not produce empty output years.
     """
 
     # Step 1
     dfs = []
-    for _, mapper in file_groups.items():
+    flux_index = None
+    for group_name, mapper in file_groups.items():
         loader = raw_data_loader.get_data_adapter(system_type=mapper.file_format)
         group_df = _build_file_group_dataframe(
             mapper=mapper,
@@ -460,6 +469,8 @@ def _build_dataframe(
             start_date=start_date,
             )
         if not group_df.empty:
+            if group_name == flux_file:
+                flux_index = group_df.index
             dfs.append(group_df)
 
     # Step 2
@@ -470,6 +481,10 @@ def _build_dataframe(
 
     # Step 4
     df = _rename_to_canonical(df=df, registry=registry)
+
+    # Step 5
+    if flux_index is not None:
+        df = df.loc[flux_index.min():flux_index.max()]
 
     return df
 
@@ -542,8 +557,10 @@ def _apply_conversions(
     the post-transform units and convert further if site stdev-form units
     differ from canonical stdev-form units.
 
-    For counter variables stored as invalid_count: subtract from n_samples
-    to yield valid_count.
+    For counter variables: output is always invalid_count (0 = no error).
+    Sites storing valid_count are converted via transform_service; sites
+    already storing invalid_count pass through unchanged. diag_type on the
+    VariableSpec determines which path is taken.
 
     For all other variables: convert units if site units differ from canonical.
 
@@ -562,18 +579,34 @@ def _apply_conversions(
             df[variable] = df[variable] ** 0.5
             from_units = resolve_variance_units(spec.site_units)
 
-        if from_units != spec.canonical_units:
-
-            if spec.variable_type == VariableType.COUNTER:
+        if spec.variable_type == VariableType.COUNTER:
+            if spec.diag_type == DiagnosticType.VALID_COUNT:
                 if n_samples is None:
                     raise ValueError(
-                        f"Counter variable {variable!r} has from_units="
-                        f"{from_units!r} but n_samples is not available. "
+                        f"Counter variable {variable!r} has diag_type="
+                        f"'valid_count' but n_samples is not available. "
                         f"Ensure site metadata includes time_step and freq_hz."
                         )
-                df[variable] = n_samples - df[variable]
-                continue
+                converter = transform_service.get_unit_conversion('Diag')
+                try:
+                    result = converter(
+                        data=df[variable],
+                        from_units='valid_count',
+                        n_samples=n_samples,
+                        )
+                except Exception as e:
+                    raise RuntimeError(
+                        f"Diagnostic conversion failed for {variable!r}"
+                        ) from e
+                if result is None:
+                    raise RuntimeError(
+                        f"Diagnostic converter returned None for {variable!r}"
+                        )
+                df[variable] = result
+            # INVALID_COUNT: pass through unchanged
+            continue
 
+        if from_units != spec.canonical_units:
             converter = transform_service.get_unit_conversion(spec.quantity)
             try:
                 result = converter(data=df[variable], from_units=from_units)
