@@ -39,7 +39,7 @@ VARIABLE_QUALITY_NULL_RESULT: dict[str, Any] = {
 THRESHOLD_SPECS: dict[str, dict[str, float]] = {
     'Vbat': {'min': 11.5},
     'Diag_IRGA':   {'max': 1000},
-    'Diag_CSAT':   {'max': 1000}
+    'Diag_SONIC':   {'max': 1000}
     }
 
 THRESHOLD_NULL_RESULT: dict[str, Any] = {
