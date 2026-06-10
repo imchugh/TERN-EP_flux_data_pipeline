@@ -22,11 +22,11 @@ STATISTIC_UNIT_TRANSFORMS = {
     }
 
 def resolve_variance_units(
-        units: str, from_variance: bool=True
+        units: str, to_stdev: bool=True
         ) -> str:
-    
+
     mapping = STATISTIC_UNIT_TRANSFORMS[StatisticType.VAR]
-    if not from_variance:
+    if not to_stdev:
         mapping = {value: key for key, value in mapping.items()}
     try:
         return mapping[units]

@@ -92,7 +92,7 @@ class DataframeBuildResult:
 ATTRS_SUBSET = [
     'site_name', 'fluxnet_id', 'latitude', 'longitude', 'elevation',
     'time_step', 'time_zone', 'canopy_height', 'tower_height', 'soil',
-    'vegetation', 'system_type', 'date_commissioned',
+    'vegetation', 'date_commissioned',
     ]
 
 SITE_REGISTRY = SiteRegistry()
@@ -128,18 +128,8 @@ def build_dataset_from_context(
         ) -> xr.Dataset:
     """Build an L1 xarray dataset from a fully-assembled site context."""
 
-    # Lazy import to avoid circular dependency (derived_quantities imports
-    # DataframeBuildResult from this module)
-    from orchestration.derived_quantities import (
-        pad_humidity as _pad_humidity,
-        pad_co2 as _pad_co2,
-        )
-
     result = _build_result(ctx, start_date=start_date)
-    if pad_humidity:
-        result = _pad_humidity(result)
-    if pad_co2:
-        result = _pad_co2(result)
+    result = _apply_padding(result, pad_humidity=pad_humidity, pad_co2=pad_co2)
 
     ds = result.df.to_xarray()
     ds = _apply_variable_metadata(ds, result.var_attrs)
@@ -170,18 +160,8 @@ def build_dataframe_from_context(
         ) -> pd.DataFrame:
     """Build an L1 DataFrame from a fully-assembled site context."""
 
-    # Lazy import to avoid circular dependency (derived_quantities imports
-    # DataframeBuildResult from this module)
-    from orchestration.derived_quantities import (
-        pad_humidity as _pad_humidity,
-        pad_co2 as _pad_co2,
-        )
-
     result = _build_result(ctx, start_date=start_date)
-    if pad_humidity:
-        result = _pad_humidity(result)
-    if pad_co2:
-        result = _pad_co2(result)
+    result = _apply_padding(result, pad_humidity=pad_humidity, pad_co2=pad_co2)
     return result.df
 
 ###############################################################################
@@ -192,6 +172,23 @@ def build_dataframe_from_context(
 ###############################################################################
 ### BEGIN PRIVATE FUNCTIONS — metadata application ###
 ###############################################################################
+
+def _apply_padding(
+        result: DataframeBuildResult,
+        pad_humidity: bool,
+        pad_co2: bool,
+        ) -> DataframeBuildResult:
+    # Lazy import to avoid circular dependency (derived_quantities imports
+    # DataframeBuildResult from this module)
+    from orchestration.derived_quantities import (
+        pad_humidity as _pad_humidity,
+        pad_co2 as _pad_co2,
+        )
+    if pad_humidity:
+        result = _pad_humidity(result)
+    if pad_co2:
+        result = _pad_co2(result)
+    return result
 
 def _apply_variable_metadata(
         ds: xr.Dataset,
@@ -272,6 +269,7 @@ def _build_result(
         n_samples=ctx.metadata.n_samples,
         start_date=start_date,
         flux_file=runtime_cfg.flux_file,
+        time_step=ctx.metadata.time_step,
         )
 
     var_attrs = _build_var_attrs(registry=registry)
@@ -441,6 +439,7 @@ def _build_dataframe(
         n_samples: int | None = None,
         start_date: pd.Timestamp | None = None,
         flux_file: str | None = None,
+        time_step: int | None = None,
         ) -> pd.DataFrame:
     """
     Build the canonical dataframe.
@@ -465,6 +464,7 @@ def _build_dataframe(
             registry=registry,
             n_samples=n_samples,
             start_date=start_date,
+            time_step=time_step,
             )
         if not group_df.empty:
             if group_name == flux_file:
@@ -493,6 +493,7 @@ def _build_file_group_dataframe(
         registry: dict[str, VariableSpec],
         n_samples: int | None = None,
         start_date: pd.Timestamp | None = None,
+        time_step: int | None = None,
         ) -> pd.DataFrame:
     """
     Load and process all files in a file group.
@@ -512,7 +513,7 @@ def _build_file_group_dataframe(
     dfs = []
     for file in mapper.variables_by_file:
 
-        df = loader.load(file)
+        df = loader(file)
 
         if start_date is not None:
             if df.index.max() < start_date:
@@ -534,7 +535,7 @@ def _build_file_group_dataframe(
 
     df = pd.concat(dfs).sort_index()
 
-    return condition_dataframe(df, interval_out=30)
+    return condition_dataframe(df, interval_out=time_step)
 
 
 def _filter_variables(df: pd.DataFrame, variables: set) -> pd.DataFrame:
