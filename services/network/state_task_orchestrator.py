@@ -46,7 +46,7 @@ from typing import Any
 
 from infrastructure import paths
 from infrastructure.datetime_utils import get_utc_now
-from infrastructure.file_io import write_json
+from infrastructure.file_io import read_json, write_json
 from infrastructure.parallel_executor import run_concurrent
 from services.metadata.site_registry import SiteRegistry
 from services.network.connectivity import (
@@ -303,6 +303,55 @@ def run_task_for_all_sites(
 # main task registry. Run with: python -m services.network.state_task_orchestrator
 # ---------------------------------------------------------------------------
 
+def compile_site_summary(
+    task_names: list[str],
+    state_dir: Path = STATE_DIR,
+    ) -> None:
+    """
+    Read per-task state files and write a site-pivoted summary.
+
+    Reads each ``<task_name>.json`` from ``state_dir``, pivots from the
+    task-first structure ``{task: {site: result}}`` to a site-first view, and
+    writes ``site_summary.json`` using the standard envelope::
+
+        {
+            "updated_at": "<ISO-8601 UTC>",
+            "sites": {
+                "<site>": {
+                    "<task_name>": <result>,
+                    ...
+                },
+                ...
+            }
+        }
+
+    Missing or unreadable task files are skipped with a warning so a single
+    failed task does not block the summary.
+
+    Args:
+        task_names: Ordered list of task names to include; each must correspond
+            to a ``<task_name>.json`` file in ``state_dir``.
+        state_dir: Directory containing per-task state files. Defaults to the
+            configured network state path.
+    """
+
+    sites: dict[str, dict[str, Any]] = {}
+
+    for task_name in task_names:
+        path = state_dir / f"{task_name}.json"
+        try:
+            payload = read_json(file_path=path)
+            for site, result in payload.get("sites", {}).items():
+                sites.setdefault(site, {})[task_name] = result
+        except Exception as exc:
+            logger.warning(
+                "site_summary_read_failed",
+                extra={"task": task_name, "error": str(exc)},
+            )
+
+    write_state(results=sites, task_name="site_summary", state_dir=state_dir)
+
+
 def run_all_state_tasks() -> None:
     """
     Run every registered state task in sequence and write its state file.
@@ -310,13 +359,16 @@ def run_all_state_tasks() -> None:
     Iterates ``STATE_TASK_SPECS`` and calls ``run_task_for_all_sites`` for
     each entry. Tasks fan out concurrently per-site internally; this function
     itself is sequential across tasks so each state file is written before the
-    next task begins.
+    next task begins. After all tasks complete, compiles a site-pivoted summary
+    via ``compile_site_summary``.
     """
 
     logger.info("run_all_state_tasks_start", extra={"n_tasks": len(STATE_TASK_SPECS)})
 
     for spec in STATE_TASK_SPECS:
         run_task_for_all_sites(**spec)
+
+    compile_site_summary(task_names=[spec["task_name"] for spec in STATE_TASK_SPECS])
 
     logger.info("run_all_state_tasks_complete")
 

@@ -44,10 +44,7 @@ from services import config_loader
 logger = logging.getLogger(__name__)
 
 SITE_IP = config_loader.load_config_file_from_name('vpn_ip')
-STATE_PATH = (
-    paths.get_local_stream_path(resource='network', stream='state') / 
-    'hardware_connections.json'
-    )
+STATE_DIR = paths.get_local_stream_path(resource='network', stream='state')
 
 DEFAULT_STATE = {
     "updated_at": None,
@@ -92,7 +89,7 @@ def resolve_endpoint(vpn_ip: str, logger_type: str = 'ec') -> str:
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
-def load_state(path: Path = STATE_PATH) -> dict[str, Any]:
+def load_state(path: Path) -> dict[str, Any]:
     """
     Load existing network state file.
     """
@@ -104,7 +101,7 @@ def load_state(path: Path = STATE_PATH) -> dict[str, Any]:
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
-def save_state(state: dict[str, Any], path: Path = STATE_PATH) -> None:
+def save_state(state: dict[str, Any], path: Path) -> None:
     """
     Save state file.
     """
@@ -113,20 +110,16 @@ def save_state(state: dict[str, Any], path: Path = STATE_PATH) -> None:
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
-def ensure_site_hardware_block(
+def ensure_site_block(
         state: dict[str, Any],
         site_name: str,
-        hardware: str,
         ) -> dict[str, Any]:
     """
-    Ensure nested state structure exists.
+    Ensure per-site state block exists, returning it for in-place mutation.
     """
 
-    sites = state.setdefault("sites", {})
-    site_block = sites.setdefault(site_name, {})
-
-    hw_block = site_block.setdefault(
-        hardware,
+    return state.setdefault("sites", {}).setdefault(
+        site_name,
         {
             "last_attempt": None,
             "last_success": None,
@@ -134,8 +127,6 @@ def ensure_site_hardware_block(
             "consecutive_failures": 0,
             },
         )
-
-    return hw_block
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
@@ -213,15 +204,14 @@ def run_site_connectivity(site: str, hardware: str = "gateway") -> dict[str, Any
 def persist_connectivity_state(
     results: dict[str, Any],
     task_name: str,
-    path: Path = STATE_PATH,
     ) -> None:
     """
     Stateful read-modify-write persist function for connectivity scan results.
 
-    Loads the current state file, merges new results into the per-site hardware
-    block identified by ``task_name``, then writes the updated state back.
-    Matches the ``Callable[[dict, str], None]`` persist interface expected by
-    ``run_task_for_all_sites``.
+    Loads the per-hardware state file (``<STATE_DIR>/<task_name>.json``),
+    merges new scan results into each site block, then writes the updated state
+    back. Matches the ``Callable[[dict, str], None]`` persist interface expected
+    by ``run_task_for_all_sites``.
 
     Consecutive-failure counters are preserved across runs: a reachable result
     resets the counter; any other result (unreachable or error dict) increments
@@ -231,30 +221,25 @@ def persist_connectivity_state(
         results: Per-site results as returned by ``run_site_connectivity``, or
             ``{'error': <str>}`` dicts emitted by the concurrent runner for
             sites that raised exceptions.
-        task_name: Hardware type label (e.g. ``'gateway'``, ``'ec'``). Used as
-            the key in each site's hardware block inside the state file.
-        path: State file path. Defaults to the standard connectivity state path.
+        task_name: Hardware type label (e.g. ``'gateway'``, ``'ec'``). Used to
+            derive the state file path (``<STATE_DIR>/<task_name>.json``).
     """
 
+    path = STATE_DIR / f"{task_name}.json"
     state = load_state(path=path)
     now = get_utc_now(as_iso=True)
 
     for site_name, result in results.items():
 
-        hw_block = ensure_site_hardware_block(
-            state=state,
-            site_name=site_name,
-            hardware=task_name,
-        )
-
-        hw_block["last_attempt"] = now
+        site_block = ensure_site_block(state=state, site_name=site_name)
+        site_block["last_attempt"] = now
 
         if isinstance(result, dict) and result.get("reachable"):
-            hw_block["last_success"] = now
-            hw_block["last_latency_ms"] = result.get("latency_ms")
-            hw_block["consecutive_failures"] = 0
+            site_block["last_success"] = now
+            site_block["last_latency_ms"] = result.get("latency_ms")
+            site_block["consecutive_failures"] = 0
         else:
-            hw_block["consecutive_failures"] += 1
+            site_block["consecutive_failures"] += 1
 
     state["updated_at"] = now
     save_state(state=state, path=path)
