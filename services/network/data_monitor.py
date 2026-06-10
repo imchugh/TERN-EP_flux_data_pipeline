@@ -15,6 +15,7 @@ import pandas as pd
 from domain.enums import StatisticType, VariableType
 from infrastructure import data_diagnostics, datetime_utils, paths
 from services.data import raw_data_loader
+from services.metadata.file_mapping_service import build_file_groups
 from services.metadata.site_registry import SiteContext
 
 logger = logging.getLogger(__name__)
@@ -34,8 +35,9 @@ VARIABLE_QUALITY_NULL_RESULT: dict[str, Any] = {
     }
 
 THRESHOLD_SPECS: dict[str, dict[str, float]] = {
-    'Batt_V': {'min': 11.5},
-    'Diag':   {'max': 1000},
+    'Vbat': {'min': 11.5},
+    'Diag_IRGA':   {'max': 1000},
+    'Diag_CSAT':   {'max': 1000}
     }
 
 THRESHOLD_NULL_RESULT: dict[str, Any] = {
@@ -261,7 +263,7 @@ def get_variable_quality(
 # -----------------------------------------------------------------------------
 
 def _build_threshold_series(
-        df: pd.DataFrame,
+        dfs: dict[str, pd.DataFrame],
         quantity: str,
         context: SiteContext,
         pmin: float | None,
@@ -273,10 +275,10 @@ def _build_threshold_series(
     Like _build_monitor_series but without variable-type or statistic-type
     filters, so it works for diagnostic and ancillary quantities (e.g. Diag,
     Batt_V) that are not VariableType.CONTINUOUS or StatisticType.AVG.
-    Returns None if no column for the quantity exists in df.
+    Returns None if no column for the quantity exists in any supplied df.
 
     Args:
-        df: Raw flux DataFrame with DatetimeIndex.
+        dfs: Loaded raw DataFrames keyed by file group name.
         quantity: Canonical quantity name, e.g. 'Batt_V'.
         context: Site runtime config and metadata.
         pmin: Lower threshold — values below this are treated as absent.
@@ -286,19 +288,17 @@ def _build_threshold_series(
         Sparse Series of in-threshold values, or None if not available.
     """
 
-    runtime_cfg = context.runtime_config
-    flux_file = runtime_cfg.flux_file
-
     series: list[pd.Series] = []
 
-    for var_def in runtime_cfg.variables.values():
+    for var_def in context.runtime_config.variables.values():
 
         if var_def.quantity != quantity:
             continue
 
         for raw_input in var_def.raw_inputs:
 
-            if raw_input.file != flux_file:
+            df = dfs.get(raw_input.file)
+            if df is None:
                 continue
             if raw_input.raw_name not in df.columns:
                 continue
@@ -326,7 +326,7 @@ def _build_threshold_series(
 # -----------------------------------------------------------------------------
 
 def get_threshold_quality(
-        df: pd.DataFrame,
+        dfs: dict[str, pd.DataFrame],
         context: SiteContext,
         reference_date: datetime,
         interval_minutes: int = 30,
@@ -340,7 +340,7 @@ def get_threshold_quality(
     readings. Variables not configured or not present for the site return None.
 
     Args:
-        df: Raw flux DataFrame with DatetimeIndex.
+        dfs: Loaded raw DataFrames keyed by file group name.
         context: Site runtime config and metadata.
         reference_date: Upper bound of the analysis window (site-local naive
             datetime).
@@ -358,7 +358,7 @@ def get_threshold_quality(
     for var, thresholds in THRESHOLD_SPECS.items():
 
         series = _build_threshold_series(
-            df=df,
+            dfs=dfs,
             quantity=var,
             context=context,
             pmin=thresholds.get('min'),
@@ -497,9 +497,10 @@ def analyse_threshold_quality(context: SiteContext) -> dict[str, Any]:
     """
     Analyse threshold-based coverage for each entry in THRESHOLD_SPECS.
 
-    Loads the site's flux slow data file and computes per-variable
-    percentage-missing over each standard analysis period, where missing
-    reflects both absent records and out-of-threshold readings.
+    Discovers which file groups contain the threshold variables via
+    build_file_groups, loads each required file, then computes per-variable
+    percentage-missing over each standard analysis period. Variables not
+    configured or not present for the site return None.
 
     Args:
         context: Combined site runtime config and metadata.
@@ -513,24 +514,29 @@ def analyse_threshold_quality(context: SiteContext) -> dict[str, Any]:
     data_cfg = context.runtime_config
     site_cfg = context.metadata
 
-    file_path = paths.get_local_stream_path(
-        resource='raw_data',
-        stream='flux_slow',
-        site=data_cfg.site_name,
-        file_name=data_cfg.flux_filename
-        )
+    file_groups = build_file_groups(runtime_cfg=data_cfg)
 
-    adapter = raw_data_loader.get_data_adapter(
-        system_type=data_cfg.get_file_format(file_group=data_cfg.flux_file)
-        )
+    needed = {
+        raw_input.file
+        for quantity in THRESHOLD_SPECS
+        for var_def in data_cfg.variables.values()
+        if var_def.quantity == quantity
+        for raw_input in var_def.raw_inputs
+        if raw_input.file in file_groups
+        }
 
-    df = adapter(file_path)
+    dfs = {
+        group_name: raw_data_loader.get_data_adapter(
+            system_type=file_groups[group_name].file_format
+            )(file_groups[group_name].master)
+        for group_name in needed
+        }
 
     local_now = datetime_utils.get_local_datetime_now(tz_name=site_cfg.time_zone)
     local_now_naive = local_now.replace(tzinfo=None)
 
     return get_threshold_quality(
-        df=df,
+        dfs=dfs,
         context=context,
         reference_date=local_now_naive,
         interval_minutes=site_cfg.time_step,
