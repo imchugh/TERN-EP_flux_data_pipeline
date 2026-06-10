@@ -23,8 +23,8 @@ from nicegui import ui
 
 from domain.enums import StatisticType, FileType
 from infrastructure import paths, file_io
-from services.metadata.file_mapping_service import get_variables_from_file
-from services.metadata.variable_syntax_parser import NameParser
+from services.metadata.file_group_builder import get_variables_from_file
+from services.metadata.variable_name_parser import NameParser
 from services import config_loader
 from ui.components.component_config import (
     create_input_variable_table, create_file_formats_editor

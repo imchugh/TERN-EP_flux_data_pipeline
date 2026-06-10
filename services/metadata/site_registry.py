@@ -19,7 +19,7 @@ from typing import Callable
 from domain.data_models.metadata_classes import SiteMetadata
 from infrastructure import paths
 from services import config_loader
-from services.metadata.variable_metadata_service import (
+from services.metadata.runtime_config_loader import (
     SiteRuntimeConfig,
     load_runtime_config,
 )

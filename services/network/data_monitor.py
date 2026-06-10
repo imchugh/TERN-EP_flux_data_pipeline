@@ -15,7 +15,7 @@ import pandas as pd
 from domain.enums import StatisticType, VariableType
 from infrastructure import data_diagnostics, datetime_utils, paths
 from services.data import raw_data_loader
-from services.metadata import file_mapping_service
+from services.metadata import file_group_builder
 from services.metadata.site_registry import SiteContext
 from services.metadata.variable_registry import build_variable_registry
 from orchestration.dataframe_builder import build_dataframe
@@ -449,7 +449,7 @@ def analyse_variable_quality(context: SiteContext) -> dict[str, Any]:
     data_cfg = context.runtime_config
     site_cfg = context.metadata
 
-    file_groups = file_mapping_service.build_file_groups(runtime_cfg=data_cfg)
+    file_groups = file_group_builder.build_file_groups(runtime_cfg=data_cfg)
     registry = build_variable_registry(runtime_cfg=data_cfg, file_groups=file_groups)
 
     df = build_dataframe(
@@ -502,7 +502,7 @@ def analyse_threshold_quality(context: SiteContext) -> dict[str, Any]:
         if quantity.startswith(var_def.quantity)
         }
 
-    file_groups = file_mapping_service.build_file_groups(runtime_cfg=data_cfg)
+    file_groups = file_group_builder.build_file_groups(runtime_cfg=data_cfg)
     registry = build_variable_registry(runtime_cfg=data_cfg, file_groups=file_groups)
 
     df = build_dataframe(

@@ -14,7 +14,7 @@ This script fetches flux station details from TERN's SPARQL endpoint
 from domain.data_models.metadata_classes import SiteMetadata
 from infrastructure import paths, external_io, file_io
 from infrastructure.datetime_utils import get_timezone, get_UTC_offset
-from services.metadata import dereference
+from services.metadata import rdf_label_resolver
 from services.metadata.site_registry import InvalidSiteError
 from services import config_loader
 
@@ -217,7 +217,7 @@ def get_flux_tower_attrs_from_rdf() -> dict:
     uuid_list = [b["attr_uuid"]["value"] for b in bindings]
     return {
         value: key for key, value in
-        dereference.dereference_labels(uris=uuid_list).items()
+        rdf_label_resolver.dereference_labels(uris=uuid_list).items()
         }
 # -----------------------------------------------------------------------------
 
