@@ -94,10 +94,7 @@ def missing_data_task(site: str) -> dict[str, Any]:
     """
     context = SITE_REGISTRY.get_context(site=site)
     try:
-        return analyse_missing_data(
-            data_cfg=context.runtime_config,
-            site_cfg=context.metadata,
-        ) | {'error': None}
+        return analyse_missing_data(context=context) | {'error': None}
     except Exception as exc:
         logger.warning(
             'missing_data_failed',

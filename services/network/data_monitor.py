@@ -14,8 +14,7 @@ import pandas as pd
 
 from infrastructure import data_diagnostics, datetime_utils, paths
 from services.data import raw_data_loader
-from services.metadata.variable_metadata_service import SiteRuntimeConfig
-from domain.data_models.metadata_classes import SiteMetadata
+from services.metadata.site_registry import SiteContext
 
 logger = logging.getLogger(__name__)
 
@@ -124,10 +123,7 @@ def get_missing_records(
 
 
 # -----------------------------------------------------------------------------
-def analyse_missing_data(
-    data_cfg: SiteRuntimeConfig,
-    site_cfg: SiteMetadata,
-    ) -> dict[str, Any]:
+def analyse_missing_data(context: SiteContext) -> dict[str, Any]:
     """
     Analyse data recency and gap statistics for a single site.
 
@@ -136,8 +132,7 @@ def analyse_missing_data(
     statistics over the standard analysis periods.
 
     Args:
-        data_cfg: Site runtime configuration supplying file paths and format.
-        site_cfg: Site metadata supplying timezone and sampling interval.
+        context: Combined site runtime config and metadata.
 
     Returns:
         Dict with keys:
@@ -149,7 +144,9 @@ def analyse_missing_data(
               absent over each standard analysis period.
     """
 
-    # Get the raw data path based on site
+    data_cfg = context.runtime_config
+    site_cfg = context.metadata
+
     file_path = paths.get_local_stream_path(
         resource='raw_data',
         stream='flux_slow',
@@ -157,20 +154,13 @@ def analyse_missing_data(
         file_name=data_cfg.flux_filename
         )
 
-    # Get the file type adapter
     adapter = raw_data_loader.get_data_adapter(
-        system_type=data_cfg.get_file_format(
-            file_group=data_cfg.flux_file
-            )
+        system_type=data_cfg.get_file_format(file_group=data_cfg.flux_file)
         )
 
-    # Load the data
     df = adapter(file_path)
 
-    # Get the datetimes
-    local_now = datetime_utils.get_local_datetime_now(
-        tz_name=site_cfg.time_zone,
-        )
+    local_now = datetime_utils.get_local_datetime_now(tz_name=site_cfg.time_zone)
     local_now_naive = local_now.replace(tzinfo=None)
     last_data_record_naive = df.index[-1].to_pydatetime()
     last_data_record_tzaware = datetime_utils.get_tz_aware_datetime(
@@ -179,12 +169,9 @@ def analyse_missing_data(
         as_iso=True
         )
 
-    # Calculate delta in days
-    elapsed = (local_now_naive - last_data_record_naive).days
-
     result = {
         'last_record': last_data_record_tzaware,
-        'days_since_last_record': elapsed,
+        'days_since_last_record': (local_now_naive - last_data_record_naive).days,
         }
 
     result.update(
