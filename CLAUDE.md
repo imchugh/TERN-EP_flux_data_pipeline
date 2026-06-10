@@ -30,7 +30,7 @@ orchestration/   — high-level workflow: builds dataframes and NetCDF output
 | `services/metadata/rdf_label_resolver.py` | Resolves RDF URI labels from the TERN data store. Used by `site_metadata_repository`. |
 | `services/data/transform_service.py` | Unit conversion and derived quantity calculation registries (`@register_conversion`, `@register_calculation`). |
 | `services/data/raw_data_loader.py` | Loads TOA5 and EddyPro file formats. |
-| `orchestration/dataframe_builder.py` | Core ETL: loads raw data → converts units → merges instrument periods → renames to canonical names. `build_dataframe(file_groups, registry, quantities=None, ...)` — pass `quantities` to load only a variable subset (used by monitoring). |
+| `orchestration/dataframe_builder.py` | Core ETL: loads raw data → converts units → merges instrument periods → renames to canonical names. Convenience API: `build_dataframe_from_site_name(site_name, quantities=None, start_date=None)` and `build_dataframe_from_context(ctx, ...)`. Low-level: `build_dataframe(file_groups, registry, quantities=None, ...)` for callers that already hold those objects. |
 | `orchestration/dataset_builder.py` | High-level API: `build_dataset_from_site_name()`, `build_dataset_from_context()`. Orchestrates dataframe build → derived quantity padding → xarray Dataset with variable and global metadata. Exports `DatasetBuildIntermediate` (used by `derived_quantities`). |
 | `orchestration/derived_quantities.py` | Derives missing RH↔AH and CO2 mole fraction; maintains metadata lineage. |
 | `orchestration/build_L1_nc.py` | Export step: converts L1 xarray Dataset to annual NetCDF files. Adds spatial dims, QC flags, global/variable metadata. Separate from dataset construction by design. |
