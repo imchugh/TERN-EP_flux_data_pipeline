@@ -34,6 +34,8 @@ orchestration/   — high-level workflow: builds dataframes and NetCDF output
 | `orchestration/dataset_builder.py` | High-level API: `build_dataset_from_site_name()`, `build_dataset_from_context()`. Orchestrates dataframe build → derived quantity padding → xarray Dataset with variable and global metadata. Exports `DatasetBuildIntermediate` (used by `derived_quantities`). |
 | `orchestration/derived_quantities.py` | Derives missing RH↔AH and CO2 mole fraction; maintains metadata lineage. |
 | `orchestration/build_L1_nc.py` | Export step: converts L1 xarray Dataset to annual NetCDF files. Adds spatial dims, QC flags, global/variable metadata. Separate from dataset construction by design. |
+| `services/network/data_monitor.py` | Site health monitoring: record coverage (`analyse_missing_data`), flux variable quality (`analyse_variable_quality`), threshold checks (`analyse_threshold_quality`). Each is an independent orchestration-level task. |
+| `services/network/state_task_orchestrator.py` | Fans monitoring tasks concurrently across all pipeline sites. `STATE_TASK_SPECS` registry — add one dict entry to register a new task. |
 
 ### Production pipeline stages
 
@@ -44,7 +46,7 @@ dataset_builder     →  xr.Dataset    (xarray wrapping + variable/global metada
 build_L1_nc         →  .nc files     (export: year-split, QC flags, CRS)
 ```
 
-Monitoring (`services/network/data_monitor.py`) calls `dataframe_builder.build_dataframe(quantities=...)` directly to get unit-converted data for a variable subset, bypassing the dataset construction stages.
+Monitoring (`services/network/data_monitor.py`) calls `dataframe_builder.build_dataframe(quantities=...)` directly to get unit-converted data for a variable subset, bypassing the dataset construction stages. `analyse_missing_data` is the exception — it loads the raw flux file directly since timestamp-gap counting does not require unit conversion.
 
 ## Variable Naming Conventions
 
@@ -81,3 +83,4 @@ These are broken and need a broader overhaul before touching:
 - **Decorator-based registration**: `@register_conversion()`, `@register_calculation()` in transform_service
 - **Module-level singleton**: use `SITE_REGISTRY = SiteRegistry()` at module level (same pattern as `state_task_orchestrator.py`, `dataset_builder.py`)
 - **Pydantic dataclasses** for all metadata/config objects — immutable, type-checked
+- **Threshold variable matching**: `THRESHOLD_SPECS` keys may include instrument qualifiers (e.g. `'Diag_IRGA'`, `'Diag_SONIC'`); `var_def.quantity` is always the base quantity (e.g. `'Diag'`). Derive base quantities with `quantity.startswith(var_def.quantity)`; match canonical DataFrame columns with `col.startswith(quantity)`.
