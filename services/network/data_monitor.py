@@ -292,7 +292,7 @@ def _build_threshold_series(
 
     for var_def in context.runtime_config.variables.values():
 
-        if var_def.quantity != quantity:
+        if not quantity.startswith(var_def.quantity):
             continue
 
         for raw_input in var_def.raw_inputs:
