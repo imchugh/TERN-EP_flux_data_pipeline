@@ -33,6 +33,16 @@ VARIABLE_QUALITY_NULL_RESULT: dict[str, Any] = {
     'error': None,
     }
 
+THRESHOLD_SPECS: dict[str, dict[str, float]] = {
+    'Batt_V': {'min': 11.5},
+    'Diag':   {'max': 1000},
+    }
+
+THRESHOLD_NULL_RESULT: dict[str, Any] = {
+    **{var: None for var in THRESHOLD_SPECS},
+    'error': None,
+    }
+
 _MONITOR_STATISTIC_TYPES = {StatisticType.AVG, None}
 _MONITOR_VARIABLE_TYPES  = {VariableType.CONTINUOUS}
 
@@ -249,6 +259,128 @@ def get_variable_quality(
 
 
 # -----------------------------------------------------------------------------
+
+def _build_threshold_series(
+        df: pd.DataFrame,
+        quantity: str,
+        context: SiteContext,
+        pmin: float | None,
+        pmax: float | None,
+        ) -> pd.Series | None:
+    """
+    Extract a threshold-filtered sparse Series for a single quantity.
+
+    Like _build_monitor_series but without variable-type or statistic-type
+    filters, so it works for diagnostic and ancillary quantities (e.g. Diag,
+    Batt_V) that are not VariableType.CONTINUOUS or StatisticType.AVG.
+    Returns None if no column for the quantity exists in df.
+
+    Args:
+        df: Raw flux DataFrame with DatetimeIndex.
+        quantity: Canonical quantity name, e.g. 'Batt_V'.
+        context: Site runtime config and metadata.
+        pmin: Lower threshold — values below this are treated as absent.
+        pmax: Upper threshold — values above this are treated as absent.
+
+    Returns:
+        Sparse Series of in-threshold values, or None if not available.
+    """
+
+    runtime_cfg = context.runtime_config
+    flux_file = runtime_cfg.flux_file
+
+    series: list[pd.Series] = []
+
+    for var_def in runtime_cfg.variables.values():
+
+        if var_def.quantity != quantity:
+            continue
+
+        for raw_input in var_def.raw_inputs:
+
+            if raw_input.file != flux_file:
+                continue
+            if raw_input.raw_name not in df.columns:
+                continue
+
+            s = df[raw_input.raw_name].copy()
+
+            if pmin is not None:
+                s = s.where(s >= pmin)
+            if pmax is not None:
+                s = s.where(s <= pmax)
+
+            series.append(s)
+
+    if not series:
+        return None
+
+    combined = series[0]
+    for s in series[1:]:
+        combined = combined.combine_first(s)
+
+    return combined.dropna()
+# -----------------------------------------------------------------------------
+
+
+# -----------------------------------------------------------------------------
+
+def get_threshold_quality(
+        df: pd.DataFrame,
+        context: SiteContext,
+        reference_date: datetime,
+        interval_minutes: int = 30,
+        days: int | list[int] | None = None,
+        ) -> dict[str, dict[str, float] | None]:
+    """
+    Analyse threshold-based coverage for each entry in THRESHOLD_SPECS.
+
+    For each variable, values outside the configured threshold are treated as
+    absent, so the percentage reflects both missing records and out-of-threshold
+    readings. Variables not configured or not present for the site return None.
+
+    Args:
+        df: Raw flux DataFrame with DatetimeIndex.
+        context: Site runtime config and metadata.
+        reference_date: Upper bound of the analysis window (site-local naive
+            datetime).
+        interval_minutes: Expected data interval in minutes. Defaults to 30.
+        days: Analysis period(s) in days. Accepts a single int or a list of
+            ints. When None, defaults to ANALYSIS_PERIODS_DAYS.
+
+    Returns:
+        Dict keyed by variable name. Each value is a period-keyed dict of
+        percentage-missing floats, or None if the variable is unavailable.
+    """
+
+    results = {}
+
+    for var, thresholds in THRESHOLD_SPECS.items():
+
+        series = _build_threshold_series(
+            df=df,
+            quantity=var,
+            context=context,
+            pmin=thresholds.get('min'),
+            pmax=thresholds.get('max'),
+            )
+
+        if series is None or series.empty:
+            results[var] = None
+            continue
+
+        results[var] = get_missing_records(
+            df=series,
+            reference_date=reference_date,
+            interval_minutes=interval_minutes,
+            days=days,
+            )
+
+    return results
+# -----------------------------------------------------------------------------
+
+
+# -----------------------------------------------------------------------------
 def analyse_missing_data(context: SiteContext) -> dict[str, Any]:
     """
     Analyse data recency and record coverage for a site.
@@ -352,6 +484,52 @@ def analyse_variable_quality(context: SiteContext) -> dict[str, Any]:
     local_now_naive = local_now.replace(tzinfo=None)
 
     return get_variable_quality(
+        df=df,
+        context=context,
+        reference_date=local_now_naive,
+        interval_minutes=site_cfg.time_step,
+        )
+# -----------------------------------------------------------------------------
+
+
+# -----------------------------------------------------------------------------
+def analyse_threshold_quality(context: SiteContext) -> dict[str, Any]:
+    """
+    Analyse threshold-based coverage for each entry in THRESHOLD_SPECS.
+
+    Loads the site's flux slow data file and computes per-variable
+    percentage-missing over each standard analysis period, where missing
+    reflects both absent records and out-of-threshold readings.
+
+    Args:
+        context: Combined site runtime config and metadata.
+
+    Returns:
+        Dict keyed by variable name (entries from THRESHOLD_SPECS). Each
+        value is a period-keyed dict of percentage-missing floats, or None
+        if the variable is not configured or present for this site.
+    """
+
+    data_cfg = context.runtime_config
+    site_cfg = context.metadata
+
+    file_path = paths.get_local_stream_path(
+        resource='raw_data',
+        stream='flux_slow',
+        site=data_cfg.site_name,
+        file_name=data_cfg.flux_filename
+        )
+
+    adapter = raw_data_loader.get_data_adapter(
+        system_type=data_cfg.get_file_format(file_group=data_cfg.flux_file)
+        )
+
+    df = adapter(file_path)
+
+    local_now = datetime_utils.get_local_datetime_now(tz_name=site_cfg.time_zone)
+    local_now_naive = local_now.replace(tzinfo=None)
+
+    return get_threshold_quality(
         df=df,
         context=context,
         reference_date=local_now_naive,
