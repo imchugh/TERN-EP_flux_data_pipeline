@@ -21,11 +21,15 @@ orchestration/   — high-level workflow: builds dataframes and NetCDF output
 |---|---|
 | `services/metadata/site_registry.py` | **Canonical entry point for pipeline metadata.** `SiteRegistry` filters to only YML-configured sites. Use `SITE_REGISTRY` module-level instance. |
 | `services/metadata/site_metadata_repository.py` | Broader TERN data source — all sites including decommissioned. Not for pipeline logic. |
-| `services/metadata/canonical_quantity_registry.py` | Master registry of 100+ canonical quantities with units, long_name, valid ranges. |
+| `services/metadata/canonical_quantity_registry.py` | Master registry of 100+ canonical quantities with units, long_name, valid ranges. Also exports `resolve_variance_units`. |
+| `services/metadata/runtime_config_loader.py` | Loads and assembles `SiteRuntimeConfig` from a site YAML config. Entry point: `load_runtime_config(file_path)`. |
 | `services/metadata/variable_registry.py` | Builds `VariableSpec` objects (flat raw→canonical mapping) from a runtime config and file groups. Use `build_variable_registry(runtime_cfg, file_groups)`. |
+| `services/metadata/file_group_builder.py` | Builds `FileGroup` objects (master path, format, backup files) for all file groups in a site config. Use `build_file_groups(runtime_cfg)` when the target file group is not known in advance. |
+| `services/metadata/site_config_schema.py` | Pydantic schema models and structural validation for site YAML configs. Entry point: `validate_L1_config_structure(file)`. |
+| `services/metadata/variable_name_parser.py` | Parses canonical variable names into components. `NameParser` class. |
+| `services/metadata/rdf_label_resolver.py` | Resolves RDF URI labels from the TERN data store. Used by `site_metadata_repository`. |
 | `services/data/transform_service.py` | Unit conversion and derived quantity calculation registries (`@register_conversion`, `@register_calculation`). |
 | `services/data/raw_data_loader.py` | Loads TOA5 and EddyPro file formats. |
-| `services/metadata/file_mapping_service.py` | Builds `FileGroup` objects (master path, format, backup files) for all file groups in a site config. Use `build_file_groups(runtime_cfg)` when the target file group is not known in advance. |
 | `orchestration/dataframe_builder.py` | Core ETL: loads raw data → converts units → merges instrument periods → renames to canonical names. `build_dataframe(file_groups, registry, quantities=None, ...)` — pass `quantities` to load only a variable subset (used by monitoring). |
 | `orchestration/dataset_builder.py` | High-level API: `build_dataset_from_site_name()`, `build_dataset_from_context()`. Orchestrates dataframe build → derived quantity padding → xarray Dataset with variable and global metadata. Exports `DatasetBuildIntermediate` (used by `derived_quantities`). |
 | `orchestration/derived_quantities.py` | Derives missing RH↔AH and CO2 mole fraction; maintains metadata lineage. |
