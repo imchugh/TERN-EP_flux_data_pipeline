@@ -22,13 +22,25 @@ orchestration/   — high-level workflow: builds dataframes and NetCDF output
 | `services/metadata/site_registry.py` | **Canonical entry point for pipeline metadata.** `SiteRegistry` filters to only YML-configured sites. Use `SITE_REGISTRY` module-level instance. |
 | `services/metadata/site_metadata_repository.py` | Broader TERN data source — all sites including decommissioned. Not for pipeline logic. |
 | `services/metadata/canonical_quantity_registry.py` | Master registry of 100+ canonical quantities with units, long_name, valid ranges. |
+| `services/metadata/variable_registry.py` | Builds `VariableSpec` objects (flat raw→canonical mapping) from a runtime config and file groups. Use `build_variable_registry(runtime_cfg, file_groups)`. |
 | `services/data/transform_service.py` | Unit conversion and derived quantity calculation registries (`@register_conversion`, `@register_calculation`). |
 | `services/data/raw_data_loader.py` | Loads TOA5 and EddyPro file formats. |
 | `services/metadata/file_mapping_service.py` | Builds `FileGroup` objects (master path, format, backup files) for all file groups in a site config. Use `build_file_groups(runtime_cfg)` when the target file group is not known in advance. |
-| `orchestration/dataframe_builder.py` | Core ETL: loads raw data → converts units → merges instrument periods → renames to canonical names. Returns `DataframeBuildResult`. |
-| `orchestration/L1_constructor.py` | High-level API: `build_dataset_from_site_name()`, `build_dataframe_from_site_name()`, etc. Applies derived quantity padding. |
+| `orchestration/dataframe_builder.py` | Core ETL: loads raw data → converts units → merges instrument periods → renames to canonical names. `build_dataframe(file_groups, registry, quantities=None, ...)` — pass `quantities` to load only a variable subset (used by monitoring). |
+| `orchestration/dataset_builder.py` | High-level API: `build_dataset_from_site_name()`, `build_dataset_from_context()`. Orchestrates dataframe build → derived quantity padding → xarray Dataset with variable and global metadata. Exports `DatasetBuildIntermediate` (used by `derived_quantities`). |
 | `orchestration/derived_quantities.py` | Derives missing RH↔AH and CO2 mole fraction; maintains metadata lineage. |
-| `orchestration/build_L1_nc.py` | Converts L1 dataset to annual NetCDF files. Adds spatial dims, QC flags, global/variable metadata. |
+| `orchestration/build_L1_nc.py` | Export step: converts L1 xarray Dataset to annual NetCDF files. Adds spatial dims, QC flags, global/variable metadata. Separate from dataset construction by design. |
+
+### Production pipeline stages
+
+```
+dataframe_builder   →  pd.DataFrame  (ETL: load → unit-convert → merge → rename)
+derived_quantities  →  pd.DataFrame  (pad RH↔AH, CO2 mole fraction)
+dataset_builder     →  xr.Dataset    (xarray wrapping + variable/global metadata)
+build_L1_nc         →  .nc files     (export: year-split, QC flags, CRS)
+```
+
+Monitoring (`services/network/data_monitor.py`) calls `dataframe_builder.build_dataframe(quantities=...)` directly to get unit-converted data for a variable subset, bypassing the dataset construction stages.
 
 ## Variable Naming Conventions
 
@@ -63,5 +75,5 @@ These are broken and need a broader overhaul before touching:
 
 - **Registry pattern**: `SiteRegistry`, conversion/calculation registries in `transform_service`
 - **Decorator-based registration**: `@register_conversion()`, `@register_calculation()` in transform_service
-- **Module-level singleton**: use `SITE_REGISTRY = SiteRegistry()` at module level (same pattern as `state_task_orchestrator.py`, `L1_constructor.py`)
+- **Module-level singleton**: use `SITE_REGISTRY = SiteRegistry()` at module level (same pattern as `state_task_orchestrator.py`, `dataset_builder.py`)
 - **Pydantic dataclasses** for all metadata/config objects — immutable, type-checked
