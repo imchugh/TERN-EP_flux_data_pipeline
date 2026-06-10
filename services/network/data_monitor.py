@@ -165,7 +165,7 @@ def analyse_missing_data(
         )
 
     # Load the data
-    df = adapter.load(file_path=file_path)
+    df = adapter(file_path)
 
     # Get the datetimes
     local_now = datetime_utils.get_local_datetime_now(

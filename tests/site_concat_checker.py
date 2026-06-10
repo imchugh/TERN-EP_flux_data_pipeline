@@ -43,8 +43,8 @@ def check_concat(site):
             rslt = (
                 {'backup': slave.name} |
                 concat_validator.concat_reporter(
-                    master_header=adapter.load(file_path=master), 
-                    slave_header=adapter.load(file_path=slave)
+                    master_header=adapter(master),
+                    slave_header=adapter(slave)
                     )
                 )
             reports[master.name][slave.name] = rslt
