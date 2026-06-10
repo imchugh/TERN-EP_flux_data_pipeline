@@ -54,7 +54,12 @@ from services.network.connectivity import (
     connectivity_sites,
     persist_connectivity_state,
     )
-from services.network.data_monitor import analyse_missing_data, NULL_RESULT as MISSING_DATA_NULL_RESULT
+from services.network.data_monitor import (
+    analyse_missing_data,
+    analyse_variable_quality,
+    NULL_RESULT as MISSING_DATA_NULL_RESULT,
+    VARIABLE_QUALITY_NULL_RESULT,
+    )
 from services.network.logger_monitor import check_logger_status
 from services.network.nc_monitor import check_nc_last_record
 
@@ -101,6 +106,30 @@ def missing_data_task(site: str) -> dict[str, Any]:
             extra={'site': site, 'error': str(exc)},
         )
         return MISSING_DATA_NULL_RESULT | {'error': str(exc)}
+
+
+def variable_quality_task(site: str) -> dict[str, Any]:
+    """
+    Adapter: analyse_variable_quality -> site-name interface.
+
+    Args:
+        site: Site name as registered in the pipeline site registry.
+
+    Returns:
+        Per-variable quality result dict for the site, with ``error: null``
+        on success or all variable fields set to ``null`` and ``error``
+        populated on failure.
+    """
+
+    context = SITE_REGISTRY.get_context(site=site)
+    try:
+        return analyse_variable_quality(context=context) | {'error': None}
+    except Exception as exc:
+        logger.warning(
+            'variable_quality_failed',
+            extra={'site': site, 'error': str(exc)},
+        )
+        return VARIABLE_QUALITY_NULL_RESULT | {'error': str(exc)}
 
 
 def logger_status_task(site: str) -> dict[str, Any]:
@@ -211,6 +240,10 @@ STATE_TASK_SPECS: list[dict[str, Any]] = [
     dict(
         task=missing_data_task,
         task_name='missing_data',
+    ),
+    dict(
+        task=variable_quality_task,
+        task_name='variable_quality',
     ),
     dict(
         task=nc_last_record_task,

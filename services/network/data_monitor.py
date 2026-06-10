@@ -12,6 +12,7 @@ from typing import Any
 
 import pandas as pd
 
+from domain.enums import StatisticType, VariableType
 from infrastructure import data_diagnostics, datetime_utils, paths
 from services.data import raw_data_loader
 from services.metadata.site_registry import SiteContext
@@ -27,11 +28,19 @@ NULL_RESULT: dict[str, Any] = {
     'error': None,
     }
 
+VARIABLE_QUALITY_NULL_RESULT: dict[str, Any] = {
+    **{var: None for var in MONITOR_VARS},
+    'error': None,
+    }
+
+_MONITOR_STATISTIC_TYPES = {StatisticType.AVG, None}
+_MONITOR_VARIABLE_TYPES  = {VariableType.CONTINUOUS}
+
 
 # -----------------------------------------------------------------------------
 
 def get_missing_records(
-    df: pd.DataFrame,
+    df: pd.DataFrame | pd.Series,
     reference_date: datetime,
     interval_minutes: int = 30,
     days: int | list[int] | None = None,
@@ -40,7 +49,7 @@ def get_missing_records(
     Analyse recent data gaps over one or more rolling periods.
 
     Args:
-        df: Time-indexed DataFrame to analyse.
+        df: Time-indexed DataFrame or Series to analyse.
         reference_date: Upper bound of the analysis window. Should be the
             site-local naive datetime so window boundaries align with the
             data timestamps.
@@ -113,13 +122,141 @@ def get_missing_records(
 
 
 # -----------------------------------------------------------------------------
+
+def _build_monitor_series(
+        df: pd.DataFrame,
+        quantity: str,
+        context: SiteContext,
+        ) -> pd.Series | None:
+    """
+    Extract a plausibility-filtered sparse Series for a single quantity.
+
+    Walks the site variable registry to find raw column name(s) for the
+    quantity in the flux file, restricts to continuous average-statistic
+    variables, applies the canonical plausible range (masking out-of-range
+    values as NaN), then drops NaN so the resulting index contains only
+    plausible records. Multiple raw columns (instrument changeover periods)
+    are merged with combine_first. Returns None if no matching column exists
+    in df.
+
+    Args:
+        df: Raw flux DataFrame with DatetimeIndex.
+        quantity: Canonical quantity name, e.g. 'Fco2'.
+        context: Site runtime config and metadata.
+
+    Returns:
+        Sparse Series of plausible values, or None if not available.
+    """
+
+    runtime_cfg = context.runtime_config
+    flux_file = runtime_cfg.flux_file
+
+    series: list[pd.Series] = []
+
+    for var_def in runtime_cfg.variables.values():
+
+        if var_def.quantity != quantity:
+            continue
+        if var_def.variable_type not in _MONITOR_VARIABLE_TYPES:
+            continue
+        if var_def.statistic_type not in _MONITOR_STATISTIC_TYPES:
+            continue
+
+        pmin = var_def.canonical.plausible_min
+        pmax = var_def.canonical.plausible_max
+
+        for raw_input in var_def.raw_inputs:
+
+            if raw_input.file != flux_file:
+                continue
+            if raw_input.raw_name not in df.columns:
+                continue
+
+            s = df[raw_input.raw_name].copy()
+
+            if pmin is not None:
+                s = s.where(s >= pmin)
+            if pmax is not None:
+                s = s.where(s <= pmax)
+
+            series.append(s)
+
+    if not series:
+        return None
+
+    combined = series[0]
+    for s in series[1:]:
+        combined = combined.combine_first(s)
+
+    return combined.dropna()
+# -----------------------------------------------------------------------------
+
+
+# -----------------------------------------------------------------------------
+
+def get_variable_quality(
+        df: pd.DataFrame,
+        context: SiteContext,
+        reference_date: datetime,
+        interval_minutes: int = 30,
+        days: int | list[int] | None = None,
+        ) -> dict[str, dict[str, float] | None]:
+    """
+    Analyse plausible-value coverage for each monitored flux variable.
+
+    For each variable in MONITOR_VARS, extracts raw values from the flux
+    file, discards readings outside canonical plausible bounds, then
+    computes percentage-missing over rolling windows. The resulting
+    percentage reflects both absent records AND implausible values, so it
+    will always be >= the overall record-coverage figure from
+    get_missing_records. Variables not present in the site config or raw
+    file return None.
+
+    Args:
+        df: Raw flux DataFrame with DatetimeIndex.
+        context: Site runtime config and metadata.
+        reference_date: Upper bound of the analysis window (site-local naive
+            datetime).
+        interval_minutes: Expected data interval in minutes. Defaults to 30.
+        days: Analysis period(s) in days. Accepts a single int or a list of
+            ints. When None, defaults to ANALYSIS_PERIODS_DAYS.
+
+    Returns:
+        Dict keyed by variable name. Each value is a period-keyed dict of
+        percentage-missing floats (absent + implausible), or None if the
+        variable is unavailable for this site.
+    """
+
+    results = {}
+
+    for var in MONITOR_VARS:
+
+        series = _build_monitor_series(df=df, quantity=var, context=context)
+
+        if series is None or series.empty:
+            results[var] = None
+            continue
+
+        results[var] = get_missing_records(
+            df=series,
+            reference_date=reference_date,
+            interval_minutes=interval_minutes,
+            days=days,
+            )
+
+    return results
+# -----------------------------------------------------------------------------
+
+
+# -----------------------------------------------------------------------------
 def analyse_missing_data(context: SiteContext) -> dict[str, Any]:
     """
-    Analyse data recency and gap statistics for a single site.
+    Analyse data recency and record coverage for a site.
 
     Loads the site's flux slow data file, computes the time elapsed since the
-    last record (relative to site-local time), and calculates percentage-missing
-    statistics over the standard analysis periods.
+    last record (relative to site-local time), and calculates the percentage
+    of expected timestamps absent from the raw file over each standard
+    analysis period.
 
     Args:
         context: Combined site runtime config and metadata.
@@ -173,4 +310,51 @@ def analyse_missing_data(context: SiteContext) -> dict[str, Any]:
         )
 
     return result
+# -----------------------------------------------------------------------------
+
+
+# -----------------------------------------------------------------------------
+def analyse_variable_quality(context: SiteContext) -> dict[str, Any]:
+    """
+    Analyse plausible-value coverage for each monitored flux variable.
+
+    Loads the site's flux slow data file and computes per-variable
+    percentage-missing over each standard analysis period. The metric
+    combines absent records and implausible values, so it will always be
+    >= the record-coverage figure from analyse_missing_data.
+
+    Args:
+        context: Combined site runtime config and metadata.
+
+    Returns:
+        Dict keyed by variable name (entries from MONITOR_VARS). Each value
+        is a period-keyed dict of percentage-missing floats, or None if the
+        variable is not configured or present for this site.
+    """
+
+    data_cfg = context.runtime_config
+    site_cfg = context.metadata
+
+    file_path = paths.get_local_stream_path(
+        resource='raw_data',
+        stream='flux_slow',
+        site=data_cfg.site_name,
+        file_name=data_cfg.flux_filename
+        )
+
+    adapter = raw_data_loader.get_data_adapter(
+        system_type=data_cfg.get_file_format(file_group=data_cfg.flux_file)
+        )
+
+    df = adapter(file_path)
+
+    local_now = datetime_utils.get_local_datetime_now(tz_name=site_cfg.time_zone)
+    local_now_naive = local_now.replace(tzinfo=None)
+
+    return get_variable_quality(
+        df=df,
+        context=context,
+        reference_date=local_now_naive,
+        interval_minutes=site_cfg.time_step,
+        )
 # -----------------------------------------------------------------------------
