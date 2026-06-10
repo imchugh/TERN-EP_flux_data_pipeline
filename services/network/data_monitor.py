@@ -53,15 +53,11 @@ def get_missing_records(
         ``{'pct_missing_last_1_days': 0.0, 'pct_missing_last_7_days': 4.2}``.
 
     Raises:
-        ValueError: If df is empty, days list is empty, or any period is <= 0.
-        TypeError: If df index is not a DatetimeIndex, or days is not int/list.
+        ValueError: If df fails validation, days list is empty, or any period is <= 0.
+        TypeError: If df fails validation, or days is not int/list.
     """
 
-    if df.empty:
-        raise ValueError('Input dataframe is empty')
-
-    if not isinstance(df.index, pd.DatetimeIndex):
-        raise TypeError('DataFrame index must be a DatetimeIndex')
+    data_diagnostics.validate_dataframe(df)
 
     if not df.index.is_monotonic_increasing:
         df = df.sort_index()
@@ -101,20 +97,14 @@ def get_missing_records(
         first = last - timedelta(days=period)
         analysis_df = df.loc[first:last]
 
-        try:
-            missing = (
-                data_diagnostics.analyse_data_gaps(
-                    df=analysis_df,
-                    interval_minutes=interval_minutes,
-                    )['pct_missing']
-                )
-
-        except ValueError as exc:
-            logger.warning(
-                "gap_analysis_failed",
-                extra={"period_days": period, "error": str(exc)},
+        missing = (
+            data_diagnostics.analyse_data_gaps(
+                df=analysis_df,
+                interval_minutes=interval_minutes,
+                start=first,
+                end=last,
+                )['pct_missing']
             )
-            missing = 100.0
 
         results[f'pct_missing_last_{period}_days'] = missing
 
