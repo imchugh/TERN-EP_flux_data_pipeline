@@ -24,6 +24,7 @@ orchestration/   — high-level workflow: builds dataframes and NetCDF output
 | `services/metadata/canonical_quantity_registry.py` | Master registry of 100+ canonical quantities with units, long_name, valid ranges. |
 | `services/data/transform_service.py` | Unit conversion and derived quantity calculation registries (`@register_conversion`, `@register_calculation`). |
 | `services/data/raw_data_loader.py` | Loads TOA5 and EddyPro file formats. |
+| `services/metadata/file_mapping_service.py` | Builds `FileGroup` objects (master path, format, backup files) for all file groups in a site config. Use `build_file_groups(runtime_cfg)` when the target file group is not known in advance. |
 | `orchestration/dataframe_builder.py` | Core ETL: loads raw data → converts units → merges instrument periods → renames to canonical names. Returns `DataframeBuildResult`. |
 | `orchestration/L1_constructor.py` | High-level API: `build_dataset_from_site_name()`, `build_dataframe_from_site_name()`, etc. Applies derived quantity padding. |
 | `orchestration/derived_quantities.py` | Derives missing RH↔AH and CO2 mole fraction; maintains metadata lineage. |
@@ -49,7 +50,6 @@ These are broken and need a broader overhaul before touching:
 
 - **`orchestration/site_info_construction.py`**: broken imports (`services.domain.*`, `gap_analysis`, `geospatial.TimeFunctions`, `get_flux_file_path`, `runtime_cfg.system_type`). Known fixes documented in memory but requires full overhaul.
 - **`tasks/tasks.py`**: uses old `services.domain` import paths and `global_metadata_service`; needs `SITE_REGISTRY` migration.
-- **`services/metadata/file_mapping_service.py`**: `build_file_groups` calls `runtime_cfg.file_formats.resolve()` but `SiteRuntimeConfig` has no `file_formats` attribute.
 
 ## Configuration Files
 
