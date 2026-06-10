@@ -15,8 +15,10 @@ import pandas as pd
 from domain.enums import StatisticType, VariableType
 from infrastructure import data_diagnostics, datetime_utils, paths
 from services.data import raw_data_loader
-from services.metadata.file_mapping_service import build_file_groups
+from services.metadata import file_mapping_service
 from services.metadata.site_registry import SiteContext
+from services.metadata.variable_registry import build_variable_registry
+from orchestration.dataframe_builder import build_dataframe
 
 logger = logging.getLogger(__name__)
 
@@ -143,16 +145,15 @@ def _build_monitor_series(
     """
     Extract a plausibility-filtered sparse Series for a single quantity.
 
-    Walks the site variable registry to find raw column name(s) for the
-    quantity in the flux file, restricts to continuous average-statistic
-    variables, applies the canonical plausible range (masking out-of-range
-    values as NaN), then drops NaN so the resulting index contains only
-    plausible records. Multiple raw columns (instrument changeover periods)
-    are merged with combine_first. Returns None if no matching column exists
-    in df.
+    Walks the site variable registry to find canonical column name(s) for the
+    quantity, restricts to continuous average-statistic variables, applies the
+    canonical plausible range (masking out-of-range values as NaN), then drops
+    NaN so the resulting index contains only plausible records. Multiple columns
+    for the same quantity (e.g. different heights) are merged with combine_first.
+    Returns None if no matching column exists in df.
 
     Args:
-        df: Raw flux DataFrame with DatetimeIndex.
+        df: Canonical-unit DataFrame with DatetimeIndex.
         quantity: Canonical quantity name, e.g. 'Fco2'.
         context: Site runtime config and metadata.
 
@@ -160,12 +161,9 @@ def _build_monitor_series(
         Sparse Series of plausible values, or None if not available.
     """
 
-    runtime_cfg = context.runtime_config
-    flux_file = runtime_cfg.flux_file
-
     series: list[pd.Series] = []
 
-    for var_def in runtime_cfg.variables.values():
+    for canonical_name, var_def in context.runtime_config.variables.items():
 
         if var_def.quantity != quantity:
             continue
@@ -173,25 +171,20 @@ def _build_monitor_series(
             continue
         if var_def.statistic_type not in _MONITOR_STATISTIC_TYPES:
             continue
+        if canonical_name not in df.columns:
+            continue
 
         pmin = var_def.canonical.plausible_min
         pmax = var_def.canonical.plausible_max
 
-        for raw_input in var_def.raw_inputs:
+        s = df[canonical_name].copy()
 
-            if raw_input.file != flux_file:
-                continue
-            if raw_input.raw_name not in df.columns:
-                continue
+        if pmin is not None:
+            s = s.where(s >= pmin)
+        if pmax is not None:
+            s = s.where(s <= pmax)
 
-            s = df[raw_input.raw_name].copy()
-
-            if pmin is not None:
-                s = s.where(s >= pmin)
-            if pmax is not None:
-                s = s.where(s <= pmax)
-
-            series.append(s)
+        series.append(s)
 
     if not series:
         return None
@@ -216,16 +209,15 @@ def get_variable_quality(
     """
     Analyse plausible-value coverage for each monitored flux variable.
 
-    For each variable in MONITOR_VARS, extracts raw values from the flux
-    file, discards readings outside canonical plausible bounds, then
-    computes percentage-missing over rolling windows. The resulting
-    percentage reflects both absent records AND implausible values, so it
-    will always be >= the overall record-coverage figure from
-    get_missing_records. Variables not present in the site config or raw
-    file return None.
+    For each variable in MONITOR_VARS, extracts values from the canonical
+    dataframe, discards readings outside canonical plausible bounds, then
+    computes percentage-missing over rolling windows. The resulting percentage
+    reflects both absent records AND implausible values, so it will always be
+    >= the overall record-coverage figure from get_missing_records. Variables
+    not present in the site config or dataframe return None.
 
     Args:
-        df: Raw flux DataFrame with DatetimeIndex.
+        df: Canonical-unit DataFrame with DatetimeIndex.
         context: Site runtime config and metadata.
         reference_date: Upper bound of the analysis window (site-local naive
             datetime).
@@ -263,24 +255,23 @@ def get_variable_quality(
 # -----------------------------------------------------------------------------
 
 def _build_threshold_series(
-        dfs: dict[str, pd.DataFrame],
+        df: pd.DataFrame,
         quantity: str,
-        context: SiteContext,
         pmin: float | None,
         pmax: float | None,
         ) -> pd.Series | None:
     """
     Extract a threshold-filtered sparse Series for a single quantity.
 
-    Like _build_monitor_series but without variable-type or statistic-type
-    filters, so it works for diagnostic and ancillary quantities (e.g. Diag,
-    Batt_V) that are not VariableType.CONTINUOUS or StatisticType.AVG.
-    Returns None if no column for the quantity exists in any supplied df.
+    Scans canonical column names for those starting with the quantity prefix,
+    applies threshold bounds (masking out-of-threshold values as NaN), then
+    drops NaN so the resulting index contains only in-threshold records.
+    Multiple matching columns are merged with combine_first.
+    Returns None if no column for the quantity exists in df.
 
     Args:
-        dfs: Loaded raw DataFrames keyed by file group name.
-        quantity: Canonical quantity name, e.g. 'Batt_V'.
-        context: Site runtime config and metadata.
+        df: Canonical-unit DataFrame with DatetimeIndex.
+        quantity: Canonical quantity name or qualified name, e.g. 'Diag_IRGA'.
         pmin: Lower threshold — values below this are treated as absent.
         pmax: Upper threshold — values above this are treated as absent.
 
@@ -290,27 +281,19 @@ def _build_threshold_series(
 
     series: list[pd.Series] = []
 
-    for var_def in context.runtime_config.variables.values():
+    for col in df.columns:
 
-        if not quantity.startswith(var_def.quantity):
+        if not col.startswith(quantity):
             continue
 
-        for raw_input in var_def.raw_inputs:
+        s = df[col].copy()
 
-            df = dfs.get(raw_input.file)
-            if df is None:
-                continue
-            if raw_input.raw_name not in df.columns:
-                continue
+        if pmin is not None:
+            s = s.where(s >= pmin)
+        if pmax is not None:
+            s = s.where(s <= pmax)
 
-            s = df[raw_input.raw_name].copy()
-
-            if pmin is not None:
-                s = s.where(s >= pmin)
-            if pmax is not None:
-                s = s.where(s <= pmax)
-
-            series.append(s)
+        series.append(s)
 
     if not series:
         return None
@@ -326,7 +309,7 @@ def _build_threshold_series(
 # -----------------------------------------------------------------------------
 
 def get_threshold_quality(
-        dfs: dict[str, pd.DataFrame],
+        df: pd.DataFrame,
         context: SiteContext,
         reference_date: datetime,
         interval_minutes: int = 30,
@@ -340,7 +323,7 @@ def get_threshold_quality(
     readings. Variables not configured or not present for the site return None.
 
     Args:
-        dfs: Loaded raw DataFrames keyed by file group name.
+        df: Canonical-unit DataFrame with DatetimeIndex.
         context: Site runtime config and metadata.
         reference_date: Upper bound of the analysis window (site-local naive
             datetime).
@@ -358,9 +341,8 @@ def get_threshold_quality(
     for var, thresholds in THRESHOLD_SPECS.items():
 
         series = _build_threshold_series(
-            dfs=dfs,
+            df=df,
             quantity=var,
-            context=context,
             pmin=thresholds.get('min'),
             pmax=thresholds.get('max'),
             )
@@ -450,10 +432,10 @@ def analyse_variable_quality(context: SiteContext) -> dict[str, Any]:
     """
     Analyse plausible-value coverage for each monitored flux variable.
 
-    Loads the site's flux slow data file and computes per-variable
-    percentage-missing over each standard analysis period. The metric
-    combines absent records and implausible values, so it will always be
-    >= the record-coverage figure from analyse_missing_data.
+    Builds a unit-converted canonical dataframe for MONITOR_VARS quantities,
+    then computes per-variable percentage-missing over each standard analysis
+    period. The metric combines absent records and implausible values, so it
+    will always be >= the record-coverage figure from analyse_missing_data.
 
     Args:
         context: Combined site runtime config and metadata.
@@ -467,18 +449,16 @@ def analyse_variable_quality(context: SiteContext) -> dict[str, Any]:
     data_cfg = context.runtime_config
     site_cfg = context.metadata
 
-    file_path = paths.get_local_stream_path(
-        resource='raw_data',
-        stream='flux_slow',
-        site=data_cfg.site_name,
-        file_name=data_cfg.flux_filename
-        )
+    file_groups = file_mapping_service.build_file_groups(runtime_cfg=data_cfg)
+    registry = build_variable_registry(runtime_cfg=data_cfg, file_groups=file_groups)
 
-    adapter = raw_data_loader.get_data_adapter(
-        system_type=data_cfg.get_file_format(file_group=data_cfg.flux_file)
+    df = build_dataframe(
+        file_groups=file_groups,
+        registry=registry,
+        quantities=set(MONITOR_VARS),
+        flux_file=data_cfg.flux_file,
+        time_step=site_cfg.time_step,
         )
-
-    df = adapter(file_path)
 
     local_now = datetime_utils.get_local_datetime_now(tz_name=site_cfg.time_zone)
     local_now_naive = local_now.replace(tzinfo=None)
@@ -497,10 +477,11 @@ def analyse_threshold_quality(context: SiteContext) -> dict[str, Any]:
     """
     Analyse threshold-based coverage for each entry in THRESHOLD_SPECS.
 
-    Discovers which file groups contain the threshold variables via
-    build_file_groups, loads each required file, then computes per-variable
-    percentage-missing over each standard analysis period. Variables not
-    configured or not present for the site return None.
+    Derives the base quantities (e.g. 'Diag' from 'Diag_IRGA') from the site
+    variable config, builds a unit-converted canonical dataframe for those
+    quantities, then computes per-variable percentage-missing over each
+    standard analysis period. Variables not configured or not present for the
+    site return None.
 
     Args:
         context: Combined site runtime config and metadata.
@@ -514,29 +495,30 @@ def analyse_threshold_quality(context: SiteContext) -> dict[str, Any]:
     data_cfg = context.runtime_config
     site_cfg = context.metadata
 
-    file_groups = build_file_groups(runtime_cfg=data_cfg)
-
-    needed = {
-        raw_input.file
+    base_quantities = {
+        var_def.quantity
         for quantity in THRESHOLD_SPECS
         for var_def in data_cfg.variables.values()
-        if var_def.quantity == quantity
-        for raw_input in var_def.raw_inputs
-        if raw_input.file in file_groups
+        if quantity.startswith(var_def.quantity)
         }
 
-    dfs = {
-        group_name: raw_data_loader.get_data_adapter(
-            system_type=file_groups[group_name].file_format
-            )(file_groups[group_name].master)
-        for group_name in needed
-        }
+    file_groups = file_mapping_service.build_file_groups(runtime_cfg=data_cfg)
+    registry = build_variable_registry(runtime_cfg=data_cfg, file_groups=file_groups)
+
+    df = build_dataframe(
+        file_groups=file_groups,
+        registry=registry,
+        quantities=base_quantities,
+        flux_file=data_cfg.flux_file,
+        time_step=site_cfg.time_step,
+        n_samples=site_cfg.n_samples,
+        )
 
     local_now = datetime_utils.get_local_datetime_now(tz_name=site_cfg.time_zone)
     local_now_naive = local_now.replace(tzinfo=None)
 
     return get_threshold_quality(
-        dfs=dfs,
+        df=df,
         context=context,
         reference_date=local_now_naive,
         interval_minutes=site_cfg.time_step,
