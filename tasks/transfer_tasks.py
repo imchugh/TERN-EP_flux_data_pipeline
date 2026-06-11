@@ -98,8 +98,9 @@ def push_cosmoz(site: str) -> None:
 @register
 def push_details_json() -> None:
 
+    from services.network.state_task_orchestrator import SITE_SUMMARY_PATH
     rclone_transfer.transfer(
-        src=paths.get_local_stream_path('network', 'status') / 'site_info.json',
+        src=SITE_SUMMARY_PATH,
         dst=paths.get_remote_stream_path('network', 'status'),
         )
 
@@ -130,7 +131,8 @@ def push_L1_nc() -> None:
 @register
 def push_status_geojson() -> None:
 
+    from services.network.state_task_orchestrator import GEOJSON_PATH
     rclone_transfer.transfer(
-        src=paths.get_local_stream_path('network', 'status') / 'network_status.json',
+        src=GEOJSON_PATH,
         dst=paths.get_remote_stream_path('network', 'status'),
         )

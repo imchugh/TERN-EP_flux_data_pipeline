@@ -91,11 +91,14 @@ class TestPushSiteTasks(unittest.TestCase):
 
 class TestPushGlobalTasks(unittest.TestCase):
 
-    @patch(PATCH)
-    def test_push_details_json(self, mock_transfer):
-        tt.push_details_json()
+    def test_push_details_json(self):
+        mock_sto = MagicMock()
+        mock_sto.SITE_SUMMARY_PATH = Path('/opt/TERN_EP/network/state/site_summary.json')
+        with patch.dict(sys.modules, {'services.network.state_task_orchestrator': mock_sto}):
+            with patch(PATCH) as mock_transfer:
+                tt.push_details_json()
         mock_transfer.assert_called_once_with(
-            src=Path('/opt/TERN_EP/network/status/site_info.json'),
+            src=Path('/opt/TERN_EP/network/state/site_summary.json'),
             dst='sftpgo:/web-sites/flux-status-test.tern.org.au/RTMC',
             )
 
@@ -117,11 +120,14 @@ class TestPushGlobalTasks(unittest.TestCase):
             timeout=180,
             )
 
-    @patch(PATCH)
-    def test_push_status_geojson(self, mock_transfer):
-        tt.push_status_geojson()
+    def test_push_status_geojson(self):
+        mock_sto = MagicMock()
+        mock_sto.GEOJSON_PATH = Path('/opt/TERN_EP/network/state/network_state.json')
+        with patch.dict(sys.modules, {'services.network.state_task_orchestrator': mock_sto}):
+            with patch(PATCH) as mock_transfer:
+                tt.push_status_geojson()
         mock_transfer.assert_called_once_with(
-            src=Path('/opt/TERN_EP/network/status/network_status.json'),
+            src=Path('/opt/TERN_EP/network/state/network_state.json'),
             dst='sftpgo:/web-sites/flux-status-test.tern.org.au/RTMC',
             )
 

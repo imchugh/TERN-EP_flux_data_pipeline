@@ -70,6 +70,8 @@ from services.network.nc_monitor import check_nc_last_record
 logger = logging.getLogger(__name__)
 
 STATE_DIR = paths.get_local_stream_path(resource='network', stream='state')
+GEOJSON_PATH = STATE_DIR / 'network_state.json'
+SITE_SUMMARY_PATH = STATE_DIR / 'site_summary.json'
 
 # Shared type alias for the two-argument persist-callback contract.
 type PersistFn = Callable[[dict[str, Any], str], None]
