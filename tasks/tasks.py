@@ -21,6 +21,7 @@ from typing import Callable
 from infrastructure import paths
 from infrastructure.paths import CONFIG_PATH
 from services import config_loader
+from services.metadata.site_registry import SiteRegistry
 from tasks.logger_config import configure_logger_json
 from tasks.registry import register, SITE_TASKS, GLOBAL_TASKS
 
@@ -34,6 +35,7 @@ from tasks.registry import register, SITE_TASKS, GLOBAL_TASKS
 ###############################################################################
 
 logger = logging.getLogger(__name__)
+SITE_REGISTRY = SiteRegistry()
 
 # -----------------------------------------------------------------------------
 
@@ -47,6 +49,7 @@ class SiteTaskManager:
             .set_index(keys='Site')
             .astype(bool)
             )
+        self._validate()
 
     def get_site_list(self) -> list:
         return self.tasks_df.index.tolist()
@@ -71,9 +74,19 @@ class SiteTaskManager:
     def write_tasks_config(self) -> None:
         self.tasks_df.to_csv(CONFIG_PATH / 'tasks.csv', index_label='Site')
 
-# -----------------------------------------------------------------------------
-
-mngr = SiteTaskManager()
+    def _validate(self) -> None:
+        registered = set(SITE_TASKS) | set(GLOBAL_TASKS)
+        unknown_tasks = set(self.tasks_df.columns) - registered
+        if unknown_tasks:
+            raise ValueError(
+                f'tasks.csv references unregistered tasks: {unknown_tasks}'
+                )
+        known_sites = set(SITE_REGISTRY.names())
+        unknown_sites = set(self.tasks_df.index) - known_sites
+        if unknown_sites:
+            raise ValueError(
+                f'tasks.csv references sites not in SITE_REGISTRY: {unknown_sites}'
+                )
 
 ###############################################################################
 ### END INITS ###
@@ -123,15 +136,6 @@ def construct_site_details_json() -> None:
     deetcon.site_info_2_json(site_list=mngr.get_site_list())
 
 # -----------------------------------------------------------------------------
-
-@register
-def construct_status_xlsx() -> None:
-    """Construct the network status xlsx."""
-
-    ns = import_module('network_monitoring.network_status')
-    ns.write_status_xlsx(
-        site_list=mngr.get_site_list_for_task(task='construct_status_xlsx')
-        )
 
 # -----------------------------------------------------------------------------
 
@@ -205,12 +209,6 @@ def pull_profile_raw(site: str) -> None:
 
 # -----------------------------------------------------------------------------
 
-@register
-def pull_RTMC_images() -> None:
-
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.push_pull_RTMC_images(which='pull')
-
 # -----------------------------------------------------------------------------
 
 @register
@@ -243,12 +241,6 @@ def push_details_json() -> None:
     rct.push_details_json()
 
 # -----------------------------------------------------------------------------
-
-@register
-def push_homogenised_TOA5() -> None:
-
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.push_homogenised(stream='TOA5')
 
 # -----------------------------------------------------------------------------
 
@@ -291,12 +283,6 @@ def push_profile_raw(site: str) -> None:
 
 # -----------------------------------------------------------------------------
 
-@register
-def push_RTMC_images() -> None:
-
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.push_pull_RTMC_images(which='push')
-
 # -----------------------------------------------------------------------------
 
 @register
@@ -317,12 +303,6 @@ def push_status_geojson() -> None:
 
 # -----------------------------------------------------------------------------
 
-@register
-def push_status_xlsx() -> None:
-
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.push_status_file(which='xlsx')
-
 # -----------------------------------------------------------------------------
 ### SFTP DATA TRANSFERS
 # -----------------------------------------------------------------------------
@@ -337,6 +317,9 @@ def push_cosmoz(site: str) -> None:
 ### END TASK DEFINITIONS ###
 ###############################################################################
 
+# Instantiated here so SITE_TASKS / GLOBAL_TASKS are fully populated before
+# validation runs.
+mngr = SiteTaskManager()
 
 ###############################################################################
 ### BEGIN RUNNER ###
