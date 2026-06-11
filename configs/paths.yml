@@ -1,3 +1,6 @@
+remote_aliases:
+  AliceSpringsMulga: AliceMulga
+
 local:
   configs:
     base_path: /opt/TERN_EP
