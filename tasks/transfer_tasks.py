@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """Transfer tasks: rclone and SFTP data movement."""
 
-from importlib import import_module
-
 from infrastructure import paths, rclone_transfer
 from tasks.registry import register
 
@@ -90,7 +88,7 @@ def push_slow_flux(site: str) -> None:
 @register
 def push_cosmoz(site: str) -> None:
 
-    sftpt = import_module('infrastructure.sftp_transfer')
+    import infrastructure.sftp_transfer as sftpt
     sftpt.push_cosmoz(site=site)
 
 # -----------------------------------------------------------------------------

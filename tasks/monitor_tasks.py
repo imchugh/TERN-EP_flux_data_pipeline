@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """Monitor tasks: network status and dashboard outputs."""
 
-from importlib import import_module
-
 from tasks.registry import register
 
 
@@ -10,8 +8,8 @@ from tasks.registry import register
 def construct_status_geojson() -> None:
     """Construct the network status geojson."""
 
+    import network_monitoring.network_status as ns
     from tasks.tasks import mngr
-    ns = import_module('network_monitoring.network_status')
     ns.network_status_to_geojson(
         site_list=mngr.get_site_list_for_task(task='construct_status_geojson')
         )
@@ -22,7 +20,7 @@ def construct_status_geojson() -> None:
 def construct_site_details(site: str) -> None:
     """Construct the site details file for RTMC plotting."""
 
-    deetcon = import_module('data_constructors.details_constructor')
+    import data_constructors.details_constructor as deetcon
     deetcon.write_site_info(site=site)
 
 # -----------------------------------------------------------------------------
@@ -30,6 +28,6 @@ def construct_site_details(site: str) -> None:
 @register
 def construct_site_details_json() -> None:
 
+    import data_constructors.details_constructor as deetcon
     from tasks.tasks import mngr
-    deetcon = import_module('data_constructors.details_constructor')
     deetcon.site_info_2_json(site_list=mngr.get_site_list())
