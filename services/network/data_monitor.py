@@ -15,10 +15,8 @@ import pandas as pd
 from domain.enums import StatisticType, VariableType
 from infrastructure import data_diagnostics, datetime_utils, paths
 from services.data import raw_data_loader
-from services.metadata import file_group_builder
 from services.metadata.site_registry import SiteContext
-from services.metadata.variable_registry import build_variable_registry
-from orchestration.dataframe_builder import build_dataframe
+from orchestration.dataframe_builder import build_dataframe_from_context
 
 logger = logging.getLogger(__name__)
 
@@ -446,28 +444,16 @@ def analyse_variable_quality(context: SiteContext) -> dict[str, Any]:
         variable is not configured or present for this site.
     """
 
-    data_cfg = context.runtime_config
-    site_cfg = context.metadata
+    df = build_dataframe_from_context(ctx=context, quantities=set(MONITOR_VARS))
 
-    file_groups = file_group_builder.build_file_groups(runtime_cfg=data_cfg)
-    registry = build_variable_registry(runtime_cfg=data_cfg, file_groups=file_groups)
-
-    df = build_dataframe(
-        file_groups=file_groups,
-        registry=registry,
-        quantities=set(MONITOR_VARS),
-        flux_file=data_cfg.flux_file,
-        time_step=site_cfg.time_step,
-        )
-
-    local_now = datetime_utils.get_local_datetime_now(tz_name=site_cfg.time_zone)
+    local_now = datetime_utils.get_local_datetime_now(tz_name=context.metadata.time_zone)
     local_now_naive = local_now.replace(tzinfo=None)
 
     return get_variable_quality(
         df=df,
         context=context,
         reference_date=local_now_naive,
-        interval_minutes=site_cfg.time_step,
+        interval_minutes=context.metadata.time_step,
         )
 # -----------------------------------------------------------------------------
 
@@ -492,35 +478,22 @@ def analyse_threshold_quality(context: SiteContext) -> dict[str, Any]:
         if the variable is not configured or present for this site.
     """
 
-    data_cfg = context.runtime_config
-    site_cfg = context.metadata
-
     base_quantities = {
         var_def.quantity
         for quantity in THRESHOLD_SPECS
-        for var_def in data_cfg.variables.values()
+        for var_def in context.runtime_config.variables.values()
         if quantity.startswith(var_def.quantity)
         }
 
-    file_groups = file_group_builder.build_file_groups(runtime_cfg=data_cfg)
-    registry = build_variable_registry(runtime_cfg=data_cfg, file_groups=file_groups)
+    df = build_dataframe_from_context(ctx=context, quantities=base_quantities)
 
-    df = build_dataframe(
-        file_groups=file_groups,
-        registry=registry,
-        quantities=base_quantities,
-        flux_file=data_cfg.flux_file,
-        time_step=site_cfg.time_step,
-        n_samples=site_cfg.n_samples,
-        )
-
-    local_now = datetime_utils.get_local_datetime_now(tz_name=site_cfg.time_zone)
+    local_now = datetime_utils.get_local_datetime_now(tz_name=context.metadata.time_zone)
     local_now_naive = local_now.replace(tzinfo=None)
 
     return get_threshold_quality(
         df=df,
         context=context,
         reference_date=local_now_naive,
-        interval_minutes=site_cfg.time_step,
+        interval_minutes=context.metadata.time_step,
         )
 # -----------------------------------------------------------------------------
