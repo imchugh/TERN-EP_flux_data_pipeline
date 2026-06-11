@@ -56,6 +56,7 @@ def get_missing_records(
     reference_date: datetime,
     interval_minutes: int = 30,
     days: int | list[int] | None = None,
+    metric_prefix: str = 'pct_missing',
     ) -> dict[str, float]:
     """
     Analyse recent data gaps over one or more rolling periods.
@@ -68,9 +69,14 @@ def get_missing_records(
         interval_minutes: Expected data interval in minutes. Defaults to 30.
         days: Analysis period(s) in days. Accepts a single int or a list of
             ints. When None, defaults to ANALYSIS_PERIODS_DAYS.
+        metric_prefix: Prefix for result keys. Defaults to ``'pct_missing'``
+            (records truly absent). Pass ``'pct_outside_range'`` when the
+            sparse series was pre-filtered to drop out-of-range values so the
+            metric reflects quality rather than data presence.
 
     Returns:
-        Dict mapping period labels to percentage-missing floats, e.g.
+        Dict mapping period labels to percentage floats keyed as
+        ``'{metric_prefix}_last_{N}_days'``, e.g.
         ``{'pct_missing_last_1_days': 0.0, 'pct_missing_last_7_days': 4.2}``.
 
     Raises:
@@ -127,7 +133,7 @@ def get_missing_records(
                 )['pct_missing']
             )
 
-        results[f'pct_missing_last_{period}_days'] = missing
+        results[f'{metric_prefix}_last_{period}_days'] = missing
 
     return results
 # -----------------------------------------------------------------------------
@@ -225,8 +231,8 @@ def get_variable_quality(
 
     Returns:
         Dict keyed by variable name. Each value is a period-keyed dict of
-        percentage-missing floats (absent + implausible), or None if the
-        variable is unavailable for this site.
+        ``pct_outside_range_last_<N>_days`` floats (absent + implausible),
+        or None if the variable is unavailable for this site.
     """
 
     results = {}
@@ -244,6 +250,7 @@ def get_variable_quality(
             reference_date=reference_date,
             interval_minutes=interval_minutes,
             days=days,
+            metric_prefix='pct_outside_range',
             )
 
     return results
@@ -331,7 +338,8 @@ def get_threshold_quality(
 
     Returns:
         Dict keyed by variable name. Each value is a period-keyed dict of
-        percentage-missing floats, or None if the variable is unavailable.
+        ``pct_outside_range_last_<N>_days`` floats, or None if the variable
+        is unavailable.
     """
 
     results = {}
@@ -354,6 +362,7 @@ def get_threshold_quality(
             reference_date=reference_date,
             interval_minutes=interval_minutes,
             days=days,
+            metric_prefix='pct_outside_range',
             )
 
     return results
@@ -431,17 +440,17 @@ def analyse_variable_quality(context: SiteContext) -> dict[str, Any]:
     Analyse plausible-value coverage for each monitored flux variable.
 
     Builds a unit-converted canonical dataframe for MONITOR_VARS quantities,
-    then computes per-variable percentage-missing over each standard analysis
-    period. The metric combines absent records and implausible values, so it
-    will always be >= the record-coverage figure from analyse_missing_data.
+    then computes per-variable percentage-outside-range over each standard
+    analysis period. The metric combines absent records and implausible values,
+    so it will always be >= the record-coverage figure from analyse_missing_data.
 
     Args:
         context: Combined site runtime config and metadata.
 
     Returns:
         Dict keyed by variable name (entries from MONITOR_VARS). Each value
-        is a period-keyed dict of percentage-missing floats, or None if the
-        variable is not configured or present for this site.
+        is a period-keyed dict of ``pct_outside_range_last_<N>_days`` floats,
+        or None if the variable is not configured or present for this site.
     """
 
     df = build_dataframe_from_context(ctx=context, quantities=set(MONITOR_VARS))
@@ -465,7 +474,7 @@ def analyse_threshold_quality(context: SiteContext) -> dict[str, Any]:
 
     Derives the base quantities (e.g. 'Diag' from 'Diag_IRGA') from the site
     variable config, builds a unit-converted canonical dataframe for those
-    quantities, then computes per-variable percentage-missing over each
+    quantities, then computes per-variable percentage-outside-range over each
     standard analysis period. Variables not configured or not present for the
     site return None.
 
@@ -474,8 +483,9 @@ def analyse_threshold_quality(context: SiteContext) -> dict[str, Any]:
 
     Returns:
         Dict keyed by variable name (entries from THRESHOLD_SPECS). Each
-        value is a period-keyed dict of percentage-missing floats, or None
-        if the variable is not configured or present for this site.
+        value is a period-keyed dict of ``pct_outside_range_last_<N>_days``
+        floats, or None if the variable is not configured or present for this
+        site.
     """
 
     base_quantities = {

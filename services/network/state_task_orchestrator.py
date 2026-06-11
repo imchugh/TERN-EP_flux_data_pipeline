@@ -363,8 +363,80 @@ def run_task_for_all_sites(
 # main task registry. Run with: python -m services.network.state_task_orchestrator
 # ---------------------------------------------------------------------------
 
+def compile_geojson(
+    task_names: list[str] | None = None,
+    state_dir: Path = STATE_DIR,
+    ) -> None:
+    """
+    Read per-task state files and write a site-pivoted GeoJSON FeatureCollection.
+
+    Reads each ``<task_name>.json`` from ``state_dir``, pivots from task-first
+    to site-first, then assembles one GeoJSON Feature per pipeline-registry site.
+    Coordinates are sourced from the site registry; task results are nested in
+    ``properties`` under their task name. Writes ``network_state.json`` to
+    ``state_dir``.
+
+    Missing or unreadable task files are skipped with a warning. Sites without
+    resolvable geometry are omitted from the output.
+
+    Args:
+        task_names: Ordered list of task names to include.
+        state_dir: Directory containing per-task state files and output.
+    """
+
+    if task_names is None:
+        task_names = [spec["task_name"] for spec in STATE_TASK_SPECS]
+
+    site_results: dict[str, dict[str, Any]] = {}
+
+    for task_name in task_names:
+        path = state_dir / f"{task_name}.json"
+        try:
+            payload = read_json(file_path=path)
+            for site, result in payload.get("sites", {}).items():
+                site_results.setdefault(site, {})[task_name] = result
+        except Exception as exc:
+            logger.warning(
+                "geojson_read_failed",
+                extra={"task": task_name, "error": str(exc)},
+            )
+
+    features = []
+    for site_name in SITE_REGISTRY.names():
+        try:
+            metadata = SITE_REGISTRY.get_context(site=site_name).metadata
+            lat = metadata["latitude"]
+            lon = metadata["longitude"]
+        except Exception as exc:
+            logger.warning(
+                "geojson_geometry_failed",
+                extra={"site": site_name, "error": str(exc)},
+            )
+            continue
+
+        features.append({
+            "type": "Feature",
+            "id": site_name,
+            "geometry": {
+                "type": "Point",
+                "coordinates": [lon, lat],
+            },
+            "properties": site_results.get(site_name, {}),
+        })
+
+    geojson = {
+        "type": "FeatureCollection",
+        "features": features,
+        "metadata": {"updated_at": get_utc_now(as_iso=True)},
+    }
+
+    out_path = state_dir / "network_state.json"
+    write_json(file_path=out_path, data=geojson)
+    logger.info("geojson_written", extra={"path": str(out_path)})
+
+
 def compile_site_summary(
-    task_names: list[str],
+    task_names: list[str] | None = None,
     state_dir: Path = STATE_DIR,
     ) -> None:
     """
@@ -394,6 +466,9 @@ def compile_site_summary(
         state_dir: Directory containing per-task state files. Defaults to the
             configured network state path.
     """
+
+    if task_names is None:
+        task_names = [spec["task_name"] for spec in STATE_TASK_SPECS]
 
     sites: dict[str, dict[str, Any]] = {}
 
@@ -428,7 +503,8 @@ def run_all_state_tasks() -> None:
     for spec in STATE_TASK_SPECS:
         run_task_for_all_sites(**spec)
 
-    compile_site_summary(task_names=[spec["task_name"] for spec in STATE_TASK_SPECS])
+    compile_site_summary()
+    compile_geojson()
 
     logger.info("run_all_state_tasks_complete")
 
