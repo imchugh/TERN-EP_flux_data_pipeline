@@ -3,6 +3,7 @@
 
 from importlib import import_module
 
+from infrastructure import paths, rclone_transfer
 from tasks.registry import register
 
 
@@ -13,9 +14,9 @@ from tasks.registry import register
 @register
 def pull_profile_raw(site: str) -> None:
 
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.move_site_data_stream(
-        site=site, resource='raw_data', stream='profile', which_way='from_remote'
+    rclone_transfer.transfer(
+        src=paths.get_remote_stream_path('raw_data', 'profile', site=site),
+        dst=paths.get_local_stream_path('raw_data', 'profile', site=site),
         )
 
 # -----------------------------------------------------------------------------
@@ -23,9 +24,9 @@ def pull_profile_raw(site: str) -> None:
 @register
 def pull_slow_flux(site: str) -> None:
 
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.move_site_data_stream(
-        site=site, resource='raw_data', stream='flux_slow', which_way='from_remote'
+    rclone_transfer.transfer(
+        src=paths.get_remote_stream_path('raw_data', 'flux_slow', site=site),
+        dst=paths.get_local_stream_path('raw_data', 'flux_slow', site=site),
         )
 
 # -----------------------------------------------------------------------------
@@ -35,10 +36,11 @@ def pull_slow_flux(site: str) -> None:
 @register
 def push_aux_fast_flux(site: str) -> None:
 
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.move_site_data_stream(
-        site=site, resource='raw_data', stream='flux_fast_aux',
-        exclude_dirs=['TMP'], timeout=1200,
+    rclone_transfer.transfer(
+        src=paths.get_local_stream_path('raw_data', 'flux_fast_aux', site=site),
+        dst=paths.get_remote_stream_path('raw_data', 'flux_fast_aux', site=site),
+        exclude_dirs=['TMP'],
+        timeout=1200,
         )
 
 # -----------------------------------------------------------------------------
@@ -46,10 +48,11 @@ def push_aux_fast_flux(site: str) -> None:
 @register
 def push_main_fast_flux(site: str) -> None:
 
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.move_site_data_stream(
-        site=site, resource='raw_data', stream='flux_fast',
-        exclude_dirs=['TMP'], timeout=1200,
+    rclone_transfer.transfer(
+        src=paths.get_local_stream_path('raw_data', 'flux_fast', site=site),
+        dst=paths.get_remote_stream_path('raw_data', 'flux_fast', site=site),
+        exclude_dirs=['TMP'],
+        timeout=1200,
         )
 
 # -----------------------------------------------------------------------------
@@ -57,9 +60,9 @@ def push_main_fast_flux(site: str) -> None:
 @register
 def push_profile_processed(site: str) -> None:
 
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.move_site_data_stream(
-        site=site, resource='processed_data', stream='profile',
+    rclone_transfer.transfer(
+        src=paths.get_local_stream_path('processed_data', 'profile', site=site),
+        dst=paths.get_remote_stream_path('processed_data', 'profile', site=site),
         )
 
 # -----------------------------------------------------------------------------
@@ -67,9 +70,9 @@ def push_profile_processed(site: str) -> None:
 @register
 def push_profile_raw(site: str) -> None:
 
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.move_site_data_stream(
-        site=site, resource='raw_data', stream='profile', which_way='to_remote'
+    rclone_transfer.transfer(
+        src=paths.get_local_stream_path('raw_data', 'profile', site=site),
+        dst=paths.get_remote_stream_path('raw_data', 'profile', site=site),
         )
 
 # -----------------------------------------------------------------------------
@@ -77,9 +80,9 @@ def push_profile_raw(site: str) -> None:
 @register
 def push_slow_flux(site: str) -> None:
 
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.move_site_data_stream(
-        site=site, resource='raw_data', stream='flux_slow',
+    rclone_transfer.transfer(
+        src=paths.get_local_stream_path('raw_data', 'flux_slow', site=site),
+        dst=paths.get_remote_stream_path('raw_data', 'flux_slow', site=site),
         )
 
 # -----------------------------------------------------------------------------
@@ -97,29 +100,39 @@ def push_cosmoz(site: str) -> None:
 @register
 def push_details_json() -> None:
 
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.push_details_json()
+    rclone_transfer.transfer(
+        src=paths.get_local_stream_path('network', 'status') / 'site_info.json',
+        dst=paths.get_remote_stream_path('network', 'status'),
+        )
 
 # -----------------------------------------------------------------------------
 
 @register
 def push_homogenised_TOA5() -> None:
 
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.push_homogenised(stream='TOA5')
+    rclone_transfer.transfer(
+        src=paths.get_local_stream_path('homogenised_data', 'toa5'),
+        dst=paths.get_remote_stream_path('homogenised_data', 'toa5'),
+        timeout=180,
+        )
 
 # -----------------------------------------------------------------------------
 
 @register
 def push_L1_nc() -> None:
 
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.push_homogenised(stream='nc')
+    rclone_transfer.transfer(
+        src=paths.get_local_stream_path('homogenised_data', 'nc'),
+        dst=paths.get_remote_stream_path('homogenised_data', 'nc'),
+        timeout=180,
+        )
 
 # -----------------------------------------------------------------------------
 
 @register
 def push_status_geojson() -> None:
 
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.push_status_file(which='geojson')
+    rclone_transfer.transfer(
+        src=paths.get_local_stream_path('network', 'status') / 'network_status.json',
+        dst=paths.get_remote_stream_path('network', 'status'),
+        )

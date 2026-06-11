@@ -26,7 +26,7 @@ from typing import Iterable
 
 APP_PATH = "rclone"
 COPY_ARGS = (
-    'copy', '--transfers', '10', '--progress', '--checksum', '--timeout', '0'
+    'copy', '--transfers', '10', '--checksum', '--timeout', '0'
     )
 logger = logging.getLogger(__name__)
 
