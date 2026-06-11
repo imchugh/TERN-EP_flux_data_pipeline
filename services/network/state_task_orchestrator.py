@@ -21,14 +21,16 @@ Persistence is pluggable via the ``persist`` parameter of
 - ``None`` suppresses all I/O — useful in tests.
 
 Example:
-    # Runs missing-data analysis for all pipeline sites and writes
-    # <state_dir>/missing_data_analysis.json
-    run_task_for_all_sites(
-        task=missing_data_task,
-        task_name='missing_data_analysis',
-    )
+    # Run a single registered task and write its state file:
+    run_task('missing_data')
 
-    # Runs a gateway connectivity scan, updating the persistent state file
+    # Run all tasks then aggregate to both output formats:
+    aggregate(run_tasks=True)
+
+    # Re-aggregate from existing state files without re-running tasks:
+    aggregate(output='geojson')
+
+    # Low-level: run a task not in the registry (e.g. ad-hoc gateway scan):
     from services.network.connectivity import connectivity_sites, persist_connectivity_state
 
     run_task_for_all_sites(
@@ -42,7 +44,7 @@ Example:
 import logging
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from infrastructure import paths
 from infrastructure.datetime_utils import get_utc_now
@@ -286,13 +288,13 @@ STATE_TASK_SPECS: list[dict[str, Any]] = [
     ),
     dict(
         task=make_connectivity_task('gateway'),
-        task_name='gateway',
+        task_name='gateway_connectivity',
         sites=_CONNECTIVITY_SITES,
         persist=persist_connectivity_state,
     ),
     dict(
         task=make_connectivity_task('ec'),
-        task_name='ec',
+        task_name='ec_logger_connectivity',
         sites=_CONNECTIVITY_SITES,
         persist=persist_connectivity_state,
     ),
@@ -357,11 +359,6 @@ def run_task_for_all_sites(
 
     return {task_name: results}
 
-
-# ---------------------------------------------------------------------------
-# Convenience runner — temporary, for manual testing before wiring into the
-# main task registry. Run with: python -m services.network.state_task_orchestrator
-# ---------------------------------------------------------------------------
 
 def compile_geojson(
     task_names: list[str] | None = None,
@@ -487,27 +484,83 @@ def compile_site_summary(
     write_state(results=sites, task_name="site_summary", state_dir=state_dir)
 
 
-def run_all_state_tasks() -> None:
+def run_task(task_name: str) -> dict[str, dict[str, Any]]:
+    """
+    Run a single registered task by name and write its state file.
+
+    Looks up the task spec in ``STATE_TASK_SPECS`` by ``task_name`` and
+    delegates to ``run_task_for_all_sites``.
+
+    Args:
+        task_name: Must match the ``task_name`` key of an entry in
+            ``STATE_TASK_SPECS``.
+
+    Returns:
+        Dict of the form ``{task_name: {site: result_or_error, ...}}``.
+
+    Raises:
+        KeyError: If ``task_name`` is not found in ``STATE_TASK_SPECS``.
+    """
+
+    try:
+        spec = next(s for s in STATE_TASK_SPECS if s['task_name'] == task_name)
+    except StopIteration:
+        raise KeyError(f"No task registered under name {task_name!r}")
+
+    return run_task_for_all_sites(**spec)
+
+
+def run_all_tasks() -> None:
     """
     Run every registered state task in sequence and write its state file.
 
     Iterates ``STATE_TASK_SPECS`` and calls ``run_task_for_all_sites`` for
     each entry. Tasks fan out concurrently per-site internally; this function
     itself is sequential across tasks so each state file is written before the
-    next task begins. After all tasks complete, compiles a site-pivoted summary
-    via ``compile_site_summary``.
+    next task begins. Does not run aggregation — call ``aggregate()`` separately
+    if needed.
     """
 
-    logger.info("run_all_state_tasks_start", extra={"n_tasks": len(STATE_TASK_SPECS)})
+    logger.info("run_all_tasks_start", extra={"n_tasks": len(STATE_TASK_SPECS)})
 
     for spec in STATE_TASK_SPECS:
         run_task_for_all_sites(**spec)
 
-    compile_site_summary()
-    compile_geojson()
+    logger.info("run_all_tasks_complete")
 
-    logger.info("run_all_state_tasks_complete")
+
+def aggregate(
+    run_tasks: bool = False,
+    output: Literal['json', 'geojson', 'both'] = 'both',
+    ) -> None:
+    """
+    Aggregate per-task state files into a combined summary.
+
+    Optionally re-runs all tasks first, then compiles the selected output
+    format(s) from the state files on disk.
+
+    Args:
+        run_tasks: When ``True``, calls ``run_all_tasks()`` before aggregating
+            so the output reflects fresh data. Defaults to ``False`` — useful
+            when tasks have already been run and only the aggregate needs
+            refreshing.
+        output: Controls which aggregate files are written:
+
+            - ``'json'``: writes ``site_summary.json`` (site-pivoted, human-readable).
+            - ``'geojson'``: writes ``network_state.json`` (GeoJSON FeatureCollection,
+              used operationally).
+            - ``'both'`` (default): writes both files.
+    """
+
+    if run_tasks:
+        run_all_tasks()
+
+    if output in ('json', 'both'):
+        compile_site_summary()
+
+    if output in ('geojson', 'both'):
+        compile_geojson()
 
 
 if __name__ == '__main__':
-    run_all_state_tasks()
+    aggregate(run_tasks=True)
