@@ -1,29 +1,30 @@
 # -*- coding: utf-8 -*-
 """
-Task definitions and runner for the flux data pipeline.
+Task runner and orchestrator for the flux data pipeline.
 
-Note: imports are embedded inside task function bodies so that all modules do
-not need to be loaded every time the runner is called.
+Imports the three task modules to trigger @register decorators, then
+instantiates SiteTaskManager (validation requires SITE_TASKS / GLOBAL_TASKS
+to be fully populated first).
 """
 
 ###############################################################################
 ### BEGIN IMPORTS ###
 ###############################################################################
 
-import datetime as dt
 import logging
-import pathlib
-from importlib import import_module
 from typing import Callable
-
-# -----------------------------------------------------------------------------
 
 from infrastructure import paths
 from infrastructure.paths import CONFIG_PATH
 from services import config_loader
 from services.metadata.site_registry import SiteRegistry
 from tasks.logger_config import configure_logger_json
-from tasks.registry import register, SITE_TASKS, GLOBAL_TASKS
+from tasks.registry import SITE_TASKS, GLOBAL_TASKS
+
+# Trigger @register decorators
+import tasks.build_tasks     # noqa: F401
+import tasks.transfer_tasks  # noqa: F401
+import tasks.monitor_tasks   # noqa: F401
 
 ###############################################################################
 ### END IMPORTS ###
@@ -88,238 +89,14 @@ class SiteTaskManager:
                 f'tasks.csv references sites not in SITE_REGISTRY: {unknown_sites}'
                 )
 
+# Instantiated after task imports so SITE_TASKS / GLOBAL_TASKS are fully
+# populated before validation runs.
+mngr = SiteTaskManager()
+
 ###############################################################################
 ### END INITS ###
 ###############################################################################
 
-
-###############################################################################
-### BEGIN TASK DEFINITIONS ###
-###############################################################################
-
-# -----------------------------------------------------------------------------
-### DATA CONSTRUCTORS
-# -----------------------------------------------------------------------------
-
-@register
-def construct_L1_nc(site: str) -> dict:
-    """Build the current-year L1 NetCDF file."""
-
-    build_nc = import_module('orchestration.build_L1_nc')
-    this_year = dt.datetime.now().year
-    written = build_nc.build(site_name=site, year=this_year)
-    return {'status': 'success', 'files_written': [str(p) for p in written]}
-
-# -----------------------------------------------------------------------------
-
-@register
-def update_EddyPro_master(site: str) -> None:
-
-    epc = import_module('file_handling.eddypro_concatenator')
-    epc.update_eddypro_master(site=site)
-
-# -----------------------------------------------------------------------------
-
-@register
-def construct_site_details(site: str) -> None:
-    """Construct the details file for RTMC plotting."""
-
-    deetcon = import_module('data_constructors.details_constructor')
-    deetcon.write_site_info(site=site)
-
-# -----------------------------------------------------------------------------
-
-@register
-def construct_site_details_json() -> None:
-
-    deetcon = import_module('data_constructors.details_constructor')
-    deetcon.site_info_2_json(site_list=mngr.get_site_list())
-
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-@register
-def construct_status_geojson() -> None:
-    """Construct the network status geojson."""
-
-    ns = import_module('network_monitoring.network_status')
-    ns.network_status_to_geojson(
-        site_list=mngr.get_site_list_for_task(task='construct_status_geojson')
-        )
-
-# -----------------------------------------------------------------------------
-### DATA PROCESSING
-# -----------------------------------------------------------------------------
-
-@register
-def process_profile_data(site: str) -> None:
-
-    pdp = import_module('profile_processing.profile_data_processor')
-    output_path = paths.get_local_stream_path(
-        resource='processed_data', stream='profile', site=site,
-        )
-    processor = pdp.load_site_profile_processor(site=site)
-    processor.write_to_csv(file_name=output_path / 'storage_data.csv')
-    processor.plot_diel_storage_mean(
-        output_to_file=output_path / 'diel_storage_mean.png', open_window=False
-        )
-    processor.plot_time_series(
-        output_to_file=output_path / 'time_series.png', open_window=False
-        )
-    processor.plot_vertical_evolution_mean(
-        output_to_file=output_path / 'vertical_evolution_mean.png',
-        open_window=False
-        )
-
-# -----------------------------------------------------------------------------
-### LOCAL FILE HANDLING
-# -----------------------------------------------------------------------------
-
-@register
-def parse_main_fast_data(site: str) -> None:
-
-    _parse_fast_data(site=site, is_aux=False)
-
-# -----------------------------------------------------------------------------
-
-@register
-def parse_aux_fast_data(site: str) -> None:
-
-    _parse_fast_data(site=site, is_aux=True)
-
-# -----------------------------------------------------------------------------
-
-def _parse_fast_data(site: str, is_aux: bool) -> None:
-
-    ffc = import_module('data_constructors.fast_file_converters')
-    ffc.parse_TOB3_daily(site=site, is_aux=is_aux)
-
-# -----------------------------------------------------------------------------
-### RCLONE DATA TRANSFERS — PULL
-# -----------------------------------------------------------------------------
-
-@register
-def pull_profile_raw(site: str) -> None:
-
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.move_site_data_stream(
-        site=site, resource='raw_data', stream='profile', which_way='from_remote'
-        )
-
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-@register
-def pull_slow_flux(site: str) -> None:
-
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.move_site_data_stream(
-        site=site, resource='raw_data', stream='flux_slow', which_way='from_remote'
-        )
-
-# -----------------------------------------------------------------------------
-### RCLONE DATA TRANSFERS — PUSH
-# -----------------------------------------------------------------------------
-
-@register
-def push_aux_fast_flux(site: str) -> None:
-
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.move_site_data_stream(
-        site=site, resource='raw_data', stream='flux_fast_aux',
-        exclude_dirs=['TMP'], timeout=1200,
-        )
-
-# -----------------------------------------------------------------------------
-
-@register
-def push_details_json() -> None:
-
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.push_details_json()
-
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-@register
-def push_L1_nc() -> None:
-
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.push_homogenised(stream='nc')
-
-# -----------------------------------------------------------------------------
-
-@register
-def push_main_fast_flux(site: str) -> None:
-
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.move_site_data_stream(
-        site=site, resource='raw_data', stream='flux_fast',
-        exclude_dirs=['TMP'], timeout=1200,
-        )
-
-# -----------------------------------------------------------------------------
-
-@register
-def push_profile_processed(site: str) -> None:
-
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.move_site_data_stream(
-        site=site, resource='processed_data', stream='profile',
-        )
-
-# -----------------------------------------------------------------------------
-
-@register
-def push_profile_raw(site: str) -> None:
-
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.move_site_data_stream(
-        site=site, resource='raw_data', stream='profile', which_way='to_remote'
-        )
-
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-@register
-def push_slow_flux(site: str) -> None:
-
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.move_site_data_stream(
-        site=site, resource='raw_data', stream='flux_slow',
-        )
-
-# -----------------------------------------------------------------------------
-
-@register
-def push_status_geojson() -> None:
-
-    rct = import_module('infrastructure.rclone_transfer')
-    rct.push_status_file(which='geojson')
-
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-### SFTP DATA TRANSFERS
-# -----------------------------------------------------------------------------
-
-@register
-def push_cosmoz(site: str) -> None:
-
-    sftpt = import_module('infrastructure.sftp_transfer')
-    sftpt.push_cosmoz(site=site)
-
-###############################################################################
-### END TASK DEFINITIONS ###
-###############################################################################
-
-# Instantiated here so SITE_TASKS / GLOBAL_TASKS are fully populated before
-# validation runs.
-mngr = SiteTaskManager()
 
 ###############################################################################
 ### BEGIN RUNNER ###
