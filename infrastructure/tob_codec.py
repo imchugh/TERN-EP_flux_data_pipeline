@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Low-level I/O for Campbell Scientific TOB1 and TOB3 binary files."""
+"""Decoder for Campbell Scientific TOB1 and TOB3 binary files."""
 
 import datetime as dt
 from collections.abc import Iterator
@@ -8,8 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from infrastructure import file_io, read_cs_files as rcf
-from infrastructure.datetime_utils import format_fast_timestamp
+from infrastructure import read_cs_files as rcf
 
 DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 
@@ -17,12 +16,6 @@ _INFO_NAMES = [
     'format', 'station_name', 'logger_type', 'serial_num', 'OS_version',
     'program_name', 'program_sig',
 ]
-
-# Fixed TOA5 values for the TIMESTAMP column — the writer prepends these to
-# the three header lists, matching the convention in toa5_writer.
-_TIMESTAMP_COL = 'TIMESTAMP'
-_TIMESTAMP_UNITS = 'TS'
-_TIMESTAMP_SAMPLING = ''
 
 
 # ---------------------------------------------------------------------------
@@ -146,34 +139,6 @@ def get_file_info(file: Path) -> dict:
     fmt = raw_meta[0][0]
     last_key = 'creation_date' if fmt == 'TOB3' else 'table_name'
     return dict(zip(_INFO_NAMES + [last_key], raw_meta[0]))
-
-
-def write_toa5(df: pd.DataFrame, metadata: dict, output_file: Path) -> None:
-    """
-    Write a DataFrame to a TOA5-format CSV file.
-
-    Uses sub-second timestamp formatting (format_fast_timestamp) so that
-    high-frequency data is written at full precision. Follows the same
-    pattern as toa5_writer.write_toa5: TIMESTAMP is excluded from the
-    metadata headers and prepended here before writing.
-
-    Args:
-        df: data to write (DatetimeIndex).
-        metadata: as returned by read_tob — 'info', 'headers' keys.
-        output_file: destination path; parent directory must exist.
-    """
-    data = df.copy()
-    data.insert(0, _TIMESTAMP_COL, data.index.map(format_fast_timestamp))
-
-    variables, units, sampling = metadata['headers']
-    full_headers = [
-        metadata['info'],
-        [_TIMESTAMP_COL] + list(variables),
-        [_TIMESTAMP_UNITS] + list(units),
-        [_TIMESTAMP_SAMPLING] + list(sampling),
-    ]
-
-    file_io.write_toa5_csv(file_path=output_file, headers=full_headers, data=data)
 
 
 # ---------------------------------------------------------------------------

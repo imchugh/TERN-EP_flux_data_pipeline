@@ -7,7 +7,9 @@ import logging
 from pathlib import Path
 
 from infrastructure import paths
-from infrastructure import tob_file_io as tfio
+from infrastructure import tob_codec as tob
+from infrastructure.datetime_utils import format_fast_timestamp
+from services.data.toa5_writer import write_toa5
 from services.metadata.site_registry import SiteRegistry
 
 logger = logging.getLogger(__name__)
@@ -52,7 +54,7 @@ def process_daily_tob_files(site: str, is_aux: bool = False) -> list[Path]:
     written = []
 
     for file in sorted(src_dir.rglob('*.dat')):
-        info = tfio.get_file_info(file)
+        info = tob.get_file_info(file)
 
         if info['format'] != 'TOB3':
             logger.error('not_tob3', extra={'file': file.name})
@@ -69,7 +71,7 @@ def process_daily_tob_files(site: str, is_aux: bool = False) -> list[Path]:
             continue
 
         try:
-            df, metadata = tfio.read_tob(file)
+            df, metadata = tob.read_tob(file)
         except Exception as exc:
             logger.error('read_failed', extra={'file': file.name, 'error': str(exc)})
             continue
@@ -77,13 +79,19 @@ def process_daily_tob_files(site: str, is_aux: bool = False) -> list[Path]:
         out_dir = out_base / creation_date.strftime('TOA5/%Y_%m/%d')
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        for end_dt, subset in tfio.split_by_interval(df, time_step, freq_hz):
+        for end_dt, subset in tob.split_by_interval(df, time_step, freq_hz):
             filename = (
                 f'TOA5_{site}_{freq_str}_{end_dt.strftime("%Y_%m_%d_%H_%M")}.dat'
             )
             out_file = out_dir / filename
             try:
-                tfio.write_toa5(subset, metadata, out_file)
+                write_toa5(
+                    data=subset,
+                    headers=metadata['headers'],
+                    file_path=out_file,
+                    info=metadata['info'],
+                    timestamp_formatter=format_fast_timestamp,
+                )
                 written.append(out_file)
                 logger.info('wrote_toa5', extra={'file': filename})
             except Exception as exc:
@@ -128,7 +136,8 @@ def get_last_tob_file(site: str, is_aux: bool = False) -> Path:
 # ---------------------------------------------------------------------------
 
 def _parse_date(date_str: str) -> dt.date:
-    return dt.datetime.strptime(date_str, tfio.DATE_FORMAT).date()
+    return dt.datetime.strptime(date_str, tob.DATE_FORMAT).date()
+
 
 
 def _archive_tob3(
