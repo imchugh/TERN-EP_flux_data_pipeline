@@ -64,5 +64,5 @@ def parse_aux_fast_data(site: str) -> None:
 
 def _parse_fast_data(site: str, is_aux: bool) -> None:
 
-    import data_constructors.fast_file_converters as ffc
-    ffc.parse_TOB3_daily(site=site, is_aux=is_aux)
+    import services.data.tob_file_processor as tfp
+    tfp.process_daily_tob_files(site=site, is_aux=is_aux)
