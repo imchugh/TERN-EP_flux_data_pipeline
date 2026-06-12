@@ -8,11 +8,8 @@ from tasks.registry import register
 def construct_status_geojson() -> None:
     """Construct the network status geojson."""
 
-    import network_monitoring.network_status as ns
-    from tasks.tasks import mngr
-    ns.network_status_to_geojson(
-        site_list=mngr.get_site_list_for_task(task='construct_status_geojson')
-        )
+    from services.network.state_task_orchestrator import aggregate
+    aggregate(run_tasks=True, output='geojson')
 
 # -----------------------------------------------------------------------------
 
