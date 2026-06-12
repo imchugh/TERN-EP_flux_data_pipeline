@@ -8,7 +8,6 @@ from pathlib import Path
 
 from infrastructure import paths
 from infrastructure import tob_codec as tob
-from infrastructure.datetime_utils import format_fast_timestamp
 from services.data.toa5_writer import write_toa5
 from services.metadata.site_registry import SiteRegistry
 
@@ -90,7 +89,6 @@ def process_daily_tob_files(site: str, is_aux: bool = False) -> list[Path]:
                     headers=metadata['headers'],
                     file_path=out_file,
                     info=metadata['info'],
-                    timestamp_formatter=format_fast_timestamp,
                 )
                 written.append(out_file)
                 logger.info('wrote_toa5', extra={'file': filename})
