@@ -1,5 +1,10 @@
-sparql_endpoint:
-    https://graphdb.tern.org.au/repositories/knowledge_graph_core
+sparql_endpoints:
+    knowledge_graph_core:
+        url: https://graphdb.tern.org.au/repositories/knowledge_graph_core
+        requires_auth: true
+    tern_vocabs_core:
+        url: https://graphdb.tern.org.au/repositories/tern_vocabs_core
+        requires_auth: false
 
 query_headers:
     "content-type": "application/sparql-query"
@@ -207,6 +212,6 @@ queries:
             }
         
             FILTER NOT EXISTS {
-                ?uri owl: deprecated true .
+                ?uri owl:deprecated true .
             }
         }

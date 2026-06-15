@@ -1,0 +1,116 @@
+# Maps clean alias names to TERN vocabulary instrument categories and the
+# canonical quantities each category measures.
+#
+# vocab_keys must match labels returned by instrument_registry._get_vocab_registry()
+# (i.e. skos:prefLabel of category concepts in tern_vocabs_core). Multiple keys
+# can be listed when the same instrument type spans several vocab categories.
+# Run _get_vocab_registry().keys() to see available labels.
+
+sonic_anemometer:
+  vocab_keys:
+    - SONIC ANEMOMETER
+  quantities:
+    - Diag
+    - Tv
+    - Ux
+    - Uy
+    - Uz
+    - UxUy
+    - UxUz
+    - UyUz
+    - Ws
+    - Wd
+    - ustar
+
+anemometer:
+  vocab_keys:
+    - ANEMOMETER
+  quantities:
+    - Ws
+    - Wd
+
+irga:
+  vocab_keys:
+    - IRGA
+  quantities:
+    - CO2
+    - CO2c
+    - CO2Sig
+    - Diag
+    - H2O
+    - H2OSig
+    - AH
+
+temperature_humidity:
+  vocab_keys:
+    - Temperature/Humidity Sensors
+    - Temperature and Moisture Probes
+    - Humidity and Temperature Probe
+  quantities:
+    - Ta
+    - RH
+    - AH
+    - SVP
+    - VPD
+
+radiation:
+  vocab_keys:
+    - Radiation Sensors
+  quantities:
+    - Fsd
+    - FsdDir
+    - FsdDiff
+    - Fsu
+    - Fld
+    - Flu
+    - Fn
+    - PAR
+    - APAR
+    - Fpard
+    - Fparu
+
+soil_temperature:
+  vocab_keys:
+    - SOIL TEMPERATURE PROBE
+  quantities:
+    - Ts
+
+soil_moisture:
+  vocab_keys:
+    - Soil Moisture Probe
+  quantities:
+    - Sws
+    - Swp
+
+soil_heat_flux:
+  vocab_keys:
+    - SOIL HEAT FLUX TRANSDUCER
+  quantities:
+    - Fg
+
+precipitation:
+  vocab_keys:
+    - RAIN GAUGES
+  quantities:
+    - Precip
+
+logger:
+  vocab_keys:
+    - Recorders/Loggers
+  quantities:
+    - Vbat
+
+# Compound quantities require more than one instrument type.
+# Each entry lists the aliases whose instruments are needed together.
+# list_instruments_for_quantity() returns a dict keyed by alias for these.
+flux_quantities:
+  Fco2:
+    - irga
+    - sonic_anemometer
+  Fe:
+    - irga
+    - sonic_anemometer
+  Fh:
+    - sonic_anemometer
+  Fm:
+    - sonic_anemometer

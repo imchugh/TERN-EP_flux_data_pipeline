@@ -132,7 +132,7 @@ def get_sparql_query(query_key: str) -> str:
 
 # -----------------------------------------------------------------------------
         
-def run_query(query_key: str) -> dict:
+def run_query(query_key: str, end_point: str='knowledge_graph_core') -> dict:
     """
     
 
@@ -144,19 +144,20 @@ def run_query(query_key: str) -> dict:
 
     """
 
-    # Get creds
-    creds = _get_CREDS_CACHE()
-
     # Load the query config strings
     configs = load_sparql_configs()
-        
+    endpoint_cfg = configs['sparql_endpoints'][end_point]
+
+    creds = _get_CREDS_CACHE() if endpoint_cfg['requires_auth'] else None
+    auth = (creds['USERNAME'], creds['PASSWORD']) if creds else None
+
     # Do the query
     rslt = external_io.post(
-        configs['sparql_endpoint'],
+        url=endpoint_cfg['url'],
         data=configs['queries'][query_key],
         headers=configs['query_headers'],
-        auth=(creds['USERNAME'], creds['PASSWORD']),
-        ).json()  
+        auth=auth,
+        ).json()
     
     return rslt.get("results", {}).get("bindings", [])
 # -----------------------------------------------------------------------------
@@ -303,7 +304,7 @@ def get_flux_tower_fields_from_rdf(
             site = convert_site_label(label=site)
         attrs['site_name'] = site
         attrs['dsa_label'] = attrs.pop('label')
-        
+               
         # Generate time-based variables
         if add_tz_vars:
             tz = {'time_zone': None, 'UTC_offset': None}
@@ -398,7 +399,12 @@ def get_all_tern_metadata() -> dict[str, SiteMetadata]:
 # -----------------------------------------------------------------------------
 def get_instrument_vocab():
     
-    return parse_sparql_bindings(run_query(query_key='get_instrument_vocabulary'))
+    return parse_sparql_bindings(
+        run_query(
+            query_key='get_instrument_vocabulary',
+            end_point='tern_vocabs_core'
+            )
+        )
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
