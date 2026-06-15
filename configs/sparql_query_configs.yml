@@ -64,6 +64,7 @@ queries:
         PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
         PREFIX tern-loc: <https://w3id.org/tern/ontologies/loc/>
         PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        PREFIX sosa: <http://www.w3.org/ns/sosa/>
     
         SELECT ?id ?label ?fluxnet_id ?date_commissioned ?date_decommissioned ?latitude ?longitude ?elevation ?time_step ?freq_hz ?canopy_height ?soil ?tower_height ?vegetation
         WHERE {
@@ -96,14 +97,14 @@ queries:
                     tern:hasSimpleValue ?freq_hz .
             }
             OPTIONAL {
-                ?id tern:hasAttribute ?canopy_height_attr .
-                ?canopy_height_attr tern:attribute <http://linked.data.gov.au/def/tern-cv/c1920aed1295ee17a2aa05a9616e9b11d35e05b56f72ccc9a3748eb31c913551> ;
-                    tern:hasSimpleValue ?canopy_height .
+                ?id tern:hasObservation ?canopy_height_observation .
+                ?canopy_height_observation sosa:observedProperty <http://linked.data.gov.au/def/tern-cv/c1920aed1295ee17a2aa05a9616e9b11d35e05b56f72ccc9a3748eb31c913551> ;
+                    sosa:hasSimpleResult ?canopy_height .
             }
             OPTIONAL {
-                ?id tern:hasAttribute ?soil_attr .
-                ?soil_attr tern:attribute <http://linked.data.gov.au/def/tern-cv/ed2ebb7c-561a-4892-9662-3b3aaa9ec768> ;
-                    tern:hasSimpleValue ?soil .
+                ?id tern:hasObservation ?soil_type .
+                ?soil_type sosa:observedProperty <http://linked.data.gov.au/def/tern-cv/ed2ebb7c-561a-4892-9662-3b3aaa9ec768> ;
+                    sosa:hasSimpleResult ?soil .
             }
             OPTIONAL {
                 ?id tern:hasAttribute ?tower_height_attr .
@@ -111,9 +112,9 @@ queries:
                     tern:hasSimpleValue ?tower_height_double .
             }
             OPTIONAL {
-                ?id tern:hasAttribute ?vegetation_attr .
-                ?vegetation_attr tern:attribute <http://linked.data.gov.au/def/tern-cv/1338fc29-53ef-4b27-8903-b824e973807a> ;
-                    tern:hasSimpleValue ?vegetation .
+                ?id tern:hasObservation ?vegetation_type .
+                ?vegetation_type sosa:observedProperty <http://linked.data.gov.au/def/tern-cv/1338fc29-53ef-4b27-8903-b824e973807a> ;
+                    sosa:hasSimpleResult ?vegetation .
             }
     
             BIND(xsd:decimal(?tower_height_double) AS ?tower_height)
@@ -129,6 +130,7 @@ queries:
         PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
         PREFIX tern-loc: <https://w3id.org/tern/ontologies/loc/>
         PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+        PREFIX sosa: <http://www.w3.org/ns/sosa/>
     
         SELECT ?id ?label ?fluxnet_id ?date_commissioned ?date_decommissioned ?climate_code ?latitude ?longitude ?elevation ?time_step ?freq_hz ?canopy_height ?soil ?tower_height ?vegetation
         WHERE {
@@ -164,14 +166,14 @@ queries:
                     tern:hasSimpleValue ?freq_hz .
             }
             OPTIONAL {
-                ?id tern:hasAttribute ?canopy_height_attr .
-                ?canopy_height_attr tern:attribute <http://linked.data.gov.au/def/tern-cv/c1920aed1295ee17a2aa05a9616e9b11d35e05b56f72ccc9a3748eb31c913551> ;
-                    tern:hasSimpleValue ?canopy_height .
+                ?id tern:hasObservation ?canopy_height_observation .
+                ?canopy_height_observation sosa:observedProperty <http://linked.data.gov.au/def/tern-cv/c1920aed1295ee17a2aa05a9616e9b11d35e05b56f72ccc9a3748eb31c913551> ;
+                    sosa:hasSimpleResult ?canopy_height .
             }
             OPTIONAL {
-                ?id tern:hasAttribute ?soil_attr .
-                ?soil_attr tern:attribute <http://linked.data.gov.au/def/tern-cv/ed2ebb7c-561a-4892-9662-3b3aaa9ec768> ;
-                    tern:hasSimpleValue ?soil .
+                ?id tern:hasObservation ?soil_type .
+                ?soil_type sosa:observedProperty <http://linked.data.gov.au/def/tern-cv/ed2ebb7c-561a-4892-9662-3b3aaa9ec768> ;
+                    sosa:hasSimpleResult ?soil .
             }
             OPTIONAL {
                 ?id tern:hasAttribute ?tower_height_attr .
@@ -179,9 +181,9 @@ queries:
                     tern:hasSimpleValue ?tower_height_double .
             }
             OPTIONAL {
-                ?id tern:hasAttribute ?vegetation_attr .
-                ?vegetation_attr tern:attribute <http://linked.data.gov.au/def/tern-cv/1338fc29-53ef-4b27-8903-b824e973807a> ;
-                    tern:hasSimpleValue ?vegetation .
+                ?id tern:hasObservation ?vegetation_type .
+                ?vegetation_type sosa:observedProperty <http://linked.data.gov.au/def/tern-cv/1338fc29-53ef-4b27-8903-b824e973807a> ;
+                    sosa:hasSimpleResult ?vegetation .
             }
     
             BIND(xsd:decimal(?tower_height_double) AS ?tower_height)

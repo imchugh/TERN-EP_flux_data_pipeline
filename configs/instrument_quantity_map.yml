@@ -11,15 +11,24 @@ sonic_anemometer:
     - SONIC ANEMOMETER
   quantities:
     - Diag
+    - RHint
+    - Tint
     - Tv
+    - U
     - Ux
     - Uy
     - Uz
     - UxUy
     - UxUz
     - UyUz
-    - Ws
+    - V
+    - W
     - Wd
+    - Ws
+    - pitch
+    - roll
+    - tau
+    - Tstar
     - ustar
 
 anemometer:
@@ -33,13 +42,19 @@ irga:
   vocab_keys:
     - IRGA
   quantities:
+    - AGC
+    - AH
     - CO2
     - CO2c
     - CO2Sig
     - Diag
     - H2O
     - H2OSig
-    - AH
+    - Sco2
+    - Sig
+    - SigCO2
+    - SigH2O
+    - ps
 
 temperature_humidity:
   vocab_keys:
@@ -47,27 +62,36 @@ temperature_humidity:
     - Temperature and Moisture Probes
     - Humidity and Temperature Probe
   quantities:
-    - Ta
-    - RH
     - AH
+    - RH
+    - Rhoa
+    - Rhod
+    - SH
+    - SHD
     - SVP
+    - Ta
+    - Td
+    - VP
     - VPD
 
 radiation:
   vocab_keys:
     - Radiation Sensors
   quantities:
-    - Fsd
-    - FsdDir
-    - FsdDiff
-    - Fsu
+    - APAR
+    - FAPAR
     - Fld
     - Flu
     - Fn
-    - PAR
-    - APAR
     - Fpard
     - Fparu
+    - Fsd
+    - FsdDiff
+    - FsdDir
+    - Fsu
+    - PAR
+    - Tbody
+    - Tcanopy
 
 soil_temperature:
   vocab_keys:
@@ -79,6 +103,7 @@ soil_moisture:
   vocab_keys:
     - Soil Moisture Probe
   quantities:
+    - EC
     - Sws
     - Swp
 
@@ -98,12 +123,25 @@ logger:
   vocab_keys:
     - Recorders/Loggers
   quantities:
+    - Tpanel
     - Vbat
 
 # Compound quantities require more than one instrument type.
 # Each entry lists the aliases whose instruments are needed together.
 # list_instruments_for_quantity() returns a dict keyed by alias for these.
 flux_quantities:
+  AC:
+    - irga
+    - sonic_anemometer
+  AT:
+    - irga
+    - sonic_anemometer
+  CT:
+    - irga
+    - sonic_anemometer
+  ET:
+    - irga
+    - sonic_anemometer
   Fco2:
     - irga
     - sonic_anemometer
@@ -113,4 +151,28 @@ flux_quantities:
   Fh:
     - sonic_anemometer
   Fm:
+    - sonic_anemometer
+  UxA:
+    - irga
+    - sonic_anemometer
+  UxC:
+    - irga
+    - sonic_anemometer
+  UxT:
+    - sonic_anemometer
+  UyA:
+    - irga
+    - sonic_anemometer
+  UyC:
+    - irga
+    - sonic_anemometer
+  UyT:
+    - sonic_anemometer
+  UzA:
+    - irga
+    - sonic_anemometer
+  UzC:
+    - irga
+    - sonic_anemometer
+  UzT:
     - sonic_anemometer
