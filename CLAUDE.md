@@ -1,5 +1,10 @@
 # CLAUDE.md — flux_data_pipeline
 
+## Development Environment
+
+- **Conda environment**: `ep_cntl` — activate before running scripts or installing packages
+- `rapidfuzz` is installed in `ep_cntl` (used by `services/metadata/instrument_registry.py` for fuzzy instrument name matching)
+
 ## Project Purpose
 
 A data pipeline for processing eddy covariance flux tower measurements from TERN (Terrestrial Ecosystem Research Network) sites. Converts raw instrument data (Campbell Scientific TOA5 loggers, LI-COR EddyPro) into canonical L1 NetCDF files with standardised units, metadata, and QC flags.

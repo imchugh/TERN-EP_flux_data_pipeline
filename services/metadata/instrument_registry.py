@@ -218,3 +218,49 @@ def list_instruments_for_compound_quantity(quantity: str) -> dict[str, list[str]
     """
     components = get_quantity_components(quantity)
     return {alias: list_instruments(alias) for alias in components}
+
+
+def suggest_instruments(
+    name: str,
+    n: int = 5,
+    score_cutoff: float = 60.0,
+) -> list[tuple[str, float]]:
+    """Return top-n fuzzy matches from the full TERN vocab.
+
+    Uses rapidfuzz.token_set_ratio when available (handles word-order and
+    brand-prefix variation); falls back to difflib.SequenceMatcher.
+
+    Args:
+        name: instrument label to match (need not be in the vocab).
+        n: maximum number of suggestions to return.
+        score_cutoff: minimum similarity score 0–100 to include a candidate.
+
+    Returns:
+        List of (instrument_label, score) tuples, sorted descending by score.
+    """
+    vocab_registry = _get_vocab_registry()
+    seen: set[str] = set()
+    candidates = [
+        inst
+        for insts in vocab_registry.values()
+        for inst in insts
+        if not (inst in seen or seen.add(inst))
+    ]
+
+    try:
+        from rapidfuzz import fuzz, process
+        results = process.extract(
+            name,
+            candidates,
+            scorer=fuzz.token_set_ratio,
+            score_cutoff=score_cutoff,
+            limit=n,
+        )
+        return [(match, float(score)) for match, score, _ in results]
+    except ImportError:
+        import difflib
+        close = difflib.get_close_matches(name, candidates, n=n, cutoff=score_cutoff / 100)
+        return [
+            (m, round(difflib.SequenceMatcher(None, name.lower(), m.lower()).ratio() * 100, 1))
+            for m in close
+        ]
