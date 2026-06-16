@@ -54,6 +54,16 @@ def _get_alias_map() -> dict[str, dict]:
 
 
 @functools.lru_cache(maxsize=1)
+def _get_name_corrections() -> dict[str, str]:
+    """Load preferred→vocab-label corrections for incorrectly named vocab entries."""
+    try:
+        raw = config_loader.load_config_file_from_name('instrument_name_corrections')
+        return raw.get('corrections', {}) or {}
+    except Exception:
+        return {}
+
+
+@functools.lru_cache(maxsize=1)
 def _get_flux_quantities() -> dict[str, list[str]]:
     """Load compound flux quantity definitions from config."""
     raw = config_loader.load_config_file_from_name('instrument_quantity_map')
@@ -149,18 +159,30 @@ def get_instrument_type(name: str) -> str:
     """
     alias_map = _get_alias_map()
     vocab_registry = _get_vocab_registry()
+    resolved = _get_name_corrections().get(name, name)
 
     for alias, cfg in alias_map.items():
-        if any(name in vocab_registry.get(k, []) for k in cfg['vocab_keys']):
+        if any(resolved in vocab_registry.get(k, []) for k in cfg['vocab_keys']):
             return alias
     raise KeyError(f"Unknown instrument {name!r}")
 
 
 def is_valid_instrument(name: str) -> bool:
-    """Return True if name is a known instrument label under any configured alias."""
-    alias_map = _get_alias_map()
+    """Return True if name is a known instrument label under any configured alias.
+
+    Also accepts names listed as keys in instrument_name_corrections.yml.
+    For those, validation is against the full TERN vocab (not just aliased
+    categories) because the underlying vocab entry may be in an unmapped
+    category — the correction itself is the assertion that it exists.
+    """
+    corrections = _get_name_corrections()
     vocab_registry = _get_vocab_registry()
 
+    if name in corrections:
+        resolved = corrections[name]
+        return any(resolved in insts for insts in vocab_registry.values())
+
+    alias_map = _get_alias_map()
     return any(
         name in vocab_registry.get(k, [])
         for cfg in alias_map.values()
@@ -240,12 +262,18 @@ def suggest_instruments(
     """
     vocab_registry = _get_vocab_registry()
     seen: set[str] = set()
-    candidates = [
-        inst
-        for insts in vocab_registry.values()
-        for inst in insts
-        if not (inst in seen or seen.add(inst))
-    ]
+    # Preferred names from corrections come first so they win score ties
+    # over the (wrong) vocab labels they map to.
+    candidates: list[str] = []
+    for preferred in _get_name_corrections():
+        if preferred not in seen:
+            seen.add(preferred)
+            candidates.append(preferred)
+    for insts in vocab_registry.values():
+        for inst in insts:
+            if inst not in seen:
+                seen.add(inst)
+                candidates.append(inst)
 
     try:
         from rapidfuzz import fuzz, process

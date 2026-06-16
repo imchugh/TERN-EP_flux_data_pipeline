@@ -1,0 +1,103 @@
+# Instrument name substitution map
+# Review: remove any entry you do NOT want applied
+# Entries are ordered by match confidence (highest first)
+#
+# Apply with: python -m tools.apply_substitution_map [output_dir]
+
+substitutions:
+  Apogee: Apogee Instruments SI-111-SS
+  CNR4: Kipp&Zonen CNR4
+  CR1000X: Campbell CR1000X
+  CS616: Campbell Scientific CS616
+  CS650: Campbell Scientific CS650
+  CS700: HyQuest Solutions CS700
+  CS702: Hydrological Services CS702
+  CSAT3: Campbell Scientific CSAT3
+  CSAT3A: Campbell Scientific CSAT3A
+  CSAT3B: Campbell Scientific CSAT3B
+  Campbell Scientific 108: Campbell Scientific 108
+  Campbell Scientific CR1000X logger: Campbell CR1000X
+  Campbell Scientific CS616: Campbell Scientific CS616
+  Campbell Scientific CS650: Campbell Scientific CS650
+  Campbell Scientific SoilVue: Campbell Scientific SoilVue 10
+  Campbell Scientific T107: Campbell Scientific T107 Weather Station
+  Campbell Scientific TCAV: Campbell Scientific TCAV Averaging Soil Thermocouple Probe
+  EC155: Campbell Scientific EC155
+  EE181: Campbell Scientific EE181
+  Gill 2D Windsonic: Gill Windsonic
+  HFP01: Hukseflux HFP01
+  HMP155: Vaisala HMP155
+  HMP45C: Vaisala HMP45C
+  IRGASON: Campbell Scientific IRGASON
+  RIM-7499-BOM: Observator RIM-7499-BOM
+  RM Young 52203: Young 52203
+  SPN1: Delta-T Devices SPN1
+  TCAV: Campbell Scientific TCAV Averaging Soil Thermocouple Probe
+  Texas Electronics: Texas Electronics TE525MM
+  Campbell Scientific T108: Campbell Scientific 108
+  Stevens Hydra Probe II: Stevens HydraProbe II
+  Vaisala  HMP-155A: Vaisala HMP155A
+  Hydrological Services CS700: Hydrological Services CS702
+  Campbell Scientific CS605: Campbell Scientific CS655
+  Hydrological Services CS7000: Hydrological Services CS702
+  Huskeflux HFP01: Hukseflux HFP01
+  Campbell Scientific CS700: Campbell Scientific CS320
+  Campbell Scientific CR6: Campbell Scientific CS655
+  Huskeflux HFP01-SC: Hukseflux HFP01SC
+  Campbell Scientific 107-probe: Campbell Scientific 108
+  Campbell Scientific CR1000: Campbell Scientific 108
+  Campbell Scientific CR1000 logger: Campbell Scientific 108
+  Campbell Scientific CR1000XE: Campbell Scientific 108
+  Campbell Scientific CR3000: Campbell Scientific 108
+  Campbell Scientific CR3000 logger: Campbell Scientific 108
+  Campbell Scientific CR3000 logger North pit: Campbell Scientific 108
+  Campbell Scientific CR3000 logger south pit: Campbell Scientific 108
+  Campbell Scientific CR3001: Campbell Scientific 108
+  Campbell Scientific CR6 datalogger: Campbell Scientific 108
+  Campbell Scientific CR6 logger: Campbell Scientific 108
+  Campbell Scientific HFP01SC: Campbell Scientific 108
+  Campbell Scientific W229: Campbell Scientific 108
+  Campbell Scientific W253: Campbell Scientific 108
+  Huxeflux HFP01: Hukseflux HFP01
+  Vaisala PTB110: Vaisala PTB101B
+  Kipp and Zonen CMP21: Kipp&Zonen CMP21
+  Kipp and Zonen CGR4: Kipp&Zonen CGR4
+  Kipp and Zonen CM7B: Kipp&Zonen CM7B
+  Kipp and Zonen CNR1: Kipp&Zonen CNR1
+  Kipp and Zonen CNR4: Kipp&Zonen CNR4
+  Kipp and Zonen CG2: Kipp&Zonen CG2
+  Kipp and Zonen NR lite: Kipp&Zonen NR Lite
+  Rimco 8000: Ricoh G800
+  Hydrylogical services: Hydrological Services CS702
+  CS701 rain gauge: Observator RIM-8000 series rain gauge
+  RM Young: Young WindSentry
+  Apogee PAR: Apogee Instruments SI-111-SS
+  Rotronic HC2S3: Rotronic HC2(A)-S, HC2(A)-S3(H), HC2(A)-S-HH, HC2-S3CO3(-PT15),
+    HC2(A)-SM and HC2-S and HC2A-S series
+  WindSonic4: Gill Windsonic4
+  RM Young WindSonic4: Young WindSentry
+  HMP155a: Vaisala HMP155
+  Rain gauge: Observator RIM-8000 series rain gauge
+  Kipp & Zonen CNR4 Radiometer: Kipp&Zonen CNR4
+  Li-7500RS: LI-COR LI-7500RS
+  Li-cor 200X: Ricoh GX200
+  EC150: GE E1050
+  HMP45: HP SW450
+  Li-7500A: LI-COR LI-7500A
+no_match:
+- '107'
+- 107 probe
+- 24.5m
+- Averaging soil thermocouple
+- CMT TRIME-PICO32
+- CR200
+- CR800
+- CS107
+- HFP-01
+- IRGASON (H2O and T)
+- Kipp and Zonen NRLite-2
+- Li-7500
+- Li7500RS
+- Multi-parameter smart sensor CS650
+- SQ110 Quantum sensor
+- TBC
