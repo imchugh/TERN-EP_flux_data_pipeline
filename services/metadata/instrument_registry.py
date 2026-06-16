@@ -113,7 +113,8 @@ def list_quantities(instrument_type: str) -> list[str]:
 
 def is_compound_quantity(quantity: str) -> bool:
     """Return True if a quantity requires more than one instrument type."""
-    return quantity in _get_flux_quantities()
+    flux_quantities = _get_flux_quantities()
+    return quantity in flux_quantities and len(flux_quantities[quantity]) > 1
 
 
 def get_quantity_components(quantity: str) -> list[str]:
