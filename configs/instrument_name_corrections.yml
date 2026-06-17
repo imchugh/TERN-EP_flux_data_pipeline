@@ -13,11 +13,10 @@ corrections:
   Campbell Scientific CR1000X: Campbell CR1000X
   Campbell Scientific TCAV: Campbell Scientific TCAV Averaging Soil Thermocouple Probe
   Campbell Scientific T107: Campbell Scientific T107 Weather Station
-  Rimco RIM-7499-BOM: RIM-7499-BOM
+  Rimco RIM-7499-BOM: Observator RIM-7499-BOM
   RM Young 52203: Young 52203
   RM Young WindSentry: Young WindSentry
   Rotronic HC2S3: Rotronic HC2(A)-S, HC2(A)-S3(H), HC2(A)-S-HH, HC2-S3CO3(-PT15), HC2(A)-SM and HC2-S and HC2A-S series
-  HyQuest Solutions CS700: 
 
 pending:
   Campbell Scientific CS700: precipitation
@@ -40,3 +39,4 @@ pending:
   CMT TRIME-PICO 32: soil_moisture
   Vaisala PTB110: atmospheric_pressure
   Campbell Scientific EC150: sonic_anemometer
+  Campbell Scientific EC155: sonic_anemometer

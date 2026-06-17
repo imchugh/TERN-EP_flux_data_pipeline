@@ -35,9 +35,16 @@ def _apply_to_obj(obj: object, subs: dict[str, str]) -> bool:
     if isinstance(obj, dict):
         if 'instrument' in obj:
             val = obj['instrument']
-            if isinstance(val, str) and val in subs:
-                obj['instrument'] = subs[val]
-                changed = True
+            if isinstance(val, str):
+                if val in subs:
+                    obj['instrument'] = subs[val]
+                    changed = True
+                elif ',' in val:
+                    parts = [p.strip() for p in val.split(',')]
+                    new_parts = [subs.get(p, p) for p in parts]
+                    if new_parts != parts:
+                        obj['instrument'] = ', '.join(new_parts)
+                        changed = True
             elif isinstance(val, dict):
                 for k, v in val.items():
                     if isinstance(v, str) and v in subs:

@@ -78,6 +78,7 @@ temperature_humidity:
 radiation:
   vocab_keys:
     - Radiation Sensors
+    - NET RADIOMETERS
   quantities:
     - APAR
     - FAPAR
@@ -103,6 +104,8 @@ soil_temperature:
 soil_moisture:
   vocab_keys:
     - Soil Moisture Probe
+    - Stevens HydraProbe
+    - WCR
   quantities:
     - EC
     - Sws
