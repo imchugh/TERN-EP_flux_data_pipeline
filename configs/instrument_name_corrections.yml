@@ -38,5 +38,5 @@ pending:
   Apogee Instruments SQ110: radiation  
   CMT TRIME-PICO 32: soil_moisture
   Vaisala PTB110: atmospheric_pressure
-  Campbell Scientific EC150: sonic_anemometer
-  Campbell Scientific EC155: sonic_anemometer
+  Campbell Scientific EC150: irga
+  Campbell Scientific EC155: irga
