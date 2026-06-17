@@ -1,10 +1,10 @@
 # Maps clean alias names to TERN vocabulary instrument categories and the
 # canonical quantities each category measures.
 #
-# vocab_keys must match labels returned by instrument_registry._get_vocab_registry()
-# (i.e. skos:prefLabel of category concepts in tern_vocabs_core). Multiple keys
-# can be listed when the same instrument type spans several vocab categories.
-# Run _get_vocab_registry().keys() to see available labels.
+# vocab_keys must match the skos:prefLabel of category concepts in
+# tern_vocabs_core exactly. Multiple keys can be listed when the same
+# instrument type spans several vocab categories.
+# Run [k for k in _get_vocab_registry()] to see available labels.
 
 sonic_anemometer:
   vocab_keys:
@@ -61,6 +61,7 @@ temperature_humidity:
     - Temperature/Humidity Sensors
     - Temperature and Moisture Probes
     - Humidity and Temperature Probe
+    - TEMPERATURE PROBES
   quantities:
     - AH
     - RH

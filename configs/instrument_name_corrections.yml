@@ -19,3 +19,12 @@ corrections:
 pending:
   Campbell Scientific CS700: precipitation
   Campbell Scientific CS605: soil_moisture
+  Campbell Scientific CR6: logger
+  Campbell Scientific 107: soil_temperature
+  Campbell Scientific 109: soil_temperature
+  Campbell Scientific CR3000: logger
+  Campbell Scientific CR1000: logger
+  Campbell Scientific CR1000XE: logger
+  Campbell Scientific 229: soil_moisture
+  Campbell Scientific 253: soil_moisture
+  Rimco RIM8000: precipitation
