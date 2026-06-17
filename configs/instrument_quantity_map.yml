@@ -120,6 +120,12 @@ precipitation:
   quantities:
     - Precip
 
+atmospheric_pressure:
+  vocab_keys:
+    - BAROMETERS
+  quantities:
+    - ps
+
 logger:
   vocab_keys:
     - Recorders/Loggers
