@@ -1,11 +1,21 @@
 # Instrument name corrections
 #
-# Maps the preferred (correct) name to the current (wrong) TERN vocab label.
-# Use this when the vocab database has an incorrectly designated entry and you
-# need configs to use the correct name in the meantime.
+# corrections: preferred (correct) name → current (wrong) TERN vocab label.
+#   Use when the vocab has an incorrectly designated entry. Remove once fixed.
 #
-# Remove an entry here once the vocab database has been corrected — the
-# preferred name will then be found directly in the vocab with no code change.
+# pending: preferred name → instrument alias category.
+#   Use when there is no vocab entry yet. Remove once the entry is added.
+#   Valid aliases: sonic_anemometer, anemometer, irga, temperature_humidity,
+#                  radiation, soil_temperature, soil_moisture, soil_heat_flux,
+#                  precipitation, logger
 
 corrections:
   Campbell Scientific CR1000X: Campbell CR1000X
+  Campbell Scientific TCAV: Campbell Scientific TCAV Averaging Soil Thermocouple Probe
+  Campbell Scientific T107: Campbell Scientific T107 Weather Station
+  Rimco RIM-7499-BOM: RIM-7499-BOM
+  RM Young 52203: Young 52203
+
+pending:
+  Campbell Scientific CS700: precipitation
+  Campbell Scientific CS605: soil_moisture

@@ -64,6 +64,16 @@ def _get_name_corrections() -> dict[str, str]:
 
 
 @functools.lru_cache(maxsize=1)
+def _get_pending_instruments() -> dict[str, str]:
+    """Load pending instrument names (no vocab entry yet) mapped to their alias category."""
+    try:
+        raw = config_loader.load_config_file_from_name('instrument_name_corrections')
+        return raw.get('pending', {}) or {}
+    except Exception:
+        return {}
+
+
+@functools.lru_cache(maxsize=1)
 def _get_flux_quantities() -> dict[str, list[str]]:
     """Load compound flux quantity definitions from config."""
     raw = config_loader.load_config_file_from_name('instrument_quantity_map')
@@ -157,6 +167,10 @@ def get_instrument_type(name: str) -> str:
     Returns:
         Clean alias (e.g. 'temperature_humidity').
     """
+    pending = _get_pending_instruments()
+    if name in pending:
+        return pending[name]
+
     alias_map = _get_alias_map()
     vocab_registry = _get_vocab_registry()
     resolved = _get_name_corrections().get(name, name)
@@ -175,6 +189,9 @@ def is_valid_instrument(name: str) -> bool:
     categories) because the underlying vocab entry may be in an unmapped
     category — the correction itself is the assertion that it exists.
     """
+    if name in _get_pending_instruments():
+        return True
+
     corrections = _get_name_corrections()
     vocab_registry = _get_vocab_registry()
 
@@ -262,10 +279,10 @@ def suggest_instruments(
     """
     vocab_registry = _get_vocab_registry()
     seen: set[str] = set()
-    # Preferred names from corrections come first so they win score ties
-    # over the (wrong) vocab labels they map to.
+    # Preferred/pending names come first so they win score ties over the
+    # (wrong or absent) vocab labels they correspond to.
     candidates: list[str] = []
-    for preferred in _get_name_corrections():
+    for preferred in list(_get_name_corrections()) + list(_get_pending_instruments()):
         if preferred not in seen:
             seen.add(preferred)
             candidates.append(preferred)
