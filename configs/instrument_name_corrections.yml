@@ -10,33 +10,28 @@
 #                  precipitation, logger
 
 corrections:
-  Campbell Scientific CR1000X: Campbell CR1000X
-  Campbell Scientific TCAV: Campbell Scientific TCAV Averaging Soil Thermocouple Probe
-  Campbell Scientific T107: Campbell Scientific T107 Weather Station
-  Rimco RIM-7499-BOM: Observator RIM-7499-BOM
-  RM Young 52203: Young 52203
-  RM Young WindSentry: Young WindSentry
-  Rotronic HC2S3: Rotronic HC2(A)-S, HC2(A)-S3(H), HC2(A)-S-HH, HC2-S3CO3(-PT15), HC2(A)-SM and HC2-S and HC2A-S series
+  # Campbell Scientific CR1000X: Campbell CR1000X
+  # Campbell Scientific TCAV: Campbell Scientific TCAV Averaging Soil Thermocouple Probe
+  # Campbell Scientific T107: Campbell Scientific T107 Weather Station
+  # Rimco RIM-7499-BOM: Observator RIM-7499-BOM
+  # RM Young 52203: Young 52203
+  # RM Young WindSentry: Young WindSentry
+  # Rotronic HC2S3: Rotronic HC2(A)-S, HC2(A)-S3(H), HC2(A)-S-HH, HC2-S3CO3(-PT15), HC2(A)-SM and HC2-S and HC2A-S series
 
 pending:
-  Campbell Scientific CS700: precipitation
-  Campbell Scientific CS605: soil_moisture
-  Campbell Scientific CR6: logger
-  Campbell Scientific 107: soil_temperature
-  Campbell Scientific 109: soil_temperature
-  Campbell Scientific CR200: logger
-  Campbell Scientific CR800: logger 
-  Campbell Scientific CR3000: logger
-  Campbell Scientific CR1000: logger
+  # Campbell Scientific CS700: precipitation
+  # Campbell Scientific CS605: soil_moisture
+  # Campbell Scientific 107: soil_temperature
+  # Campbell Scientific 109: soil_temperature
+  # Campbell Scientific CR3000: logger
   Campbell Scientific CR1000XE: logger
-  Campbell Scientific 229: soil_moisture
-  Campbell Scientific 253: soil_moisture
-  Rimco RIM8000: precipitation
-  Hyquest Solutions TB4: precipitation
-  LI-COR LI-200X: radiation
-  Apogee Instruments SI111: radiation
-  Apogee Instruments SQ110: radiation  
-  CMT TRIME-PICO 32: soil_moisture
-  Vaisala PTB110: atmospheric_pressure
-  Campbell Scientific EC150: irga
-  Campbell Scientific EC155: irga
+  # Campbell Scientific 229: soil_moisture
+  # Campbell Scientific 253: soil_moisture
+  # Rimco RIM8000: precipitation
+  # LI-COR LI-200X: radiation
+  # Apogee Instruments SI111: radiation
+  # Apogee Instruments SQ110: radiation  
+  # CMT TRIME-PICO 32: soil_moisture
+  # Vaisala PTB110: atmospheric_pressure
+  # Campbell Scientific EC150: irga
+  # Campbell Scientific EC155: irga

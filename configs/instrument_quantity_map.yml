@@ -59,9 +59,8 @@ irga:
 temperature_humidity:
   vocab_keys:
     - Temperature/Humidity Sensors
-    - Temperature and Moisture Probes
     - Humidity and Temperature Probe
-    - TEMPERATURE PROBES
+    - Temperature Probes
   quantities:
     - AH
     - RH
@@ -79,6 +78,7 @@ radiation:
   vocab_keys:
     - Radiation Sensors
     - NET RADIOMETERS
+    - LICOR QUANTUM SENSOR
   quantities:
     - APAR
     - FAPAR
@@ -97,19 +97,33 @@ radiation:
 
 soil_temperature:
   vocab_keys:
-    - SOIL TEMPERATURE PROBE
+    - Temperature Probes
+    - Soil Temperature Probe
   quantities:
+    - Ts
+
+temperature:
+  vocab_keys:
+    - Temperature Probes
+  quantities:
+    - Ta
     - Ts
 
 soil_moisture:
   vocab_keys:
     - Soil Moisture Probe
+    - Water Content Reflectometer
     - Stevens HydraProbe
-    - WCR
+    - Soil Water Potential Sensors
   quantities:
-    - EC
+    - E
+    - Ts
     - Sws
     - Swp
+
+soil_water_potential:
+  vocab_keys:
+    - Soil Water Potential Sensors
 
 soil_heat_flux:
   vocab_keys:
@@ -132,9 +146,15 @@ atmospheric_pressure:
 logger:
   vocab_keys:
     - Recorders/Loggers
+    - Eddy Covariance Logger
   quantities:
     - Tpanel
     - Vbat
+
+combined_system:
+  vocab_keys:
+    - Atmospheric Profile System
+    - AWS
 
 # Compound quantities require more than one instrument type.
 # Each entry lists the aliases whose instruments are needed together.

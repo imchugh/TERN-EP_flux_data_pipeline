@@ -80,6 +80,16 @@ def _get_flux_quantities() -> dict[str, list[str]]:
     return raw.get('flux_quantities', {})
 
 
+def clear_cache() -> None:
+    """Clear all cached registry data (vocab, corrections, pending, alias map)."""
+    get_raw_vocab.cache_clear()
+    _get_vocab_registry.cache_clear()
+    _get_alias_map.cache_clear()
+    _get_name_corrections.cache_clear()
+    _get_pending_instruments.cache_clear()
+    _get_flux_quantities.cache_clear()
+
+
 def _get_vocab_keys(alias: str) -> list[str]:
     alias_map = _get_alias_map()
     if alias not in alias_map:

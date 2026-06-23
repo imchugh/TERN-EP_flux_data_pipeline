@@ -82,6 +82,24 @@ These are broken and need a broader overhaul before touching:
 - `configs/nc_metadata.yml` — NetCDF global attributes template
 - `configs/sites/{SiteName}.yml` — per-site variable specs, file mappings, instrument metadata
 
+### Site config: `instrument` field notation
+
+Within `input_variables`, the `instrument` field has two valid forms:
+
+**Single instrument** (scalar string) — used for all variables measured by one sensor:
+```yaml
+instrument: Campbell Scientific CSAT3B
+```
+
+**Compound instrument** (nested mapping) — used for flux/covariance variables that require two sensor types (sonic + IRGA). Keys must be `sonic_anemometer` and `irga`:
+```yaml
+instrument:
+  sonic_anemometer: Campbell Scientific CSAT3B
+  irga: LI-COR LI-7500RS
+```
+
+`Fh` (sensible heat flux) uses the **single** form (sonic only). Although air density correction involves humidity, this dependency is not considered significant enough to warrant compound notation. Comma-separated strings (e.g. `CSAT3B, LI-7500RS`) are **not** valid — do not use them.
+
 ## Key Patterns
 
 - **Registry pattern**: `SiteRegistry`, conversion/calculation registries in `transform_service`
