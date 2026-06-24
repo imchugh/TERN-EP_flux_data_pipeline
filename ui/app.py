@@ -366,6 +366,16 @@ def render_variable(var_name: str, container) -> None:
                 lambda _ev, d=var_data, inp=height_inp: d.update({'height': inp.value}),
             )
 
+            try:
+                parsed = name_parser.parse_variable_name(var_name)
+                hl = parsed.horizontal_location or '—'
+                rep = parsed.replicate or '—'
+            except Exception:
+                hl = rep = '—'
+
+            ui.input(label='Horiz. location', value=hl).classes('w-32').props('readonly')
+            ui.input(label='Replicate', value=rep).classes('w-24').props('readonly')
+
         ui.label('Input variables').classes('text-subtitle2 q-mt-sm')
 
         # The edit handler needs the table's refresh function, which is only

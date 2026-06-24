@@ -58,9 +58,7 @@ irga:
 
 temperature_humidity:
   vocab_keys:
-    - Temperature/Humidity Sensors
     - Humidity and Temperature Probe
-    - Temperature Probes
   quantities:
     - AH
     - RH
@@ -78,7 +76,6 @@ radiation:
   vocab_keys:
     - Radiation Sensors
     - NET RADIOMETERS
-    - LICOR QUANTUM SENSOR
   quantities:
     - APAR
     - FAPAR
@@ -112,11 +109,8 @@ temperature:
 soil_moisture:
   vocab_keys:
     - Soil Moisture Probe
-    - Water Content Reflectometer
-    - Stevens HydraProbe
-    - Soil Water Potential Sensors
   quantities:
-    - E
+    - EC
     - Ts
     - Sws
     - Swp
@@ -145,7 +139,6 @@ atmospheric_pressure:
 
 logger:
   vocab_keys:
-    - Recorders/Loggers
     - Eddy Covariance Logger
   quantities:
     - Tpanel
