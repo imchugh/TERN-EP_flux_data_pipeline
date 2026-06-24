@@ -55,19 +55,22 @@ def _site_names() -> list[str]:
 
 
 def _compute_file_formats(cfg: dict, base_path: Path) -> dict[str, str]:
-    """Return {file_stem: format_name} for all files found on disk."""
-    ff = cfg.get('file_formats', {})
-    default = ff.get('default', FILE_TYPE_OPTIONS[0])
-    overrides = ff.get('overrides', {}) or {}
+    """Return {file_stem: format_name} for all files found on disk.
+
+    Files present on disk but absent from the YAML file_formats dict default
+    to CSI until the user explicitly assigns a format.
+    """
+    yaml_formats = cfg.get('file_formats', {}) or {}
     try:
         found = file_io.list_available_files(
             dir_path=base_path, pattern=['*.dat', 'Cumberland*.txt']
         )
     except Exception:
         found = []
-    formats = {f.stem: default for f in found}
-    for stem, fmt in overrides.items():
-        if stem in formats:
+    formats = {f.stem: yaml_formats.get(f.stem, FILE_TYPE_OPTIONS[0]) for f in found}
+    # Include YAML-configured files even if not on disk (e.g. path not mounted)
+    for stem, fmt in yaml_formats.items():
+        if stem not in formats:
             formats[stem] = fmt
     return formats
 
@@ -171,23 +174,13 @@ def load_site(site_name: str) -> None:
 # ── File-formats section callbacks ────────────────────────────────────────────
 
 def _get_file_formats_state() -> dict:
-    ff = state['cfg'].get('file_formats', {})
-    return {'default': ff.get('default'), 'overrides': ff.get('overrides', {}) or {}}
+    return dict(state['cfg'].get('file_formats', {}) or {})
 
 
 def _on_file_formats_change(event: dict) -> None:
     ff = state['cfg'].setdefault('file_formats', {})
-    match event['type']:
-        case 'default':
-            ff['default'] = event['value']
-        case 'override_type':
-            ff.setdefault('overrides', {})[event['file']] = event['value']
-        case 'override_file':
-            overrides = ff.setdefault('overrides', {})
-            if event['old_file'] in overrides:
-                overrides[event['new_file']] = overrides.pop(event['old_file'])
-        case 'delete_override':
-            ff.setdefault('overrides', {}).pop(event['file'], None)
+    ff[event['file']] = event['value']
+    state['file_formats'][event['file']] = event['value']
 
 # ── Input-variable table helpers ──────────────────────────────────────────────
 
@@ -358,7 +351,6 @@ def build_editor(content_col) -> None:
                     create_file_formats_editor(
                         get_file_formats_state=_get_file_formats_state,
                         on_change=_on_file_formats_change,
-                        file_list=state['file_list'],
                         file_type_options=FILE_TYPE_OPTIONS,
                     )
 

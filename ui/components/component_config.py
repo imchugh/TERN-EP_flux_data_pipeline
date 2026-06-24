@@ -189,120 +189,44 @@ def create_input_variable_table(
 def create_file_formats_editor(
     get_file_formats_state,
     on_change,
-    file_list,
     file_type_options,
-    ):
-
+):
     container = ui.column()
-
-    def build_rows(overrides: dict):
-        return [
-            {
-                "file": k,
-                "type": v,
-                "_original_file": k,
-            }
-            for k, v in overrides.items()
-        ]
 
     def refresh():
         container.clear()
+        formats = get_file_formats_state()
 
-        state = get_file_formats_state()
-        default = state["default"]
-        overrides = state["overrides"]
+        rows = [{"file": k, "type": v} for k, v in sorted(formats.items())]
 
         with container:
+            table = ui.table(
+                columns=[
+                    {"name": "file", "label": "File", "field": "file", "align": "left"},
+                    {"name": "type", "label": "Format", "field": "type", "align": "left"},
+                ],
+                rows=rows,
+                row_key="file",
+            ).classes("w-full")
 
-            # -------------------------
-            # DEFAULT
-            # -------------------------
-            with ui.row().classes("items-center"):
-                ui.label("default").classes("w-40")
+            table.add_slot(
+                "body-cell-type", r'''
+                <q-td :props="props">
+                  <q-select
+                    v-model="props.row.type"
+                    :options="''' + str(file_type_options) + r'''"
+                    dense borderless emit-value map-options
+                    @update:model-value="$parent.$emit('edit', props.row)"
+                  />
+                </q-td>
+                '''
+            )
 
-                default_select = ui.select(
-                    options=file_type_options,
-                    value=default,
-                ).classes("w-64")
+            def handle_edit(e):
+                row = e.args
+                on_change({"file": row["file"], "value": row["type"]})
 
-                default_select.on(
-                    "update:model-value",
-                    lambda e: on_change({
-                        "type": "default",
-                        "value": default_select.value
-                    })
-                )
-
-            # -------------------------
-            # OVERRIDES
-            # -------------------------
-            with ui.row().classes("items-start"):
-
-                ui.label("overrides").classes("w-40")
-
-                rows = build_rows(overrides)
-
-                with ui.column().classes("flex-grow"):
-
-                    table = ui.table(
-                        columns=[
-                            {"name": "file", "label": "File", "field": "file"},
-                            {"name": "type", "label": "Type", "field": "type"},
-                        ],
-                        rows=rows,
-                        row_key="_original_file",
-                    ).classes("w-full")
-
-                    # file selector
-                    table.add_slot(
-                        "body-cell-file", r'''
-                        <q-td :props="props">
-                          <q-select
-                            v-model="props.row.file"
-                            :options="''' + str(file_list) + r'''"
-                            dense borderless emit-value map-options
-                            @update:model-value="$parent.$emit('edit', {row: props.row, field: 'file'})"
-                          />
-                        </q-td>
-                        '''
-                    )
-
-                    # type selector
-                    table.add_slot(
-                        "body-cell-type", r'''
-                        <q-td :props="props">
-                          <q-select
-                            v-model="props.row.type"
-                            :options="''' + str(file_type_options) + r'''"
-                            dense borderless emit-value map-options
-                            @update:model-value="$parent.$emit('edit', {row: props.row, field: 'type'})"
-                          />
-                        </q-td>
-                        '''
-                    )
-
-                    def handle_edit(e):
-                        payload = e.args
-                        row = payload["row"]
-                        field = payload["field"]
-
-                        if field == "file":
-                            on_change({
-                                "type": "override_file",
-                                "old_file": row["_original_file"],
-                                "new_file": row["file"],
-                            })
-
-                        elif field == "type":
-                            on_change({
-                                "type": "override_type",
-                                "file": row["file"],
-                                "value": row["type"],
-                            })
-
-                        refresh()
-
-                    table.on("edit", handle_edit)
+            table.on("edit", handle_edit)
 
     refresh()
     return container, refresh
