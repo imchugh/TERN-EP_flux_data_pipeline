@@ -201,11 +201,16 @@ def _build_rows(var_name: str) -> list[dict]:
         file_stem = attrs.get('file')
         fmt = state['file_formats'].get(file_stem) if file_stem else None
         var_options = _get_file_vars(file_stem, fmt) if (file_stem and fmt) else []
+        raw_instrument = attrs.get('instrument')
+        is_compound = isinstance(raw_instrument, dict)
         rows.append({
             '_key': key,
             'name': attrs.get('name', key),
             '_var_options': var_options,
-            'instrument': _fmt_instrument(attrs.get('instrument', '')),
+            'instrument': '' if is_compound else _fmt_instrument(raw_instrument),
+            '_instrument_is_compound': is_compound,
+            '_sonic_name': raw_instrument.get('sonic_anemometer', '') if is_compound else '',
+            '_irga_name': raw_instrument.get('irga', '') if is_compound else '',
             'units': attrs.get('units', ''),
             'file': file_stem,
             'begin': str(attrs.get('begin', '') or ''),

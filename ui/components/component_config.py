@@ -65,6 +65,29 @@ def create_input_variable_table(
         '''
         )
     
+    # Configure instrument slot
+    input_var_table.add_slot(
+        "body-cell-instrument", r'''
+        <q-td :props="props">
+          <template v-if="props.row._instrument_is_compound">
+            <div class="column" style="gap:2px">
+              <div class="row items-center" style="gap:6px">
+                <span class="text-caption text-grey-6" style="width:36px">sonic:</span>
+                <span class="text-body2">{{ props.row._sonic_name }}</span>
+              </div>
+              <div class="row items-center" style="gap:6px">
+                <span class="text-caption text-grey-6" style="width:36px">irga:</span>
+                <span class="text-body2">{{ props.row._irga_name }}</span>
+              </div>
+            </div>
+          </template>
+          <template v-else>
+            <span class="text-body2">{{ props.row.instrument }}</span>
+          </template>
+        </q-td>
+        '''
+    )
+
     # Configure unit slot
     input_var_table.add_slot(
         "body-cell-units", r'''
