@@ -15,16 +15,16 @@ def create_input_variable_table(
 
     input_var_table = ui.table(
         columns=[
-            {"name": "file", "label": "File name", "field": "file"},
-            {"name": "name", "label": "Raw variable name", "field": "name"},
-            {"name": "instrument", "label": "Instrument", "field": "instrument"},
-            {"name": "units", "label": "Units", "field": "units"},
-            {"name": "begin", "label": "Start date", "field": "begin"},
-            {"name": "end", "label": "End date", "field": "end"},
+            {"name": "file", "label": "File name", "field": "file", "align": "left"},
+            {"name": "name", "label": "Raw variable name", "field": "name", "align": "left"},
+            {"name": "instrument", "label": "Instrument", "field": "instrument", "align": "left"},
+            {"name": "units", "label": "Units", "field": "units", "align": "left"},
+            {"name": "begin", "label": "Start date", "field": "begin", "align": "left"},
+            {"name": "end", "label": "End date", "field": "end", "align": "left"},
         ],
         rows=[],
         row_key="_key",
-    ).classes("w-full")
+    ).classes("w-full").props("separator=cell")
 
     # Event bridge (component -> main logic)
     def _handle(e):
