@@ -80,6 +80,15 @@ def _get_flux_quantities() -> dict[str, list[str]]:
     return raw.get('flux_quantities', {})
 
 
+@functools.lru_cache(maxsize=1)
+def _get_uri_maps() -> tuple[dict[str, str], dict[str, str]]:
+    """Return (uri→label, uri→direct_parent_uri) maps from raw vocab."""
+    data = get_raw_vocab()
+    uri_label = {e['uri']: e['label'] for e in data if e.get('uri') and e.get('label')}
+    parent_map = {e['uri']: e['broader'] for e in data if e.get('broader')}
+    return uri_label, parent_map
+
+
 def clear_cache() -> None:
     """Clear all cached registry data (vocab, corrections, pending, alias map)."""
     get_raw_vocab.cache_clear()
@@ -88,6 +97,7 @@ def clear_cache() -> None:
     _get_name_corrections.cache_clear()
     _get_pending_instruments.cache_clear()
     _get_flux_quantities.cache_clear()
+    _get_uri_maps.cache_clear()
 
 
 def _get_vocab_keys(alias: str) -> list[str]:
@@ -267,6 +277,35 @@ def list_instruments_for_compound_quantity(quantity: str) -> dict[str, list[str]
     """
     components = get_quantity_components(quantity)
     return {alias: list_instruments(alias) for alias in components}
+
+
+def get_ancestor_chain(name: str) -> list[str]:
+    """Return ordered ancestor labels from direct parent to root concept.
+
+    Args:
+        name: instrument label (e.g. 'LI-7500RS').
+
+    Returns:
+        List of ancestor labels, nearest parent first up to root.
+
+    Raises:
+        KeyError: if name is not a known instrument label.
+    """
+    resolved = _get_name_corrections().get(name, name)
+    uri_label, parent_map = _get_uri_maps()
+    name_to_uri = {v: k for k, v in uri_label.items()}
+
+    if resolved not in name_to_uri:
+        raise KeyError(f"Unknown instrument {name!r}")
+
+    chain = []
+    current = parent_map.get(name_to_uri[resolved])
+    while current:
+        label = uri_label.get(current)
+        if label:
+            chain.append(label)
+        current = parent_map.get(current)
+    return chain
 
 
 def suggest_instruments(
