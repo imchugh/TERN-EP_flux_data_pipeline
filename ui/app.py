@@ -364,11 +364,11 @@ def build_editor(content_col) -> None:
 
                 with ui.column():
                     ui.label('Flux file').classes('text-subtitle1 font-bold q-pb-xs')
-                    flux_file_inp = ui.input(value=cfg.get('flux_file', '')).classes('w-72')
-                    flux_file_inp.on(
-                        'blur',
-                        lambda _ev, inp=flux_file_inp: cfg.update({'flux_file': inp.value}),
-                    )
+                    ui.select(
+                        options=state['file_list'],
+                        value=cfg.get('flux_file'),
+                        on_change=lambda e: cfg.update({'flux_file': e.value}),
+                    ).classes('w-72')
 
         # Variables section
         with ui.card().classes('w-full'):
@@ -441,6 +441,8 @@ def do_save() -> None:
 def main():
     sites = _site_names()
 
+    dark = ui.dark_mode()
+
     with ui.column().classes('w-full q-pa-md'):
         with ui.row().classes('items-center q-mb-md'):
             ui.label('L1 Configuration Editor').classes('text-h5')
@@ -449,6 +451,8 @@ def main():
                 options=sites, value=None,
             ).props('borderless hide-selected dense').style('min-width: 28px; max-width: 40px')
             site_name_label = ui.label('').classes('text-h5')
+            ui.space()
+            ui.button(icon='dark_mode', on_click=dark.toggle).props('flat round dense')
 
         content_col = ui.column().classes('w-full')
         error_col = ui.column().classes('w-full')
