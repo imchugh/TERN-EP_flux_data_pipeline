@@ -18,8 +18,9 @@ from services.metadata.canonical_quantity_registry import build_canonical_quanti
 from services.metadata.site_config_schema import validate_all
 from services.metadata.instrument_registry import (
     is_compound_quantity,
+    list_instruments,
     list_instruments_for_quantity,
-    list_instruments_for_compound_quantity,
+    get_quantity_components,
 )
 from ui.components.component_config import (
     create_input_variable_table,
@@ -189,27 +190,23 @@ def _on_file_formats_change(event: dict) -> None:
 
 # ── Input-variable table helpers ──────────────────────────────────────────────
 
+def _instruments_for_alias(alias: str) -> list[str]:
+    try:
+        return list_instruments(alias)
+    except Exception:
+        return []
+
+
 def _instrument_options_for(var_name: str) -> dict:
-    """Return instrument dropdown options derived from the canonical quantity."""
+    """Return instrument dropdown metadata derived from the canonical quantity."""
     quantity = _extract_quantity(var_name)
-    empty = {'is_compound': False, 'options': [], 'sonic_options': [], 'irga_options': []}
+    empty = {'qty_is_compound': False, 'options': [], 'components': []}
     if not quantity:
         return empty
     try:
         if is_compound_quantity(quantity):
-            by_alias = list_instruments_for_compound_quantity(quantity)
-            return {
-                'is_compound': True,
-                'options': [],
-                'sonic_options': by_alias.get('sonic_anemometer', []),
-                'irga_options': by_alias.get('irga', []),
-            }
-        return {
-            'is_compound': False,
-            'options': list_instruments_for_quantity(quantity),
-            'sonic_options': [],
-            'irga_options': [],
-        }
+            return {'qty_is_compound': True, 'options': [], 'components': get_quantity_components(quantity)}
+        return {'qty_is_compound': False, 'options': list_instruments_for_quantity(quantity), 'components': []}
     except Exception:
         return empty
 
@@ -219,7 +216,6 @@ def _build_rows(var_name: str) -> list[dict]:
     input_vars = state['cfg']['variables'][var_name].get('input_variables', {})
     valid_units = _valid_units_for(var_name)
     opts = _instrument_options_for(var_name)
-    is_compound = opts['is_compound']
 
     rows = []
     for key, attrs in input_vars.items():
@@ -227,17 +223,35 @@ def _build_rows(var_name: str) -> list[dict]:
         fmt = state['file_formats'].get(file_stem) if file_stem else None
         var_options = _get_file_vars(file_stem, fmt) if (file_stem and fmt) else []
         raw_instrument = attrs.get('instrument')
+
+        # Data-driven compound detection: the stored value is the authority.
+        # Fall back to quantity-registry for new entries (instrument still None).
+        is_compound = isinstance(raw_instrument, dict) or (
+            raw_instrument is None and opts['qty_is_compound']
+        )
+
+        if is_compound:
+            if isinstance(raw_instrument, dict):
+                compound_parts = [
+                    {'alias': a, 'name': n or '', 'options': _instruments_for_alias(a)}
+                    for a, n in raw_instrument.items()
+                ]
+            else:
+                compound_parts = [
+                    {'alias': a, 'name': '', 'options': _instruments_for_alias(a)}
+                    for a in opts['components']
+                ]
+        else:
+            compound_parts = []
+
         rows.append({
             '_key': key,
             'name': attrs.get('name', key),
             '_var_options': var_options,
             'instrument': '' if is_compound else _fmt_instrument(raw_instrument),
             '_instrument_is_compound': is_compound,
-            '_sonic_name': raw_instrument.get('sonic_anemometer', '') if isinstance(raw_instrument, dict) else '',
-            '_irga_name': raw_instrument.get('irga', '') if isinstance(raw_instrument, dict) else '',
+            '_compound_parts': compound_parts,
             '_instrument_options': opts['options'],
-            '_sonic_options': opts['sonic_options'],
-            '_irga_options': opts['irga_options'],
             'units': attrs.get('units', ''),
             'file': file_stem,
             'begin': str(attrs.get('begin', '') or ''),
@@ -278,8 +292,8 @@ def _make_table_edit_handler(var_name: str, refresh_fn) -> callable:
         # Instrument: reconstruct compound dict or store simple string
         if row.get('_instrument_is_compound'):
             attrs['instrument'] = {
-                'sonic_anemometer': row.get('_sonic_name') or None,
-                'irga': row.get('_irga_name') or None,
+                p['alias']: p['name'] or None
+                for p in row.get('_compound_parts', [])
             }
         else:
             attrs['instrument'] = row.get('instrument') or None

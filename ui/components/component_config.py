@@ -71,21 +71,12 @@ def create_input_variable_table(
         <q-td :props="props">
           <template v-if="props.row._instrument_is_compound">
             <div class="column" style="gap:2px">
-              <div class="row items-center" style="gap:6px">
-                <span class="text-caption text-grey-6" style="width:36px">sonic:</span>
+              <div v-for="(part, i) in props.row._compound_parts" :key="i"
+                   class="row items-center" style="gap:6px">
+                <span class="text-caption text-grey-6" style="width:130px">{{ part.alias }}:</span>
                 <q-select
-                  v-model="props.row._sonic_name"
-                  :options="props.row._sonic_options || []"
-                  dense borderless clearable emit-value map-options
-                  style="min-width:200px"
-                  @update:model-value="$parent.$emit('edit', props.row)"
-                />
-              </div>
-              <div class="row items-center" style="gap:6px">
-                <span class="text-caption text-grey-6" style="width:36px">irga:</span>
-                <q-select
-                  v-model="props.row._irga_name"
-                  :options="props.row._irga_options || []"
+                  v-model="part.name"
+                  :options="part.options || []"
                   dense borderless clearable emit-value map-options
                   style="min-width:200px"
                   @update:model-value="$parent.$emit('edit', props.row)"
