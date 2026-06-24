@@ -73,16 +73,34 @@ def create_input_variable_table(
             <div class="column" style="gap:2px">
               <div class="row items-center" style="gap:6px">
                 <span class="text-caption text-grey-6" style="width:36px">sonic:</span>
-                <span class="text-body2">{{ props.row._sonic_name }}</span>
+                <q-select
+                  v-model="props.row._sonic_name"
+                  :options="props.row._sonic_options || []"
+                  dense borderless clearable emit-value map-options
+                  style="min-width:200px"
+                  @update:model-value="$parent.$emit('edit', props.row)"
+                />
               </div>
               <div class="row items-center" style="gap:6px">
                 <span class="text-caption text-grey-6" style="width:36px">irga:</span>
-                <span class="text-body2">{{ props.row._irga_name }}</span>
+                <q-select
+                  v-model="props.row._irga_name"
+                  :options="props.row._irga_options || []"
+                  dense borderless clearable emit-value map-options
+                  style="min-width:200px"
+                  @update:model-value="$parent.$emit('edit', props.row)"
+                />
               </div>
             </div>
           </template>
           <template v-else>
-            <span class="text-body2">{{ props.row.instrument }}</span>
+            <q-select
+              v-model="props.row.instrument"
+              :options="props.row._instrument_options || []"
+              dense borderless clearable emit-value map-options
+              style="min-width:200px"
+              @update:model-value="$parent.$emit('edit', props.row)"
+            />
           </template>
         </q-td>
         '''

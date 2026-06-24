@@ -256,9 +256,15 @@ def list_instruments_for_quantity(quantity: str) -> list[str]:
 
     instruments: set[str] = set()
     for alias, cfg in alias_map.items():
-        if quantity in cfg['quantities']:
+        if quantity in cfg.get('quantities', []):
             for k in cfg['vocab_keys']:
                 instruments.update(vocab_registry.get(k, []))
+
+    pending = _get_pending_instruments()
+    for name, alias in pending.items():
+        if alias in alias_map and quantity in alias_map[alias].get('quantities', []):
+            instruments.add(name)
+
     return sorted(instruments)
 
 
@@ -276,7 +282,17 @@ def list_instruments_for_compound_quantity(quantity: str) -> dict[str, list[str]
         KeyError: if quantity is not a known compound quantity.
     """
     components = get_quantity_components(quantity)
-    return {alias: list_instruments(alias) for alias in components}
+    alias_map = _get_alias_map()
+    pending = _get_pending_instruments()
+
+    result = {}
+    for alias in components:
+        instruments = set(list_instruments(alias))
+        for name, p_alias in pending.items():
+            if p_alias == alias:
+                instruments.add(name)
+        result[alias] = sorted(instruments)
+    return result
 
 
 def get_ancestor_chain(name: str) -> list[str]:
@@ -312,7 +328,7 @@ def suggest_instruments(
     name: str,
     n: int = 5,
     score_cutoff: float = 60.0,
-) -> list[tuple[str, float]]:
+    ) -> list[tuple[str, float]]:
     """Return top-n fuzzy matches from the full TERN vocab.
 
     Uses rapidfuzz.token_set_ratio when available (handles word-order and

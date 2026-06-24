@@ -16,6 +16,11 @@ from services.metadata.file_group_builder import get_variables_from_file
 from services.metadata.variable_name_parser import NameParser
 from services.metadata.canonical_quantity_registry import build_canonical_quantity_registry
 from services.metadata.site_config_schema import validate_all
+from services.metadata.instrument_registry import (
+    is_compound_quantity,
+    list_instruments_for_quantity,
+    list_instruments_for_compound_quantity,
+)
 from ui.components.component_config import (
     create_input_variable_table,
     create_file_formats_editor,
@@ -184,10 +189,37 @@ def _on_file_formats_change(event: dict) -> None:
 
 # ── Input-variable table helpers ──────────────────────────────────────────────
 
+def _instrument_options_for(var_name: str) -> dict:
+    """Return instrument dropdown options derived from the canonical quantity."""
+    quantity = _extract_quantity(var_name)
+    empty = {'is_compound': False, 'options': [], 'sonic_options': [], 'irga_options': []}
+    if not quantity:
+        return empty
+    try:
+        if is_compound_quantity(quantity):
+            by_alias = list_instruments_for_compound_quantity(quantity)
+            return {
+                'is_compound': True,
+                'options': [],
+                'sonic_options': by_alias.get('sonic_anemometer', []),
+                'irga_options': by_alias.get('irga', []),
+            }
+        return {
+            'is_compound': False,
+            'options': list_instruments_for_quantity(quantity),
+            'sonic_options': [],
+            'irga_options': [],
+        }
+    except Exception:
+        return empty
+
+
 def _build_rows(var_name: str) -> list[dict]:
     """Build the list of row dicts for the input-variables table."""
     input_vars = state['cfg']['variables'][var_name].get('input_variables', {})
     valid_units = _valid_units_for(var_name)
+    opts = _instrument_options_for(var_name)
+    is_compound = opts['is_compound']
 
     rows = []
     for key, attrs in input_vars.items():
@@ -195,15 +227,17 @@ def _build_rows(var_name: str) -> list[dict]:
         fmt = state['file_formats'].get(file_stem) if file_stem else None
         var_options = _get_file_vars(file_stem, fmt) if (file_stem and fmt) else []
         raw_instrument = attrs.get('instrument')
-        is_compound = isinstance(raw_instrument, dict)
         rows.append({
             '_key': key,
             'name': attrs.get('name', key),
             '_var_options': var_options,
             'instrument': '' if is_compound else _fmt_instrument(raw_instrument),
             '_instrument_is_compound': is_compound,
-            '_sonic_name': raw_instrument.get('sonic_anemometer', '') if is_compound else '',
-            '_irga_name': raw_instrument.get('irga', '') if is_compound else '',
+            '_sonic_name': raw_instrument.get('sonic_anemometer', '') if isinstance(raw_instrument, dict) else '',
+            '_irga_name': raw_instrument.get('irga', '') if isinstance(raw_instrument, dict) else '',
+            '_instrument_options': opts['options'],
+            '_sonic_options': opts['sonic_options'],
+            '_irga_options': opts['irga_options'],
             'units': attrs.get('units', ''),
             'file': file_stem,
             'begin': str(attrs.get('begin', '') or ''),
@@ -214,14 +248,7 @@ def _build_rows(var_name: str) -> list[dict]:
 
 
 def _make_table_edit_handler(var_name: str, refresh_fn) -> callable:
-    """
-    Return a handler for table cell edits bound to var_name.
-
-    Instrument is intentionally not updated from the row: it may be a dict
-    (compound form) in the underlying config, and the table only shows a
-    flattened display string.  The field is reset to None only when the file
-    changes, at which point the user must re-enter it.
-    """
+    """Return a handler for table cell edits bound to var_name."""
     def handle(row: dict) -> None:
         input_vars = state['cfg']['variables'][var_name]['input_variables']
         key = row['_key']
@@ -247,6 +274,15 @@ def _make_table_edit_handler(var_name: str, refresh_fn) -> callable:
                 refresh_fn()
                 return
             attrs['name'] = new_name
+
+        # Instrument: reconstruct compound dict or store simple string
+        if row.get('_instrument_is_compound'):
+            attrs['instrument'] = {
+                'sonic_anemometer': row.get('_sonic_name') or None,
+                'irga': row.get('_irga_name') or None,
+            }
+        else:
+            attrs['instrument'] = row.get('instrument') or None
 
         attrs['units'] = row.get('units')
         attrs['begin'] = norm_date(row.get('begin'))
