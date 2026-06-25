@@ -224,14 +224,13 @@ def is_valid_instrument(name: str) -> bool:
         name in vocab_registry.get(k, [])
         for cfg in alias_map.values()
         for k in cfg['vocab_keys']
-    )
+        )
 
 
 def get_quantities_for_instrument(name: str) -> list[str]:
     """Return the canonical quantities for a specific instrument label."""
     alias = get_instrument_type(name)
     return list_quantities(alias)
-
 
 def list_instruments_for_quantity(quantity: str) -> list[str]:
     """Return all instruments that measure a given simple (non-compound) quantity.
@@ -293,6 +292,26 @@ def list_instruments_for_compound_quantity(quantity: str) -> dict[str, list[str]
                 instruments.add(name)
         result[alias] = sorted(instruments)
     return result
+
+
+def get_instrument_uri(name: str) -> str:
+    """Return the TERN vocabulary URI for a given instrument label.
+
+    Args:
+        name: instrument label (e.g. 'LI-7500RS').
+
+    Returns:
+        URI string from the TERN controlled vocabulary.
+
+    Raises:
+        KeyError: if name is not a known instrument label.
+    """
+    resolved = _get_name_corrections().get(name, name)
+    uri_label, _ = _get_uri_maps()
+    name_to_uri = {v: k for k, v in uri_label.items()}
+    if resolved not in name_to_uri:
+        raise KeyError(f"Unknown instrument {name!r}")
+    return name_to_uri[resolved]
 
 
 def get_ancestor_chain(name: str) -> list[str]:

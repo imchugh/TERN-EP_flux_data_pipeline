@@ -4,6 +4,7 @@
 
 - **Conda environment**: `ep_cntl` — activate before running scripts or installing packages
 - `rapidfuzz` is installed in `ep_cntl` (used by `services/metadata/instrument_registry.py` for fuzzy instrument name matching)
+- **Site config files**: `/opt/TERN_EP/site_configs/operational/` — per-site YAML configs (e.g. `MyallValeA.yml`)
 
 ## Project Purpose
 
