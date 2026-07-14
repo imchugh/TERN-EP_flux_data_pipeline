@@ -7,8 +7,8 @@ AliceSpringsMulga:
   elevation: '606.0'
   time_step: '30.0'
   freq_hz: '10.0'
-  canopy_height: '6.5'
-  soil: red kandosol, sandy loam
+  canopy_height: '4.4'
+  soil: Acidic, Red Dermosol
   tower_height: '13.7'
   vegetation: 'Canopy + three types of understorey (vegetation1-4). vegetation1: Mulga
     canopy: Acacia aneura and A. aptaneura; vegetation2: C3 understorey forbs and
@@ -25,16 +25,18 @@ AlpinePeatland:
   id: https://w3id.org/tern/resources/77df3c32-a853-4bed-ad13-192c639288c8
   fluxnet_id: AU-APL
   date_commissioned: '2017-04-01'
-  latitude: '36.862222'
+  latitude: '-36.862222'
   longitude: '147.320833'
   elevation: '1650.0'
   time_step: '30.0'
   freq_hz: '10.0'
   canopy_height: '0.3'
+  soil: organosol; peat
   tower_height: '2.6'
+  vegetation: Alpine Sphagnum Bog, also known as closed wet heath
   site_name: AlpinePeatland
   dsa_label: Alpine Peatland Flux Station
-  time_zone: Etc/GMT-10
+  time_zone: Australia/Melbourne
   UTC_offset: 10.0
 BeaconFarm:
   id: https://w3id.org/tern/resources/d8c5ad2e-8b31-46c6-b802-c060f3ff1ded
@@ -45,7 +47,7 @@ BeaconFarm:
   site_name: BeaconFarm
   dsa_label: Beacon Farm Flux Station
   time_zone: Pacific/Auckland
-  UTC_offset: 13.0
+  UTC_offset: 12.0
 Boolcoomatta:
   id: https://w3id.org/tern/resources/2a3263e1-04a0-4340-9961-c6e4b373e13e
   fluxnet_id: AU-Boo
@@ -55,11 +57,14 @@ Boolcoomatta:
   elevation: '150.0'
   time_step: '30.0'
   freq_hz: '10.0'
+  canopy_height: '0.32'
+  soil: Calcarosol
   tower_height: '7.0'
+  vegetation: Saltbush plain / chenopod shrubland
   site_name: Boolcoomatta
   dsa_label: Boolcoomatta Flux Station
   time_zone: Australia/Adelaide
-  UTC_offset: 10.5
+  UTC_offset: 9.5
 Boyagin:
   id: https://w3id.org/tern/resources/5c711072-4336-4f70-a51d-c16e13d06f9c
   fluxnet_id: AU-Boy
@@ -69,9 +74,13 @@ Boyagin:
   elevation: '484.0'
   time_step: '30.0'
   freq_hz: '10.0'
-  canopy_height: '13'
+  canopy_height: '13.0'
+  soil: Lateritic gravels and colluvial sands
   tower_height: '36.0'
-  vegetation: Dry sclerophyll woodland
+  vegetation: Dry sclerophyll woodland. Dominant canopy species include Eucaplytpus
+    drummondii, E. accedens and Santalum murrayanum over tall kwongan (mixed shurbland)
+    with Banksia nobilis subsp. nobilis, Adenanthos cygnorum subsp. cygnorum and sedge
+    Lepidosperma leptostachyum.
   site_name: Boyagin
   dsa_label: Boyagin Flux Station
   time_zone: Australia/Perth
@@ -85,7 +94,7 @@ Calperum:
   elevation: '60.0'
   time_step: '30.0'
   freq_hz: '10.0'
-  canopy_height: '3'
+  canopy_height: '3.0'
   soil: Reddish brown, yellowish red, loamy sand, free grain structure; low organic
     matter, loose consistence; pH 6
   tower_height: '20.0'
@@ -93,7 +102,7 @@ Calperum:
   site_name: Calperum
   dsa_label: Calperum Chowilla Flux Station
   time_zone: Australia/Adelaide
-  UTC_offset: 10.5
+  UTC_offset: 9.5
 CowBay:
   id: https://w3id.org/tern/resources/5eeb3010-59ad-4c6a-9fa6-388438199c53
   fluxnet_id: AU-Cow
@@ -103,10 +112,10 @@ CowBay:
   elevation: '86.0'
   time_step: '30.0'
   freq_hz: '10.0'
-  canopy_height: '26'
-  soil: red clay loam podzolic soils
+  canopy_height: '26.0'
+  soil: Acidic, Red Dermosol
   tower_height: '23.0'
-  vegetation: lowland complex mesophyll vine forest
+  vegetation: lowland complex mesophyll vine forest (type 1a)
   site_name: CowBay
   dsa_label: Cow Bay Flux Station
   time_zone: Australia/Brisbane
@@ -120,13 +129,17 @@ CumberlandPlain:
   elevation: '20.0'
   time_step: '30.0'
   freq_hz: '10.0'
-  canopy_height: '24'
+  canopy_height: '24.0'
+  soil: Kurosol
   tower_height: '30.0'
-  vegetation: Dry sclerophyll forest
+  vegetation: Dry sclerophyll forest, dominated by a canopy of Eucalyptus fibrosa
+    and E. molucanna. Mid-storey and more mesic areas are dominated by Melaleuca decora.
+    Understorey is dominated by Bursaria spinosa. The eucalpyts experience substantial
+    mistletoe infection when water is not limiting
   site_name: CumberlandPlain
   dsa_label: Cumberland Plain Flux Station
   time_zone: Australia/Sydney
-  UTC_offset: 11.0
+  UTC_offset: 10.0
 DalyUncleared:
   id: https://w3id.org/tern/resources/da0668da-cd77-412b-920e-fe334905d406
   fluxnet_id: AU-DaS
@@ -148,30 +161,36 @@ Dookie1:
   id: https://w3id.org/tern/resources/710dbb25-92c9-46b2-8d6f-189a1e7542ad
   fluxnet_id: AU-Do1
   date_commissioned: '2024-10-11'
-  latitude: '-36.39028'
-  longitude: '145.72377'
+  latitude: '-36.39033'
+  longitude: '145.7327'
   elevation: '140.0'
   time_step: '30.0'
   freq_hz: '20'
+  canopy_height: '1.0'
+  soil: Sodosol
   tower_height: '3.0'
+  vegetation: Crop
   site_name: Dookie1
   dsa_label: Dookie1 Flux Station
   time_zone: Australia/Melbourne
-  UTC_offset: 11.0
+  UTC_offset: 10.0
 Dookie2:
   id: https://w3id.org/tern/resources/ccb2fb93-8421-4f16-afe1-a37276748a53
   fluxnet_id: AU-Do2
   date_commissioned: '2024-05-22'
-  latitude: '-36.3903'
-  longitude: '145.724'
+  latitude: '-36.390258'
+  longitude: '145.723792'
   elevation: '140.0'
   time_step: '30.0'
   freq_hz: '20'
+  canopy_height: '1.0'
+  soil: Sodosol
   tower_height: '3.0'
+  vegetation: Crop
   site_name: Dookie2
   dsa_label: Dookie2 Flux Station
   time_zone: Australia/Melbourne
-  UTC_offset: 11.0
+  UTC_offset: 10.0
 Dookie3:
   id: https://w3id.org/tern/resources/1d92d8a7-c28b-40b3-8805-844b5d7b1df3
   fluxnet_id: AU-Do3
@@ -181,11 +200,13 @@ Dookie3:
   elevation: '140.0'
   time_step: '30.0'
   freq_hz: '20'
+  soil: Sodosol
   tower_height: '3.0'
+  vegetation: Crop
   site_name: Dookie3
   dsa_label: Dookie3 Flux Station
   time_zone: Australia/Melbourne
-  UTC_offset: 11.0
+  UTC_offset: 10.0
 DryRiver:
   id: https://w3id.org/tern/resources/f4b5f124-8a06-4eef-b4b8-345223856786
   fluxnet_id: AU-Dry
@@ -195,7 +216,7 @@ DryRiver:
   elevation: '175.0'
   time_step: '30.0'
   freq_hz: '10.0'
-  canopy_height: '0.15'
+  canopy_height: '8.0'
   soil: red kandasol
   tower_height: '15.0'
   vegetation: Woodland savanna
@@ -207,17 +228,20 @@ Fletcherview:
   id: https://w3id.org/tern/resources/d72fe730-721a-43db-8606-fa8ab87f15bd
   fluxnet_id: AU-Fle
   date_commissioned: '2022-01-21'
-  latitude: '-19.887285'
-  longitude: '146.189138'
+  latitude: '-19.887208'
+  longitude: '146.18897'
   elevation: '262.0'
   time_step: '30.0'
   freq_hz: '10.0'
-  canopy_height: '12'
-  soil: Black vertisol, cracking clay
+  canopy_height: '11.0'
+  soil: Black Vertisol, cracking clay
   tower_height: '25.0'
-  vegetation: 'Semi-arid savanna. vegetation1: Reid River Box (Eucalyptus brownii);
-    vegetation2: Currant bush (Carissa lanceolata); vegetation3: Perennial Grasses
-    (Bothriochloa pertusa dominant).'
+  vegetation: Semi-arid savanna. Eucalyptus brownii low open woodland (11 m). A taller
+    mid storey of younger Eucalyptus brownii, Eremophila mitchellii and Atalaya hemiglauca
+    (6 m) and a denser lower mid storey dominated by Carissa lanceolata (0.6 m). A
+    ground storey dominated by Bothriochloa sp., Bothriochloa pertusa and Sporobolus
+    australasicus (0.2-0.6 m) with Urochloa mosambicensis, Eriochloa crebra and Themeda
+    triandra.
   site_name: Fletcherview
   dsa_label: Fletcherview Flux Station
   time_zone: Australia/Brisbane
@@ -234,20 +258,25 @@ FrenchIsland:
   site_name: FrenchIsland
   dsa_label: French Island Flux Station
   time_zone: Australia/Melbourne
-  UTC_offset: 11.0
+  UTC_offset: 10.0
 Gingin:
   id: https://w3id.org/tern/resources/85357141-0361-41fe-9708-2c535c50e749
   fluxnet_id: AU-Gin
   date_commissioned: '2011-06-01'
-  latitude: '-31.3764'
-  longitude: '115.7139'
+  latitude: '-31.376351'
+  longitude: '115.71377'
   elevation: '46.8'
   time_step: '30.0'
   freq_hz: '10.0'
-  canopy_height: '6.8'
+  canopy_height: '4.8'
   soil: Podosol, Gutless sand
   tower_height: '15.0'
-  vegetation: Banksia woodland
+  vegetation: 'Banksia woodland. Dominant canopy species are Banksia menziesii (Proteaceae),
+    B. attenuata (Proteaceae), B. grandis (Proteaceae) with scattered Eucalyptus todtiana
+    (Myrtaceae) and Nuytsia floribunda (Loranthaceae). The understorey plant taxa
+    on the site cover a broad range of types and families, a small sample of species
+    observed include: Eremaea pauciflora (Myrtaceae), Caladenia flava (Orchidaceae),
+    Hibbertia hypericoides (Dilleniaceae), and Macrozamia fraseri (Zamiaceae).'
   site_name: Gingin
   dsa_label: Gingin Flux Station
   time_zone: Australia/Perth
@@ -261,7 +290,7 @@ GreatWesternWoodlands:
   elevation: '385.0'
   time_step: '30.0'
   freq_hz: '10.0'
-  canopy_height: '18'
+  canopy_height: '18.0'
   soil: heavy gravelly red clay
   tower_height: '36.0'
   vegetation: sparse eucalypt woodland
@@ -273,12 +302,12 @@ HowardSprings:
   id: https://w3id.org/tern/resources/2b9313de-1545-4701-9e5e-ac851f290853
   fluxnet_id: AU-How
   date_commissioned: '2001-08-01'
-  latitude: '-12.4952'
-  longitude: '131.15005'
+  latitude: '-12.4943'
+  longitude: '131.1523'
   elevation: '64.0'
   time_step: '30.0'
   freq_hz: '10.0'
-  canopy_height: '16'
+  canopy_height: '16.0'
   soil: red kandasol
   tower_height: '23.0'
   vegetation: Woody savanna
@@ -295,7 +324,7 @@ Kopuatai:
   site_name: Kopuatai
   dsa_label: Kopuatai Flux Station
   time_zone: Pacific/Auckland
-  UTC_offset: 13.0
+  UTC_offset: 12.0
 Litchfield:
   id: https://w3id.org/tern/resources/1b0227a2-6bbe-4579-9dba-6ee4033e8169
   fluxnet_id: AU-Lit
@@ -305,7 +334,7 @@ Litchfield:
   elevation: '222.0'
   time_step: '30.0'
   freq_hz: '10.0'
-  canopy_height: '16'
+  canopy_height: '16.0'
   soil: red kandasol
   tower_height: '30.0'
   vegetation: Woody savanna
@@ -334,32 +363,36 @@ MyallValeA:
   id: https://w3id.org/tern/resources/8bc01515-8a8c-4c0b-971e-e2b9dad05bd6
   fluxnet_id: AU-MvA
   date_commissioned: '2023-11-14'
-  latitude: '-30.543'
-  longitude: '150.02'
+  latitude: '-30.54258001'
+  longitude: '150.019652'
   elevation: '235.0'
   time_step: '30.0'
   freq_hz: '20.0'
+  canopy_height: '0.35'
   soil: vertosol
   tower_height: '3.2'
+  vegetation: none, cotton, wheat
   site_name: MyallValeA
   dsa_label: Myall Vale A Flux Station
   time_zone: Australia/Sydney
-  UTC_offset: 11.0
+  UTC_offset: 10.0
 MyallValeB:
   id: https://w3id.org/tern/resources/12611963-123d-46ca-8a7c-ca6de4d12e8f
   fluxnet_id: AU-MvB
   date_commissioned: '2024-01-17'
-  latitude: '-30.697'
-  longitude: '150.09'
+  latitude: '-30.697222'
+  longitude: '150.090833'
   elevation: '244.0'
   time_step: '30.0'
   freq_hz: '20.0'
+  canopy_height: '0.5'
   soil: vertosol
   tower_height: '3.2'
+  vegetation: none, cotton, wheat
   site_name: MyallValeB
   dsa_label: Myall Vale B Flux Station
   time_zone: Australia/Sydney
-  UTC_offset: 11.0
+  UTC_offset: 10.0
 Oxford:
   id: https://w3id.org/tern/resources/d0c13927-0180-4e55-9509-c0144a9b7f8b
   fluxnet_id: NZ-Oxf
@@ -369,7 +402,7 @@ Oxford:
   site_name: Oxford
   dsa_label: Oxford Flux Station
   time_zone: Pacific/Auckland
-  UTC_offset: 13.0
+  UTC_offset: 12.0
 Ridgefield:
   id: https://w3id.org/tern/resources/f4da99de-52bd-4041-b6c4-c77b8c9f15ec
   fluxnet_id: AU-Rgf
@@ -379,9 +412,10 @@ Ridgefield:
   elevation: '330.0'
   time_step: '30.0'
   freq_hz: '20'
-  canopy_height: '1'
+  canopy_height: '1.0'
+  soil: Lateritic gravels and colluvial sands
   tower_height: '5.0'
-  vegetation: Wheat
+  vegetation: Mixed farming, see site history for more information
   site_name: Ridgefield
   dsa_label: Ridgefield Flux Station
   time_zone: Australia/Perth
@@ -395,7 +429,7 @@ RobsonCreek:
   elevation: '710.0'
   time_step: '30.0'
   freq_hz: '10.0'
-  canopy_height: '28'
+  canopy_height: '28.0'
   soil: Acidic, Dystrophic, Brown Dermosol
   tower_height: '40.0'
   vegetation: Regional Ecosystem (RE) 7.3.36a, complex mesophyll vine forest
@@ -428,7 +462,7 @@ ScottFarm:
   site_name: ScottFarm
   dsa_label: Scott Farm Flux Station
   time_zone: Pacific/Auckland
-  UTC_offset: 13.0
+  UTC_offset: 12.0
 SilverPlains:
   id: https://w3id.org/tern/resources/323b884e-52d6-4e58-b212-b7c85cfb874b
   fluxnet_id: AU-Sil
@@ -445,21 +479,34 @@ SilverPlains:
   site_name: SilverPlains
   dsa_label: Silver Plain Flux Station
   time_zone: Australia/Hobart
-  UTC_offset: 11.0
+  UTC_offset: 10.0
 SnowGum:
   id: https://w3id.org/tern/resources/7b99bea8-eb8f-43e2-9726-919728120678
   fluxnet_id: AU-SNO
   date_commissioned: '2023-12-01'
-  latitude: '-36.3715'
-  longitude: '148.432'
+  latitude: '-36.375649'
+  longitude: '148.43585'
   elevation: '1616.0'
   time_step: '30.0'
   freq_hz: '10.0'
+  canopy_height: '8.0'
+  soil: Organosol
   tower_height: '14.0'
+  vegetation: "Subalpine Eucalyptus pauciflora woodland, typically 5-15m tall with\
+    \ shrubby understory. Dominant understory species include:\n Shrubs: Acacia dealbata,\
+    \ Bossiaea foliosa, Brachyloma daphnoides, Daviesia mimosoides subsp. mimosoides,\
+    \ D. ulicifolia, Derwentia perfoliata, Hibbertia obtusifolia, Leucopogon hookeri,\
+    \ L. montanus, Monotoca scoparia, Olearia erubescens, Podolobium alpestre.\n Forbs:\
+    \ Acaena nova-zelandiae, Asperula scoparia, Geranium solanderi var. solanderi,\
+    \ Glycine clandestina, Gonocarpus tetragynus, Helichrysum scorpioides, Lagenifera\
+    \ stipitata, Lomandra longifolia, Poranthera microphylla, Stellaria pungens, Stylidium\
+    \ graminifolium, Viola betonicifolia subsp. betonicifolia, Wahlenbergia stricta\
+    \ subsp. stricta.\n Grass: Elymus scaber var. scaber, Poa induta, P. labillardieri,\
+    \ P. sieberiana var. sieberiana, Themeda australis (TBC)"
   site_name: SnowGum
   dsa_label: Aqueduct Snow Gum Flux Station
   time_zone: Australia/Sydney
-  UTC_offset: 11.0
+  UTC_offset: 10.0
 SturtPlains:
   id: https://w3id.org/tern/resources/76c37f54-79be-42b5-94e4-6fa015c32cce
   fluxnet_id: AU-Stp
@@ -481,8 +528,8 @@ TiTreeEast:
   id: https://w3id.org/tern/resources/1fa3e3bf-7d9a-448f-b6cd-0830dd4fe0ba
   fluxnet_id: AU-TTE
   date_commissioned: '2012-07-01'
-  latitude: '-22.287'
-  longitude: '133.64'
+  latitude: '-22.2871'
+  longitude: '133.6399'
   elevation: '553.0'
   time_step: '30.0'
   freq_hz: '10.0'
@@ -509,28 +556,31 @@ Tumbarumba:
   elevation: '1200.0'
   time_step: '30.0'
   freq_hz: '10.0'
+  canopy_height: '40.0'
+  soil: Alfisol
   tower_height: '70.0'
+  vegetation: wet sclerophyll forest
   site_name: Tumbarumba
-  dsa_label: Tumbarumba Flux Station2
+  dsa_label: Tumbarumba Flux Station 2
   time_zone: Australia/Sydney
-  UTC_offset: 11.0
+  UTC_offset: 10.0
 Warra:
   id: https://w3id.org/tern/resources/c882ded6-0cb5-493a-939b-fd609706823e
   fluxnet_id: AU-Wrr
   date_commissioned: '2013-03-01'
-  latitude: '-43.095'
+  latitude: '-43.09502'
   longitude: '146.6545'
   elevation: '100.0'
   time_step: '30.0'
   freq_hz: '10.0'
-  canopy_height: '55'
+  canopy_height: '55.0'
   soil: Kurosolic Redoxic Hydrosol
   tower_height: '80.0'
   vegetation: Eucalyptus obliqua tall forest
   site_name: Warra
   dsa_label: Warra Flux Station
   time_zone: Australia/Hobart
-  UTC_offset: 11.0
+  UTC_offset: 10.0
 Wedgetail:
   id: https://w3id.org/tern/resources/629caa53-59a4-4aab-a11c-e02db141fb21
   fluxnet_id: AU-Wgt
@@ -543,11 +593,18 @@ Wedgetail:
   canopy_height: '0.1'
   soil: Organosol
   tower_height: '2.5'
-  vegetation: Species rich highland grassland/sedgeland
+  vegetation: "Species rich highland grassland/sedgeland. \n  Dominant species include:\
+    \ \n  Grasses: Rytidosperma sp., Poa clivicola, Agrostis sp., Anthoxanthum odoratum,\
+    \ Deyeuxia carinata, Pentapogon quadrifidus, Holcus lanatus.\n  Sedges: Carex\
+    \ sp., Carpha alpina, Schoenus absconditus, Isolepis sp.\n  Forbs; Goodenia montana,\
+    \ Hypericum japonicum, Hydrocotyle sibthorpioides, Epilobium tasmanicum, Euchiton\
+    \ traversii, Gonocarpus sp., Leptinella filicula, Oreomyrrhis eripoda, Leptorynchos\
+    \ squamatus, Brachyscome sp., Ranunculus sp., Leontodon saxatilis, Taraxacum officinale\n\
+    \  Rushes: Juncus sp., Luzula\n  Cord rushes: Empodisma minus, Baloskion australe."
   site_name: Wedgetail
   dsa_label: Wedgetail Flux Station
   time_zone: Australia/Hobart
-  UTC_offset: 11.0
+  UTC_offset: 10.0
 Wellington:
   id: https://w3id.org/tern/resources/14e4b3d2-9b33-4cc2-a15d-d185fdbc560a
   fluxnet_id: AU-Wel
@@ -560,7 +617,7 @@ Wellington:
   site_name: Wellington
   dsa_label: Wellington Research Station Flux Tower
   time_zone: Australia/Sydney
-  UTC_offset: 11.0
+  UTC_offset: 10.0
 Whroo:
   id: https://w3id.org/tern/resources/b512e2dc-98a6-40d5-a91c-ad8f47d1ace7
   fluxnet_id: AU-Whr
@@ -570,30 +627,30 @@ Whroo:
   elevation: '165.0'
   time_step: '30.0'
   freq_hz: '10.0'
-  canopy_height: '28'
+  canopy_height: '28.0'
+  soil: Chromosol
   tower_height: '36.0'
   vegetation: Dry sclerophyll woodland
   site_name: Whroo
   dsa_label: Whroo Flux Station
   time_zone: Australia/Melbourne
-  UTC_offset: 11.0
+  UTC_offset: 10.0
 WombatForest:
   id: https://w3id.org/tern/resources/bf3daf01-0e7a-4e18-aa9d-460be3fe06cc
   fluxnet_id: AU-Wom
   date_commissioned: '2024-05-08'
-  latitude: '-37.422506'
-  longitude: '144.094046'
-  elevation: '713.0'
+  latitude: '-37.4222'
+  longitude: '144.0944'
   time_step: '30.0'
   freq_hz: '10.0'
-  canopy_height: Ask Cacilia/Stefan
+  canopy_height: '23.0'
   soil: silt-clay/clay
-  tower_height: '44.19'
+  tower_height: '41.0'
   vegetation: dry sclerophyll eucalypt forest
   site_name: WombatForest
   dsa_label: Wombat Forest Flux Station 2
   time_zone: Australia/Melbourne
-  UTC_offset: 11.0
+  UTC_offset: 10.0
 Yanco:
   id: https://w3id.org/tern/resources/eba13c16-2dac-49ba-b8f4-fed55b8657ab
   fluxnet_id: AU-Ync
@@ -610,7 +667,7 @@ Yanco:
   site_name: Yanco
   dsa_label: Yanco Flux Station
   time_zone: Australia/Sydney
-  UTC_offset: 11.0
+  UTC_offset: 10.0
 YarramundiControl:
   id: https://w3id.org/tern/resources/304f1968-1a8a-4acb-a8ab-283a9bea9338
   fluxnet_id: AU-Ya1
@@ -626,7 +683,7 @@ YarramundiControl:
   site_name: YarramundiControl
   dsa_label: Yarramundi Control Flux Station
   time_zone: Australia/Sydney
-  UTC_offset: 11.0
+  UTC_offset: 10.0
 YarramundiControlTEST:
   id: https://w3id.org/tern/resources/304f1968-1a8a-4acb-a8ab-283a9bea93380
   fluxnet_id: AU-Ya1
@@ -647,9 +704,10 @@ YarramundiIrrigation:
   time_step: '30'
   freq_hz: '10'
   canopy_height: '0.5'
+  soil: Sandy, weakly developed
   tower_height: '2.0'
   vegetation: pasture, irrigated
   site_name: YarramundiIrrigation
   dsa_label: Yarramundi Irrigation Flux Station
   time_zone: Australia/Sydney
-  UTC_offset: 11.0
+  UTC_offset: 10.0
