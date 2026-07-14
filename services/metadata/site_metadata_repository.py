@@ -36,7 +36,7 @@ ALIAS_DICT = {
     'Nimmo High Plains': 'Nimmo',
     'Samford Ecological Research Facility': 'Samford',
     'Silver Plain': 'SilverPlains',
-    'Tumbarumba2': 'Tumbarumba',
+    'Tumbarumba 2': 'Tumbarumba',
     'Wellington Research Station Flux Tower': 'Wellington',
     'Wombat Forest 2':'WombatForest'
     }
