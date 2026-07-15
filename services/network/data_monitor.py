@@ -178,15 +178,15 @@ def _build_monitor_series(
         if canonical_name not in df.columns:
             continue
 
-        pmin = var_def.canonical.plausible_min
-        pmax = var_def.canonical.plausible_max
+        vmin = var_def.canonical.valid_min
+        vmax = var_def.canonical.valid_max
 
         s = df[canonical_name].copy()
 
-        if pmin is not None:
-            s = s.where(s >= pmin)
-        if pmax is not None:
-            s = s.where(s <= pmax)
+        if vmin is not None:
+            s = s.where(s >= vmin)
+        if vmax is not None:
+            s = s.where(s <= vmax)
 
         series.append(s)
 
