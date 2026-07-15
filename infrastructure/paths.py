@@ -2,8 +2,10 @@
 """
 Path resolver for local and remote data streams.
 
-Driven by configs/paths.yml.  Local paths resolve to pathlib.Path objects;
-remote paths resolve to rclone designator strings (e.g. 'uqrdm:...').
+Driven by configs/paths.yml. Each resource groups related streams under an
+optional shared base path; each stream carries a local suffix, a remote
+designator, or both. Local paths resolve to pathlib.Path objects; remote
+paths resolve to rclone designator strings (e.g. 'uqrdm:...').
 """
 
 import pathlib
@@ -21,22 +23,24 @@ CONFIG_FILE = 'paths.yml'
 
 _PLACEHOLDER = '<site>'
 
-# -----------------------------------------------------------------------------
+
+class _StreamConfig(BaseModel):
+    local: str | None = None
+    remote: str | None = None
+
 
 class _ResourceConfig(BaseModel):
-    base_path: str
-    stream: dict[str, str]
+    base_path: dict[str, str] = {}
+    stream: dict[str, _StreamConfig]
 
 
-class _PathsConfig(BaseModel):
-    local: dict[str, _ResourceConfig]
-    remote: dict[str, _ResourceConfig]
-    remote_aliases: dict[str, str] = {}
+_RAW = file_io.read_yml(file_path=CONFIG_PATH / CONFIG_FILE)
 
+REMOTE_ALIASES: dict[str, str] = _RAW.pop('remote_aliases', {})
 
-_PATHS = _PathsConfig.model_validate(
-    file_io.read_yml(file_path=CONFIG_PATH / CONFIG_FILE)
-    )
+RESOURCES: dict[str, _ResourceConfig] = {
+    name: _ResourceConfig.model_validate(cfg) for name, cfg in _RAW.items()
+    }
 
 ###############################################################################
 ### END INITS ###
@@ -47,28 +51,22 @@ _PATHS = _PathsConfig.model_validate(
 ### BEGIN FUNCTIONS ###
 ###############################################################################
 
-def list_local_resources() -> list[str]:
-    return list(_PATHS.local.keys())
+def _resolve(resource: str, stream: str, kind: str, site: str | None) -> str:
 
-# -----------------------------------------------------------------------------
+    cfg = RESOURCES[resource]
+    suffix = getattr(cfg.stream[stream], kind)
+    if suffix is None:
+        raise KeyError(f"No {kind} path configured for '{resource}.{stream}'")
 
-def list_local_streams(resource: str) -> list[str]:
-    return list(_PATHS.local[resource].stream.keys())
+    base = cfg.base_path.get(kind)
+    path = f'{base}/{suffix}' if base else suffix
 
-# -----------------------------------------------------------------------------
+    if site is not None:
+        if kind == 'remote':
+            site = REMOTE_ALIASES.get(site, site)
+        path = path.replace(_PLACEHOLDER, site)
 
-def list_remote_resources() -> list[str]:
-    return list(_PATHS.remote.keys())
-
-# -----------------------------------------------------------------------------
-
-def list_remote_streams(resource: str) -> list[str]:
-    return list(_PATHS.remote[resource].stream.keys())
-
-# -----------------------------------------------------------------------------
-
-def get_local_resource_path(resource: str) -> pathlib.Path:
-    return pathlib.Path(_PATHS.local[resource].base_path)
+    return path
 
 # -----------------------------------------------------------------------------
 
@@ -88,11 +86,7 @@ def get_local_stream_path(
         Resolved pathlib.Path.
     """
 
-    cfg = _PATHS.local[resource]
-    path = pathlib.Path(cfg.base_path) / cfg.stream[stream]
-    if site is not None:
-        path = pathlib.Path(str(path).replace(_PLACEHOLDER, site))
-    return path
+    return pathlib.Path(_resolve(resource, stream, 'local', site))
 
 # -----------------------------------------------------------------------------
 
@@ -106,19 +100,45 @@ def get_remote_stream_path(
         resource: top-level resource key (e.g. 'raw_data').
         stream: stream key within that resource (e.g. 'flux_slow').
         site: site name — substituted for the '<site>' placeholder where
-            present.  Remote aliases are applied automatically.
+            present. Remote aliases are applied automatically.
 
     Returns:
         Rclone path string (e.g. 'uqrdm:TERNEP-Q5937/Sites/...').
     """
 
-    cfg = _PATHS.remote[resource]
-    stream_val = cfg.stream[stream]
-    path = f'{cfg.base_path}/{stream_val}' if cfg.base_path else stream_val
-    if site is not None:
-        alias = _PATHS.remote_aliases.get(site, site)
-        path = path.replace(_PLACEHOLDER, alias)
-    return path
+    return _resolve(resource, stream, 'remote', site)
+
+# -----------------------------------------------------------------------------
+
+def show(resource: str | None = None) -> None:
+    """
+    Print a quick-reference overview of configured resources and streams.
+
+    Args:
+        resource: if given, print only this resource's streams, with local
+            and remote templates filled in. If omitted, list all resources
+            and their stream names.
+
+    Returns:
+        None.
+    """
+
+    if resource is None:
+        for name, cfg in RESOURCES.items():
+            print(f'{name}: {", ".join(cfg.stream)}')
+        return
+
+    cfg = RESOURCES[resource]
+    for stream_name, stream_cfg in cfg.stream.items():
+        print(f'{resource}.{stream_name}')
+        if stream_cfg.local is not None:
+            base = cfg.base_path.get('local')
+            local = f'{base}/{stream_cfg.local}' if base else stream_cfg.local
+            print(f'    local:  {local}')
+        if stream_cfg.remote is not None:
+            base = cfg.base_path.get('remote')
+            remote = f'{base}/{stream_cfg.remote}' if base else stream_cfg.remote
+            print(f'    remote: {remote}')
 
 ###############################################################################
 ### END FUNCTIONS ###

@@ -1,65 +1,66 @@
 remote_aliases:
   AliceSpringsMulga: AliceMulga
 
-local:
-  configs:
-    base_path: /opt/TERN_EP
-    stream:
-      site_config_files: site_configs/operational
-      secrets: secrets/logins.yml
+configs:
+  base_path:
+    local: /opt/TERN_EP
+  stream:
+    site_config_files:
+      local: site_configs/operational
+    secrets:
+      local: secrets/logins.yml
 
-  raw_data:
-    base_path: /store/Raw_data/<site>
-    stream:
-      flux_slow: Flux/Slow
-      flux_fast: Flux/Fast
-      flux_fast_aux: Flux_aux/Fast
-      profile: Profile
+raw_data:
+  base_path:
+    local: /store/Raw_data/<site>
+  stream:
+    flux_slow:
+      local: Flux/Slow
+      remote: uqrdm:TERNEP-Q5937/Sites/<site>/Data/Flux/Raw/Slow
+    flux_fast:
+      local: Flux/Fast
+      remote: uqrdm:FLUXARCH23-Q6223/Sites/<site>/Data/Flux/Raw/Fast/TOB3
+    flux_fast_aux:
+      local: Flux_aux/Fast
+      remote: uqrdm:FLUXARCH23-Q6223/Sites/<site>/Data/Flux_aux/Raw/Fast/TOB3
+    profile:
+      local: Profile
+      remote: uqrdm:TERNEP-Q5937/Sites/<site>/Data/Profile/Raw
 
-  processed_data:
-    base_path: /store/Processed_data/<site>
-    stream:
-      profile: Profile
+processed_data:
+  base_path:
+    local: /store/Processed_data/<site>
+  stream:
+    profile:
+      local: Profile
+      remote: uqrdm:TERNEP-Q5937/Sites/<site>/Data/Profile/Processed
 
-  homogenised_data:
-    base_path: /store/Homogenised_data
-    stream:
-      nc: NetCDF
-      toa5: TOA5
+homogenised_data:
+  base_path:
+    local: /store/Homogenised_data
+  stream:
+    nc:
+      local: NetCDF_test
+      remote: uqrdm:TERNEP-Q5937/EPCN_Share/Homogenised_data/NetCDF
+    toa5:
+      local: TOA5_test
+      remote: OneDrive_UoM:Documents/RTMC/Site_data
 
-  network:
-    base_path: /opt/TERN_EP/network
-    stream:
-      state: state
-      status: status
+network:
+  base_path:
+    local: /opt/TERN_EP/network
+  stream:
+    state:
+      local: state
+    status:
+      local: status
+      remote: sftpgo:/web-sites/flux-status-test.tern.org.au/RTMC
 
-  logs:
-    base_path: /store/Logs
-    stream:
-      network_logs: Network
-      site_logs: Sites/<site>
-
-remote:
-  raw_data:
-    base_path: ''
-    stream:
-      flux_slow: uqrdm:TERNEP-Q5937/Sites/<site>/Data/Flux/Raw/Slow
-      flux_fast: uqrdm:FLUXARCH23-Q6223/Sites/<site>/Data/Flux/Raw/Fast/TOB3
-      flux_fast_aux: uqrdm:FLUXARCH23-Q6223/Sites/<site>/Data/Flux_aux/Raw/Fast/TOB3
-      profile: uqrdm:TERNEP-Q5937/Sites/<site>/Data/Profile/Raw
-
-  processed_data:
-    base_path: ''
-    stream:
-      profile: uqrdm:TERNEP-Q5937/Sites/<site>/Data/Profile/Processed
-
-  homogenised_data:
-    base_path: ''
-    stream:
-      nc: uqrdm:TERNEP-Q5937/EPCN_Share/Homogenised_data/NetCDF
-      toa5: OneDrive_UoM:Documents/RTMC/Site_data
-
-  network:
-    base_path: ''
-    stream:
-      status: sftpgo:/web-sites/flux-status-test.tern.org.au/RTMC
+logs:
+  base_path:
+    local: /store/Logs
+  stream:
+    network_logs:
+      local: Network
+    site_logs:
+      local: Sites/<site>
