@@ -45,6 +45,8 @@ homogenised_data:
     toa5:
       local: TOA5_test
       remote: OneDrive_UoM:Documents/RTMC/Site_data
+    toa5_legacy:
+      local: TOA5
 
 network:
   base_path:

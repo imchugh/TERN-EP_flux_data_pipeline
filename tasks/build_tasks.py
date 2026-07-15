@@ -19,6 +19,36 @@ def construct_L1_nc(site: str) -> dict:
 # -----------------------------------------------------------------------------
 
 @register
+def construct_toa5_from_nc(site: str) -> dict:
+    """Rebuild the legacy-format merged TOA5 file from L1 NetCDF output."""
+
+    import orchestration.legacy_rtmc_export as toa5con
+
+    nc_dir = paths.get_local_stream_path(resource='homogenised_data', stream='nc') / site
+    nc_files = sorted(nc_dir.glob('*.nc'))[-2:]
+
+    output_path = (
+        paths.get_local_stream_path(resource='homogenised_data', stream='toa5')
+        / f'{site}_merged_std.dat'
+        )
+    legacy_reference = (
+        paths.get_local_stream_path(resource='homogenised_data', stream='toa5_legacy')
+        / f'{site}_merged_std.dat'
+        )
+    if not legacy_reference.exists():
+        legacy_reference = None
+
+    toa5con.build_legacy_toa5(
+        site_name=site,
+        nc_files=nc_files,
+        output_path=output_path,
+        legacy_reference=legacy_reference,
+        )
+    return {'status': 'success', 'output_path': str(output_path)}
+
+# -----------------------------------------------------------------------------
+
+@register
 def update_EddyPro_master(site: str) -> None:
 
     import file_handling.eddypro_concatenator as epc
