@@ -7,6 +7,8 @@ configs:
   stream:
     site_config_files:
       local: site_configs/operational
+    site_config_files_legacy:
+      local: site_configs/legacy
     secrets:
       local: secrets/logins.yml
 

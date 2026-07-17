@@ -36,6 +36,15 @@ SITE_CONFIG_DIR = paths.get_local_stream_path(
     stream='site_config_files'
     )
 
+# One-off/legacy config snapshots — used to rebuild L1 output with an
+# earlier generation of instruments/variables/files for a site. Not part
+# of the operational pipeline population; a site may exist here without
+# being pipeline-configured, or vice versa.
+LEGACY_SITE_CONFIG_DIR = paths.get_local_stream_path(
+    resource='configs',
+    stream='site_config_files_legacy'
+    )
+
 # Temporary alias map: config-file/directory name → metadata key.
 # WombatStateForest keeps its legacy directory name until the directory is
 # renamed; remove this entry once that migration is done.
@@ -72,7 +81,7 @@ class SiteRegistry:
 
         self._metadata_loader = metadata_loader if metadata_loader is not None else yml_loader
         self._metadata_cache: dict[str, SiteMetadata] | None = None
-        self._runtime_config_cache: dict[str, SiteRuntimeConfig] = {}
+        self._runtime_config_cache: dict[tuple[str, bool], SiteRuntimeConfig] = {}
 
     #--------------------------------------------------------------------------
 
@@ -103,11 +112,26 @@ class SiteRegistry:
 
     #--------------------------------------------------------------------------
 
-    def get_config_path(self, site: str) -> Path:
-        """Return the runtime config path for a pipeline site."""
+    def get_config_path(self, site: str, legacy: bool = False) -> Path:
+        """
+        Return the runtime config path for a pipeline site.
+
+        Args:
+            site: registered site name.
+            legacy: if True, return the path to the site's legacy config
+                snapshot (site_configs/legacy) instead of its operational
+                config. Raises InvalidSiteError if no legacy config exists
+                for the site.
+        """
 
         self.require(site)
-        return SITE_CONFIG_DIR / f'{site}.yml'
+        if not legacy:
+            return SITE_CONFIG_DIR / f'{site}.yml'
+
+        legacy_path = LEGACY_SITE_CONFIG_DIR / f'{site}.yml'
+        if not legacy_path.exists():
+            raise InvalidSiteError(f'No legacy config found for site: {site}')
+        return legacy_path
 
     #--------------------------------------------------------------------------
 
@@ -142,29 +166,46 @@ class SiteRegistry:
 
     #--------------------------------------------------------------------------
 
-    def get_runtime_config(self, site: str) -> SiteRuntimeConfig:
+    def get_runtime_config(self, site: str, legacy: bool = False) -> SiteRuntimeConfig:
         """
         Load runtime configuration for a pipeline site.
 
-        Results are cached by site name for the lifetime of this registry
-        instance — subsequent calls return the same object without re-parsing
-        the config file.
+        Args:
+            site: registered site name.
+            legacy: if True, load the site's legacy config snapshot
+                (site_configs/legacy) instead of its operational config.
+                Use for one-off rebuilds of L1 output under an earlier
+                generation of instruments/variables/files.
+
+        Results are cached by (site, legacy) for the lifetime of this
+        registry instance — subsequent calls return the same object without
+        re-parsing the config file.
         """
 
-        if site not in self._runtime_config_cache:
-            config_path = self.get_config_path(site=site)
-            self._runtime_config_cache[site] = load_runtime_config(config_path)
-        return self._runtime_config_cache[site]
+        cache_key = (site, legacy)
+        if cache_key not in self._runtime_config_cache:
+            config_path = self.get_config_path(site=site, legacy=legacy)
+            self._runtime_config_cache[cache_key] = load_runtime_config(config_path)
+        return self._runtime_config_cache[cache_key]
 
     #--------------------------------------------------------------------------
 
-    def get_context(self, site: str) -> SiteContext:
-        """Assemble the combined site context object."""
+    def get_context(self, site: str, legacy: bool = False) -> SiteContext:
+        """
+        Assemble the combined site context object.
+
+        Args:
+            site: registered site name.
+            legacy: if True, assemble the context from the site's legacy
+                config snapshot instead of its operational config. Site
+                metadata (location, tower height, etc.) is unaffected and
+                always comes from the standard metadata source.
+        """
 
         return SiteContext(
-            runtime_config=self.get_runtime_config(site),
+            runtime_config=self.get_runtime_config(site, legacy=legacy),
             metadata=self.get_metadata(site)
-        )
+            )
 
 # -----------------------------------------------------------------------------
 
