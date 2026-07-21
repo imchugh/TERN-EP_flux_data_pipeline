@@ -11,6 +11,7 @@ to be fully populated first).
 ### BEGIN IMPORTS ###
 ###############################################################################
 
+import inspect
 import logging
 from typing import Callable
 
@@ -102,7 +103,7 @@ mngr = SiteTaskManager()
 ### BEGIN RUNNER ###
 ###############################################################################
 
-def run_task(task: str, site: str | None = None) -> None:
+def run_task(task: str, site: str | None = None, dry_run: bool = False) -> None:
     """
     Unified entry point to run any registered task.
 
@@ -111,16 +112,20 @@ def run_task(task: str, site: str | None = None) -> None:
         site: optional site name — valid only for site-scoped tasks.  When
             omitted for a site-scoped task the CSV matrix is used to build the
             site list.
+        dry_run: forwarded to the task function if it accepts a `dry_run`
+            parameter; raises if the task doesn't support it.
     """
 
     func, scope = _resolve_task(task=task, site=site)
+    if dry_run and 'dry_run' not in inspect.signature(func).parameters:
+        raise ValueError(f"Task '{task}' does not support --dry-run.")
     _setup_logger(task=task)
 
     try:
         if scope == 'site':
             _run_site_task(task=task, function=func, site=site)
         else:
-            _run_global_task(task=task, func=func)
+            _run_global_task(task=task, func=func, dry_run=dry_run)
     except Exception:
         logger.error(
             'task_end',
@@ -207,11 +212,14 @@ def _run_single_site_task(task: str, func: Callable, site: str) -> dict:
 
 # -----------------------------------------------------------------------------
 
-def _run_global_task(task: str, func: Callable) -> None:
+def _run_global_task(task: str, func: Callable, dry_run: bool = False) -> None:
 
-    logger.info('task_start', extra={'task': task, 'scope': 'global'})
+    logger.info(
+        'task_start', extra={'task': task, 'scope': 'global', 'dry_run': dry_run},
+        )
     try:
-        result = func()
+        kwargs = {'dry_run': dry_run} if 'dry_run' in inspect.signature(func).parameters else {}
+        result = func(**kwargs)
         if isinstance(result, dict) and 'status' in result:
             extra = {'task': task, 'scope': 'global', **result}
         else:

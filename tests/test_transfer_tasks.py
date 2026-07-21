@@ -103,21 +103,43 @@ class TestPushGlobalTasks(unittest.TestCase):
             )
 
     @patch(PATCH)
-    def test_push_homogenised_TOA5(self, mock_transfer):
-        tt.push_homogenised_TOA5()
+    def test_push_rtmc_toa5(self, mock_transfer):
+        tt.push_rtmc_toa5()
         mock_transfer.assert_called_once_with(
-            src=Path('/store/Homogenised_data/TOA5'),
+            src=Path('/store/Homogenised_data/TOA5_test'),
             dst='OneDrive_UoM:Documents/RTMC/Site_data',
             timeout=180,
+            dry_run=False,
+            )
+
+    @patch(PATCH)
+    def test_push_rtmc_toa5_dry_run(self, mock_transfer):
+        tt.push_rtmc_toa5(dry_run=True)
+        mock_transfer.assert_called_once_with(
+            src=Path('/store/Homogenised_data/TOA5_test'),
+            dst='OneDrive_UoM:Documents/RTMC/Site_data',
+            timeout=180,
+            dry_run=True,
             )
 
     @patch(PATCH)
     def test_push_L1_nc(self, mock_transfer):
         tt.push_L1_nc()
         mock_transfer.assert_called_once_with(
-            src=Path('/store/Homogenised_data/NetCDF'),
+            src=Path('/store/Homogenised_data/NetCDF_test'),
             dst='uqrdm:TERNEP-Q5937/EPCN_Share/Homogenised_data/NetCDF',
             timeout=180,
+            dry_run=False,
+            )
+
+    @patch(PATCH)
+    def test_push_L1_nc_dry_run(self, mock_transfer):
+        tt.push_L1_nc(dry_run=True)
+        mock_transfer.assert_called_once_with(
+            src=Path('/store/Homogenised_data/NetCDF_test'),
+            dst='uqrdm:TERNEP-Q5937/EPCN_Share/Homogenised_data/NetCDF',
+            timeout=180,
+            dry_run=True,
             )
 
     def test_push_status_geojson(self):

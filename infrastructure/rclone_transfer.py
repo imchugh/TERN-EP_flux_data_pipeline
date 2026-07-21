@@ -50,6 +50,7 @@ def transfer(
     set_modtime: bool = True,
     validate: bool = True,
     timeout: int = 600,
+    dry_run: bool = False,
     ) -> spc.CompletedProcess:
     """
     Execute an rclone copy operation.
@@ -61,6 +62,7 @@ def transfer(
         set_modtime: Whether to preserve modtime (SFTP specific)
         validate: Whether to validate src/dst before transfer
         timeout: Subprocess timeout in seconds
+        dry_run: If True, pass --dry-run to rclone (no files are transferred)
 
     Returns:
         CompletedProcess
@@ -78,13 +80,14 @@ def transfer(
     run_args = _build_copy_args(
         exclude_dirs=exclude_dirs,
         set_modtime=set_modtime,
+        dry_run=dry_run,
     )
 
     cmd = [APP_PATH, *run_args, str(src), str(dst)]
 
-    logger.info("Starting rclone transfer...")
+    logger.info("Starting rclone transfer%s...", " (dry run)" if dry_run else "")
     result = _run_subprocess(cmd, timeout=timeout)
-    
+
     logger.debug("rclone transfer stdout:\n%s", result.stdout or "")
     logger.debug("rclone transfer stderr:\n%s", result.stderr or "")
     logger.info("Transfer succeeded")
@@ -149,6 +152,7 @@ def _build_copy_args(
     *,
     exclude_dirs: Iterable[str] | None,
     set_modtime: bool,
+    dry_run: bool = False,
     ) -> list[str]:
     """
     Assemble the list of arguments to pass to rclone via spc.
@@ -156,6 +160,7 @@ def _build_copy_args(
     Args:
         exclude_dirs (Iterable[str] | None): directories to exclude.
         set_modtime: makes it work.
+        dry_run: append --dry-run so no files are transferred.
 
     Returns:
         list[str]: valid rclone arg list.
@@ -170,6 +175,9 @@ def _build_copy_args(
 
     if not set_modtime:
         args.append("--sftp-set-modtime=false")
+
+    if dry_run:
+        args.append("--dry-run")
 
     return args
 # -----------------------------------------------------------------------------

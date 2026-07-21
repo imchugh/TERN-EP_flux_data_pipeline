@@ -107,23 +107,25 @@ def push_details_json() -> None:
 # -----------------------------------------------------------------------------
 
 @register
-def push_homogenised_TOA5() -> None:
+def push_rtmc_toa5(dry_run: bool = False) -> None:
 
     rclone_transfer.transfer(
         src=paths.get_local_stream_path('homogenised_data', 'toa5'),
         dst=paths.get_remote_stream_path('homogenised_data', 'toa5'),
         timeout=180,
+        dry_run=dry_run,
         )
 
 # -----------------------------------------------------------------------------
 
 @register
-def push_L1_nc() -> None:
+def push_L1_nc(dry_run: bool = False) -> None:
 
     rclone_transfer.transfer(
         src=paths.get_local_stream_path('homogenised_data', 'nc'),
         dst=paths.get_remote_stream_path('homogenised_data', 'nc'),
         timeout=180,
+        dry_run=dry_run,
         )
 
 # -----------------------------------------------------------------------------
