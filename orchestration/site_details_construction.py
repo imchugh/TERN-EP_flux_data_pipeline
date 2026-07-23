@@ -12,7 +12,7 @@ consumed by `tasks/build_tasks.py::construct_site_details_json`).
 `build_site_details_toa5` is the second, thin consumer of the same
 `collate_site_info` output — RTMC's single-line-per-site TOA5 data source
 (successor to `details_constructor.write_site_info`, consumed by
-`construct_site_details`).
+`construct_site_details_toa5`).
 """
 
 ###############################################################################

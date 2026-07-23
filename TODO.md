@@ -22,9 +22,9 @@ Replacing the legacy `data_constructors.details_constructor` (old repo) with
       `logger_type='SmartFlux'`, rest blank — confirmed against
       `CumberlandPlain`.
 - [x] Module renamed `site_info_construction.py` → `site_details_construction.py`
-      to match the `construct_site_details*` task names. CLAUDE.md updated
-      (stale "Modules Deliberately Deferred" section removed; both entries
-      there had already been fixed).
+      to match the `construct_site_details_toa5`/`construct_site_details_json`
+      task names. CLAUDE.md updated (stale "Modules Deliberately Deferred"
+      section removed; both entries there had already been fixed).
 - [x] `build_site_details_toa5(site, midnight=None)` — TOA5 writer, successor
       to `details_constructor.write_site_info`. Consumes `collate_site_info`
       directly (not the JSON file) — keeps the two outputs decoupled but
@@ -34,10 +34,10 @@ Replacing the legacy `data_constructors.details_constructor` (old repo) with
       with no new push task needed. Confirmed against `AliceSpringsMulga`
       (CSI), `CumberlandPlain` (LICOR), and `WombatStateForest` (aliased
       site).
-- [x] Wired into `tasks/build_tasks.py::construct_site_details(site)`,
+- [x] Wired into `tasks/build_tasks.py::construct_site_details_toa5(site)`,
       replacing the legacy import. Verified via
-      `tasks.tasks.run_task('construct_site_details', site=...)`.
-- [x] Moved `construct_site_details`/`construct_site_details_json` from
+      `tasks.tasks.run_task('construct_site_details_toa5', site=...)`.
+- [x] Moved `construct_site_details_toa5`/`construct_site_details_json` from
       `tasks/monitor_tasks.py` to `tasks/build_tasks.py` — the output is
       mostly static site characteristics (location, vegetation, logger info)
       plus one monitoring-flavored field (`pct_missing`), not a health check;
@@ -63,9 +63,16 @@ Replacing the legacy `data_constructors.details_constructor` (old repo) with
 
 ### To do
 
-- [ ] Once both JSON and TOA5 outputs are validated in production, retire the
-      legacy cron/task path entirely (the old `data_constructors.details_constructor`
-      import can be dropped from `monitor_tasks.py`).
+- [ ] Once both outputs are validated, cut over from parallel-run to
+      production: this pipeline currently writes to test paths
+      (`/opt/TERN_EP/network/info/site_info.json`,
+      `/store/Homogenised_data/TOA5_test/<site>_details.dat`), not the real
+      production paths the old cron writes to, so the two coexist without
+      colliding. Cutover means switching off whatever cron trigger still
+      invokes the old repo's `details_constructor.write_site_info`/
+      `site_info_2_json`, and pointing this pipeline's output paths at
+      production. (No legacy import remains in this repo — both task
+      bodies were already fully replaced.)
 - [ ] Optional: pre-warm `instrument_registry`'s vocab cache (one `get_context()`
       call) before `build_site_details_json`'s thread pool dispatch — first run
       currently fires 8 concurrent SPARQL queries to `graphdb.tern.org.au`
@@ -92,7 +99,7 @@ Replacing the legacy `data_constructors.details_constructor` (old repo) with
       (`construct_L1_nc`, `construct_toa5_from_nc`, `update_EddyPro_master`,
       `process_profile_data`, `parse_main_fast_data`/`parse_aux_fast_data`,
       all pull/push tasks in `transfer_tasks.py`, and now
-      `construct_site_details`, which builds the TOA5 details file). Different
+      `construct_site_details_toa5`, which builds the TOA5 details file). Different
       code path from `state_task_orchestrator.py` (already concurrent) and from
       `build_site_details_json` (concurrent internally, but registered as a
       global task so it bypasses `_run_site_task` entirely). Pipeline-wide

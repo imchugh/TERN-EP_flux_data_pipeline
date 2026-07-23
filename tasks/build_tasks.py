@@ -49,7 +49,7 @@ def construct_toa5_from_nc(site: str) -> dict:
 # -----------------------------------------------------------------------------
 
 @register
-def construct_site_details(site: str) -> None:
+def construct_site_details_toa5(site: str) -> None:
     """Construct the site details TOA5 file for RTMC plotting."""
 
     from orchestration.site_details_construction import build_site_details_toa5
