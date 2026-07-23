@@ -15,16 +15,17 @@ def construct_status_geojson() -> None:
 
 @register
 def construct_site_details(site: str) -> None:
-    """Construct the site details file for RTMC plotting."""
+    """Construct the site details TOA5 file for RTMC plotting."""
 
-    import data_constructors.details_constructor as deetcon
-    deetcon.write_site_info(site=site)
+    from orchestration.site_details_construction import build_site_details_toa5
+    build_site_details_toa5(site=site)
 
 # -----------------------------------------------------------------------------
 
 @register
 def construct_site_details_json() -> None:
+    """Generate site_info.json for all sites (RTMC data source)."""
 
-    import data_constructors.details_constructor as deetcon
+    from orchestration.site_details_construction import generate_site_info
     from tasks.tasks import mngr
-    deetcon.site_info_2_json(site_list=mngr.get_site_list())
+    generate_site_info(site_list=mngr.get_site_list())

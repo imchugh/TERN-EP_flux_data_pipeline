@@ -25,7 +25,7 @@ orchestration/   — high-level workflow: builds dataframes and NetCDF output
 
 | Module | Role |
 |---|---|
-| `services/metadata/site_registry.py` | **Canonical entry point for pipeline metadata.** `SiteRegistry` filters to only YML-configured sites. Use `SITE_REGISTRY` module-level instance. |
+| `services/metadata/site_registry.py` | **Canonical entry point for pipeline metadata.** `SiteRegistry` filters to only YML-configured sites. Defines the `SiteRegistry` class only — does not export a module-level instance; each consumer instantiates its own `SITE_REGISTRY = SiteRegistry()` singleton (see Key Patterns). |
 | `services/metadata/site_metadata_repository.py` | Broader TERN data source — all sites including decommissioned. Not for pipeline logic. |
 | `services/metadata/canonical_quantity_registry.py` | Master registry of 100+ canonical quantities with units, long_name, valid ranges. Also exports `resolve_variance_units`. |
 | `services/metadata/runtime_config_loader.py` | Loads and assembles `SiteRuntimeConfig` from a site YAML config. Entry point: `load_runtime_config(file_path)`. |
@@ -40,6 +40,7 @@ orchestration/   — high-level workflow: builds dataframes and NetCDF output
 | `orchestration/dataset_builder.py` | High-level API: `build_dataset_from_site_name()`, `build_dataset_from_context()`. Orchestrates dataframe build → derived quantity padding → xarray Dataset with variable and global metadata. Exports `DatasetBuildIntermediate` (used by `derived_quantities`). |
 | `orchestration/derived_quantities.py` | Derives missing RH↔AH and CO2 mole fraction; maintains metadata lineage. |
 | `orchestration/build_L1_nc.py` | Export step: converts L1 xarray Dataset to annual NetCDF files. Adds spatial dims, QC flags, global/variable metadata. Separate from dataset construction by design. |
+| `orchestration/site_details_construction.py` | RTMC site-details data source. `collate_site_info(context, midnight=None)` is the shared collation function (sunrise/sunset, flux logger info, missing-data %, latest 10Hz file, site metadata); `generate_site_info()` writes the JSON output (successor to legacy `details_constructor.site_info_2_json`), consumed by `tasks/monitor_tasks.py::construct_site_details_json`. A TOA5 per-site writer is a planned second consumer of `collate_site_info`. |
 | `services/network/data_monitor.py` | Site health monitoring: record coverage (`analyse_missing_data`), flux variable quality (`analyse_variable_quality`), threshold checks (`analyse_threshold_quality`). Each is an independent orchestration-level task. |
 | `services/network/state_task_orchestrator.py` | Fans monitoring tasks concurrently across all pipeline sites. `STATE_TASK_SPECS` registry — add one dict entry to register a new task. |
 
@@ -67,13 +68,6 @@ Monitoring (`services/network/data_monitor.py`) calls `dataframe_builder.build_d
 - `SITE_ALIASES = {'WombatStateForest': 'WombatForest'}` in `site_registry.py` is a deliberate temporary hack — legacy directory name kept until that directory is renamed. Remove when legacy code is switched off.
 - Configuration objects (`SiteRuntimeConfig`, etc.) are immutable frozen dataclasses.
 - Metadata is cached at the registry instance level (lazy-loaded on first access).
-
-## Modules Deliberately Deferred — Do Not Patch in Isolation
-
-These are broken and need a broader overhaul before touching:
-
-- **`orchestration/site_info_construction.py`**: broken imports (`services.domain.*`, `gap_analysis`, `geospatial.TimeFunctions`, `get_flux_file_path`, `runtime_cfg.system_type`). Known fixes documented in memory but requires full overhaul.
-- **`tasks/tasks.py`**: uses old `services.domain` import paths and `global_metadata_service`; needs `SITE_REGISTRY` migration.
 
 ## Configuration Files
 
