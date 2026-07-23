@@ -98,10 +98,11 @@ def push_cosmoz(site: str) -> None:
 @register
 def push_details_json() -> None:
 
-    from services.network.state_task_orchestrator import SITE_SUMMARY_PATH
+    src = paths.get_local_stream_path('network', 'info') / 'site_info.json'
     rclone_transfer.transfer(
-        src=SITE_SUMMARY_PATH,
+        src=src,
         dst=paths.get_remote_stream_path('network', 'status'),
+        set_modtime=False,
         )
 
 # -----------------------------------------------------------------------------

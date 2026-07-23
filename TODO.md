@@ -60,18 +60,29 @@ Replacing the legacy `data_constructors.details_constructor` (old repo) with
       old writer's unquoted `9999` was its own artifact, not real TOA5
       convention — the new all-quoted output is the more correct match. No
       change needed.
+- [x] `tasks/transfer_tasks.py::push_details_json` wired up to push
+      `build_site_details_json`'s `site_info.json` output. It was already
+      registered but pointed at `state_task_orchestrator.SITE_SUMMARY_PATH`
+      (`network/state/site_summary.json`, a different file entirely — the
+      health-monitoring aggregate — that has also never actually been
+      generated). Repointed at `network.info/site_info.json`. Also hit and
+      fixed a real bug surfaced by actually running it: the sftpgo remote
+      (`flux-status-test.tern.org.au`) doesn't support SFTP `SetModTime`
+      (`SSH_FX_OP_UNSUPPORTED`) — needed `set_modtime=False`. Verified: push
+      succeeded, file confirmed present on the remote via `rclone lsl`.
 
 ### To do
 
 - [ ] Once both outputs are validated, cut over from parallel-run to
       production: this pipeline currently writes to test paths
       (`/opt/TERN_EP/network/info/site_info.json`,
-      `/store/Homogenised_data/TOA5_test/<site>_details.dat`), not the real
-      production paths the old cron writes to, so the two coexist without
-      colliding. Cutover means switching off whatever cron trigger still
-      invokes the old repo's `details_constructor.write_site_info`/
-      `site_info_2_json`, and pointing this pipeline's output paths at
-      production. (No legacy import remains in this repo — both task
+      `/store/Homogenised_data/TOA5_test/<site>_details.dat`) and pushes to
+      a test remote (`flux-status-test.tern.org.au`), not the real
+      production paths/remote the old cron writes to, so the two coexist
+      without colliding. Cutover means switching off whatever cron trigger
+      still invokes the old repo's `details_constructor.write_site_info`/
+      `site_info_2_json`, and pointing this pipeline's output paths/remotes
+      at production. (No legacy import remains in this repo — both task
       bodies were already fully replaced.)
 - [ ] Optional: pre-warm `instrument_registry`'s vocab cache (one `get_context()`
       call) before `build_site_details_json`'s thread pool dispatch — first run
@@ -79,6 +90,20 @@ Replacing the legacy `data_constructors.details_constructor` (old repo) with
       before the `lru_cache` catches up (self-resolves in ~8-10s, not
       currently a real problem, but same root cause likely affects
       `state_task_orchestrator`'s other concurrent site tasks too).
+- [ ] `tasks/transfer_tasks.py::push_status_geojson` (pushes `GEOJSON_PATH` to
+      the same sftpgo remote as `push_details_json`) likely has the same
+      `SetModTime` bug just fixed in `push_details_json` — it doesn't pass
+      `set_modtime=False` either. Not yet exercised/confirmed broken (its
+      source file already exists), and not fixed — flagged only, since it
+      wasn't part of what was asked.
+
+### Decided against
+
+- No dedicated push task for the TOA5 site-details files. They already live
+  in the same `homogenised_data.toa5` directory as `<site>_merged_std.dat`,
+  so `push_rtmc_toa5` already covers them — and this whole legacy
+  TOA5/RTMC push pipeline is being shut down soon, so a new task isn't
+  worth adding for the remaining lifetime.
 
 ## Known, out-of-scope issues noticed along the way
 
