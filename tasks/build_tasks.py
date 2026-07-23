@@ -49,6 +49,25 @@ def construct_toa5_from_nc(site: str) -> dict:
 # -----------------------------------------------------------------------------
 
 @register
+def construct_site_details(site: str) -> None:
+    """Construct the site details TOA5 file for RTMC plotting."""
+
+    from orchestration.site_details_construction import build_site_details_toa5
+    build_site_details_toa5(site=site)
+
+# -----------------------------------------------------------------------------
+
+@register
+def construct_site_details_json() -> None:
+    """Generate site_info.json for all sites (RTMC data source)."""
+
+    from orchestration.site_details_construction import build_site_details_json
+    from tasks.tasks import mngr
+    build_site_details_json(site_list=mngr.get_site_list())
+
+# -----------------------------------------------------------------------------
+
+@register
 def update_EddyPro_master(site: str) -> None:
 
     import file_handling.eddypro_concatenator as epc

@@ -16,7 +16,7 @@ Replacing the legacy `data_constructors.details_constructor` (old repo) with
       in `configs/paths.yml`). Concurrent across sites via
       `infrastructure.parallel_executor.run_concurrent` (~59s for 29 sites,
       down from ~3m35s serial).
-- [x] Wired into `tasks/monitor_tasks.py::construct_site_details_json()`,
+- [x] Wired into `tasks/build_tasks.py::construct_site_details_json()`,
       replacing the legacy import. Verified via `tasks.tasks.run_task(...)`.
 - [x] LICOR/EddyPro sites (no TOA5 info line): `format='LICOR'`,
       `logger_type='SmartFlux'`, rest blank — confirmed against
@@ -34,9 +34,16 @@ Replacing the legacy `data_constructors.details_constructor` (old repo) with
       with no new push task needed. Confirmed against `AliceSpringsMulga`
       (CSI), `CumberlandPlain` (LICOR), and `WombatStateForest` (aliased
       site).
-- [x] Wired into `tasks/monitor_tasks.py::construct_site_details(site)`,
+- [x] Wired into `tasks/build_tasks.py::construct_site_details(site)`,
       replacing the legacy import. Verified via
       `tasks.tasks.run_task('construct_site_details', site=...)`.
+- [x] Moved `construct_site_details`/`construct_site_details_json` from
+      `tasks/monitor_tasks.py` to `tasks/build_tasks.py` — the output is
+      mostly static site characteristics (location, vegetation, logger info)
+      plus one monitoring-flavored field (`pct_missing`), not a health check;
+      `monitor_tasks.py`'s other task (`construct_status_geojson`) wraps
+      genuine health checks via `state_task_orchestrator`, whereas this is a
+      data product for RTMC, same category as `construct_toa5_from_nc`.
 - [x] Diffed the new TOA5 output against the real production file
       (`/store/Homogenised_data/TOA5/Calperum_details.dat`). Info-line
       content matched exactly (same dummy placeholders, station_name = site
