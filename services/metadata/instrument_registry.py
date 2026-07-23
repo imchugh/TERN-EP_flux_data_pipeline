@@ -10,6 +10,11 @@ from services import config_loader
 from services.metadata.site_metadata_repository import get_instrument_vocab
 
 
+def _normalize_key(label: str) -> str:
+    """Case-fold a vocab category label for case-insensitive lookup."""
+    return label.strip().casefold()
+
+
 @functools.lru_cache(maxsize=1)
 def get_raw_vocab() -> list[dict]:
     """Return the raw SPARQL bindings for inspection."""
@@ -41,7 +46,7 @@ def _get_vocab_registry() -> dict[str, list[str]]:
             continue
         cat = entry.get('broader_chain_label')
         if cat:
-            registry.setdefault(cat, set()).add(entry['label'])
+            registry.setdefault(_normalize_key(cat), set()).add(entry['label'])
 
     return {k: sorted(v) for k, v in sorted(registry.items())}
 
@@ -128,7 +133,7 @@ def list_instruments(instrument_type: str) -> list[str]:
     """
     vocab_keys = _get_vocab_keys(instrument_type)
     vocab_registry = _get_vocab_registry()
-    missing = [k for k in vocab_keys if k not in vocab_registry]
+    missing = [k for k in vocab_keys if _normalize_key(k) not in vocab_registry]
     if missing:
         raise KeyError(
             f"Alias {instrument_type!r} has vocab_keys not found in the TERN "
@@ -136,7 +141,7 @@ def list_instruments(instrument_type: str) -> list[str]:
         )
     instruments: set[str] = set()
     for k in vocab_keys:
-        instruments.update(vocab_registry[k])
+        instruments.update(vocab_registry[_normalize_key(k)])
     return sorted(instruments)
 
 
@@ -196,7 +201,7 @@ def get_instrument_type(name: str) -> str:
     resolved = _get_name_corrections().get(name, name)
 
     for alias, cfg in alias_map.items():
-        if any(resolved in vocab_registry.get(k, []) for k in cfg['vocab_keys']):
+        if any(resolved in vocab_registry.get(_normalize_key(k), []) for k in cfg['vocab_keys']):
             return alias
     raise KeyError(f"Unknown instrument {name!r}")
 
@@ -221,7 +226,7 @@ def is_valid_instrument(name: str) -> bool:
 
     alias_map = _get_alias_map()
     return any(
-        name in vocab_registry.get(k, [])
+        name in vocab_registry.get(_normalize_key(k), [])
         for cfg in alias_map.values()
         for k in cfg['vocab_keys']
         )
@@ -257,7 +262,7 @@ def list_instruments_for_quantity(quantity: str) -> list[str]:
     for alias, cfg in alias_map.items():
         if quantity in cfg.get('quantities', []):
             for k in cfg['vocab_keys']:
-                instruments.update(vocab_registry.get(k, []))
+                instruments.update(vocab_registry.get(_normalize_key(k), []))
 
     pending = _get_pending_instruments()
     for name, alias in pending.items():
