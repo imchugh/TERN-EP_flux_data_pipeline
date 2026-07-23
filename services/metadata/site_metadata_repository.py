@@ -362,7 +362,7 @@ def write_flux_tower_fields_config(overwrite: bool=False) -> None:
     """
     
     rslt = get_flux_tower_fields_from_rdf(query='operational')
-    file_path = config_loader.CONFIG_PATH / 'global_metadata.yml'
+    file_path = config_loader.CONFIG_PATH / 'site_metadata.yml'
     if not overwrite:
         if file_path.exists():
             raise FileExistsError('File already exists!')
