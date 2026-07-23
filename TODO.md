@@ -10,7 +10,7 @@ Replacing the legacy `data_constructors.details_constructor` (old repo) with
 - [x] `collate_site_info(context, midnight=None)` — shared per-site collation
       (metadata, sunrise/sunset, flux logger info, missing-data %, latest 10Hz
       file). Single source of truth for both outputs below.
-- [x] `generate_site_info()` — JSON writer, successor to
+- [x] `build_site_details_json()` — JSON writer, successor to
       `details_constructor.site_info_2_json`. Writes
       `/opt/TERN_EP/network/info/site_info.json` (new `network.info` stream
       in `configs/paths.yml`). Concurrent across sites via
@@ -60,7 +60,7 @@ Replacing the legacy `data_constructors.details_constructor` (old repo) with
       legacy cron/task path entirely (the old `data_constructors.details_constructor`
       import can be dropped from `monitor_tasks.py`).
 - [ ] Optional: pre-warm `instrument_registry`'s vocab cache (one `get_context()`
-      call) before `generate_site_info`'s thread pool dispatch — first run
+      call) before `build_site_details_json`'s thread pool dispatch — first run
       currently fires 8 concurrent SPARQL queries to `graphdb.tern.org.au`
       before the `lru_cache` catches up (self-resolves in ~8-10s, not
       currently a real problem, but same root cause likely affects
@@ -87,6 +87,6 @@ Replacing the legacy `data_constructors.details_constructor` (old repo) with
       all pull/push tasks in `transfer_tasks.py`, and now
       `construct_site_details`, which builds the TOA5 details file). Different
       code path from `state_task_orchestrator.py` (already concurrent) and from
-      `generate_site_info` (concurrent internally, but registered as a
+      `build_site_details_json` (concurrent internally, but registered as a
       global task so it bypasses `_run_site_task` entirely). Pipeline-wide
       change, not scoped to this migration — noted for later discussion.

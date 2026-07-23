@@ -6,13 +6,13 @@ logger metadata, missing-data percentage, latest 10Hz file) alongside the
 site's fixed metadata (location, commissioning, vegetation, etc.).
 
 `collate_site_info` is the single source of truth for this data — it returns
-a flat dict for one site. `generate_site_info` is the JSON writer built on
-top of it (successor to the legacy `details_constructor.site_info_2_json`,
-consumed by `tasks/monitor_tasks.py::construct_site_details_json`). A TOA5
-writer for RTMC's single-line-per-site data source (successor to
-`details_constructor.write_site_info`, consumed by
-`construct_site_details`) is intended to be a second, thin consumer of the
-same `collate_site_info` output.
+a flat dict for one site. `build_site_details_json` is the JSON writer built
+on top of it (successor to the legacy `details_constructor.site_info_2_json`,
+consumed by `tasks/monitor_tasks.py::construct_site_details_json`).
+`build_site_details_toa5` is the second, thin consumer of the same
+`collate_site_info` output — RTMC's single-line-per-site TOA5 data source
+(successor to `details_constructor.write_site_info`, consumed by
+`construct_site_details`).
 """
 
 ###############################################################################
@@ -205,7 +205,7 @@ def build_site_details_toa5(
     Write the single-line-per-site TOA5 'details' file consumed by RTMC.
 
     Successor to `details_constructor.write_site_info`. Shares
-    `collate_site_info` with `generate_site_info` — same collation, a
+    `collate_site_info` with `build_site_details_json` — same collation, a
     different writer — so the JSON and TOA5 outputs never drift out of sync
     with each other, only ever with the underlying data sources both of them
     read from. Calls `collate_site_info` directly rather than reading back
@@ -313,7 +313,7 @@ def _get_flux_data_gaps(file_path, file_format: str, interval_minutes: int) -> d
 
 def _build_site_entry(site: str) -> dict:
     """
-    Collate one site's info for `generate_site_info`. Never raises — a
+    Collate one site's info for `build_site_details_json`. Never raises — a
     failure is returned as a result, not thrown, so one bad site can't take
     down the concurrent run_concurrent dispatch for the rest.
     """
@@ -336,7 +336,7 @@ def _build_site_entry(site: str) -> dict:
 
 # -----------------------------------------------------------------------------
 
-def generate_site_info(site_list: list[str] | None = None) -> dict:
+def build_site_details_json(site_list: list[str] | None = None) -> dict:
     """
     Generate site_info.json for all (or the given) pipeline sites.
 

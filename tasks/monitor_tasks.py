@@ -26,6 +26,6 @@ def construct_site_details(site: str) -> None:
 def construct_site_details_json() -> None:
     """Generate site_info.json for all sites (RTMC data source)."""
 
-    from orchestration.site_details_construction import generate_site_info
+    from orchestration.site_details_construction import build_site_details_json
     from tasks.tasks import mngr
-    generate_site_info(site_list=mngr.get_site_list())
+    build_site_details_json(site_list=mngr.get_site_list())
