@@ -51,7 +51,7 @@ BeaconFarm:
 Boolcoomatta:
   id: https://w3id.org/tern/resources/2a3263e1-04a0-4340-9961-c6e4b373e13e
   fluxnet_id: AU-Boo
-  date_commissioned: '2024-10-11'
+  date_commissioned: '2025-08-13'
   latitude: '-31.88493'
   longitude: '140.69965'
   elevation: '150.0'
@@ -160,9 +160,9 @@ DalyUncleared:
 Dookie1:
   id: https://w3id.org/tern/resources/710dbb25-92c9-46b2-8d6f-189a1e7542ad
   fluxnet_id: AU-Do1
-  date_commissioned: '2024-10-11'
-  latitude: '-36.39033'
-  longitude: '145.7327'
+  date_commissioned: '2024-09-11'
+  latitude: '-36.390261'
+  longitude: '145.723814'
   elevation: '140.0'
   time_step: '30.0'
   freq_hz: '20'
@@ -177,7 +177,7 @@ Dookie1:
 Dookie2:
   id: https://w3id.org/tern/resources/ccb2fb93-8421-4f16-afe1-a37276748a53
   fluxnet_id: AU-Do2
-  date_commissioned: '2024-05-22'
+  date_commissioned: '2025-05-22'
   latitude: '-36.390258'
   longitude: '145.723792'
   elevation: '140.0'
@@ -641,6 +641,7 @@ WombatForest:
   date_commissioned: '2024-05-08'
   latitude: '-37.4222'
   longitude: '144.0944'
+  elevation: '713.0'
   time_step: '30.0'
   freq_hz: '10.0'
   canopy_height: '23.0'
