@@ -139,8 +139,7 @@ atmospheric_pressure:
 
 logger:
   vocab_keys:
-    # - Eddy Covariance Logger
-    - EDDY CORRELATION DEVICES
+    - Eddy Covariance Logger
   quantities:
     - Tpanel
     - Vbat
