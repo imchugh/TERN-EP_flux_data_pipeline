@@ -36,6 +36,28 @@ logger = logging.getLogger(__name__)
 
 
 ###############################################################################
+### BEGIN EXCEPTIONS ###
+###############################################################################
+
+class RcloneError(spc.CalledProcessError):
+    """
+    CalledProcessError whose default message includes captured stderr, so the
+    failure reason is visible from a bare traceback even without logging
+    configured.
+    """
+
+    def __str__(self) -> str:
+        stderr = (self.stderr or "").strip()
+        if not stderr:
+            return super().__str__()
+        return f"{super().__str__()}\nstderr:\n{stderr}"
+
+###############################################################################
+### END EXCEPTIONS ###
+###############################################################################
+
+
+###############################################################################
 ### BEGIN FUNCTIONS ###
 ###############################################################################
 
@@ -70,7 +92,7 @@ def transfer(
     Raises:
         FileNotFoundError
         subprocess.TimeoutExpired
-        subprocess.CalledProcessError
+        RcloneError (subclass of subprocess.CalledProcessError)
     """
 
     if validate:
@@ -104,6 +126,22 @@ def check_remote_available(remote_path: str, timeout: int = 60) -> None:
     """
     cmd = [APP_PATH, "lsd", remote_path]
     _run_subprocess(cmd, timeout=timeout)
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+def check_remote_writable(remote_path: str, timeout: int = 60) -> None:
+    """
+    Public remote write-permission check.
+
+    `lsd` only confirms the path is listable, not writable, so this probes
+    with a throwaway `touch` (removed on success) to catch permission-denied
+    destinations before a real transfer is attempted.
+
+    Raises on failure.
+    """
+    probe_path = f"{remote_path.rstrip('/')}/.rclone_write_test"
+    _run_subprocess([APP_PATH, "touch", probe_path], timeout=timeout)
+    _run_subprocess([APP_PATH, "deletefile", probe_path], timeout=timeout)
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
@@ -237,5 +275,7 @@ def _run_subprocess(cmd: list[str], timeout: int) -> spc.CompletedProcess:
             },
             exc_info=True,
         )
-        raise        
-# -----------------------------------------------------------------------------        
+        raise RcloneError(
+            exc.returncode, exc.cmd, output=exc.output, stderr=exc.stderr,
+        ) from exc
+# -----------------------------------------------------------------------------
