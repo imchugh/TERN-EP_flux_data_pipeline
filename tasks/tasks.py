@@ -15,6 +15,8 @@ import inspect
 import logging
 from typing import Callable
 
+import pandas as pd
+
 from infrastructure import paths
 from infrastructure.paths import CONFIG_PATH
 from services import config_loader
@@ -41,6 +43,31 @@ SITE_REGISTRY = SiteRegistry()
 
 # -----------------------------------------------------------------------------
 
+def _parse_bool_matrix(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Strictly parse a str/bool/object DataFrame of TRUE/FALSE cells.
+
+    Unlike `.astype(bool)`, this treats any cell that isn't literally
+    TRUE/FALSE (case-insensitive, whitespace-trimmed) as an error rather
+    than silently coercing it — a blank cell, a stray trailing space, or a
+    'Yes'/'1' typed by hand in a spreadsheet would otherwise all become
+    True (any non-empty string, and NaN, are truthy in Python).
+    """
+
+    valid = {'TRUE': True, 'FALSE': False}
+    normalised = df.astype(str).apply(lambda col: col.str.strip().str.upper())
+    invalid = {
+        (site, task): raw
+        for task in normalised.columns
+        for site, raw in normalised[task].items()
+        if raw not in valid
+        }
+    if invalid:
+        raise ValueError(f'tasks.csv contains non-boolean cells: {invalid}')
+    return normalised.map(valid.get).astype(bool)
+
+# -----------------------------------------------------------------------------
+
 class SiteTaskManager:
     """CSV site/task boolean matrix — exposes per-task site lists."""
 
@@ -49,7 +76,7 @@ class SiteTaskManager:
         self.tasks_df = (
             config_loader.load_config_file_from_name('tasks')
             .set_index(keys='Site')
-            .astype(bool)
+            .pipe(_parse_bool_matrix)
             )
         self._validate()
 
