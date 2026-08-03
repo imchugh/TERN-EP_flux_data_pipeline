@@ -116,9 +116,9 @@ def push_cosmoz(site: str) -> None:
 # -----------------------------------------------------------------------------
 
 @register
-def push_details_json() -> None:
+def push_site_details_json() -> None:
 
-    src = paths.get_local_stream_path('network', 'info') / 'site_info.json'
+    src = paths.get_local_stream_path('network_info', 'info') / 'site_info.json'
     rclone_transfer.transfer(
         src=src,
         dst=paths.get_remote_stream_path('network', 'status'),

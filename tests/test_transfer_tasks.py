@@ -103,15 +103,13 @@ class TestPushSiteTasks(unittest.TestCase):
 
 class TestPushGlobalTasks(unittest.TestCase):
 
-    def test_push_details_json(self):
-        mock_sto = MagicMock()
-        mock_sto.SITE_SUMMARY_PATH = Path('/opt/TERN_EP/network/state/site_summary.json')
-        with patch.dict(sys.modules, {'services.network.state_task_orchestrator': mock_sto}):
-            with patch(PATCH) as mock_transfer:
-                tt.push_details_json()
+    @patch(PATCH)
+    def test_push_site_details_json(self, mock_transfer):
+        tt.push_site_details_json()
         mock_transfer.assert_called_once_with(
-            src=Path('/opt/TERN_EP/network/state/site_summary.json'),
+            src=Path('/store/Network/info/site_info.json'),
             dst='sftpgo:/web-sites/flux-status-test.tern.org.au/RTMC',
+            set_modtime=False,
             )
 
     @patch(PATCH)

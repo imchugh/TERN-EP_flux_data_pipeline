@@ -59,6 +59,11 @@ network:
     status:
       local: status
       remote: sftpgo:/web-sites/flux-status-test.tern.org.au/RTMC
+
+network_info:
+  base_path:
+    local: /store/Network
+  stream:
     info:
       local: info
 
