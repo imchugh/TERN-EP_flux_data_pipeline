@@ -171,3 +171,15 @@ def push_status_geojson() -> None:
         src=GEOJSON_PATH,
         dst=paths.get_remote_stream_path('network', 'status'),
         )
+
+# -----------------------------------------------------------------------------
+
+@register
+def push_rtmc_images() -> None:
+
+    rclone_transfer.transfer(
+        src=paths.get_local_stream_path('network', 'rtmc_push'),
+        dst=paths.get_remote_stream_path('network', 'rtmc_push'),
+        )
+    
+    
