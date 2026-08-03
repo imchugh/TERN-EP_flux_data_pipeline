@@ -29,11 +29,17 @@ class TestPullTasks(unittest.TestCase):
 
     @patch(PATCH)
     def test_pull_slow_flux(self, mock_transfer):
-        tt.pull_slow_flux(SITE)
+        tt.pull_slow_flux('CumberlandPlain')
         mock_transfer.assert_called_once_with(
-            src='uqrdm:TERNEP-Q5937/Sites/HowardSprings/Data/Flux/Raw/Slow',
-            dst=Path('/store/Raw_data/HowardSprings/Flux/Slow'),
+            src='uqrdm:TERNEP-Q5937/Sites/CumberlandPlain/Data/Flux/Raw/Slow',
+            dst=Path('/store/Raw_data/CumberlandPlain/Flux/Slow'),
             )
+
+    @patch(PATCH)
+    def test_pull_slow_flux_rejects_non_remote_collected_site(self, mock_transfer):
+        with self.assertRaises(ValueError):
+            tt.pull_slow_flux(SITE)
+        mock_transfer.assert_not_called()
 
 
 class TestPushSiteTasks(unittest.TestCase):
@@ -81,6 +87,12 @@ class TestPushSiteTasks(unittest.TestCase):
             src=Path('/store/Raw_data/HowardSprings/Flux/Slow'),
             dst='uqrdm:TERNEP-Q5937/Sites/HowardSprings/Data/Flux/Raw/Slow',
             )
+
+    @patch(PATCH)
+    def test_push_slow_flux_rejects_remote_collected_site(self, mock_transfer):
+        with self.assertRaises(ValueError):
+            tt.push_slow_flux('CumberlandPlain')
+        mock_transfer.assert_not_called()
 
     def test_push_cosmoz(self):
         mock_sftp = MagicMock()
@@ -158,6 +170,7 @@ class TestRemoteAlias(unittest.TestCase):
     """Remote paths for aliased sites should use the alias; local paths should not."""
 
     @patch(PATCH)
+    @patch.object(tt, 'REMOTE_COLLECTED_SITES', {'AliceSpringsMulga'})
     def test_pull_slow_flux_aliased_site(self, mock_transfer):
         tt.pull_slow_flux('AliceSpringsMulga')
         mock_transfer.assert_called_once_with(

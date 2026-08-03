@@ -4,6 +4,13 @@
 from infrastructure import paths, rclone_transfer
 from tasks.registry import register
 
+# Sites where the flux_slow logger data is collected by the site operator and
+# pushed to the remote store, rather than pulled from the logger by us — so
+# for these (and only these) we pull rather than push. pull_slow_flux and
+# push_slow_flux each guard against running for the wrong direction, since a
+# stray CLI `--site` bypasses the tasks.csv site-selection matrix entirely.
+REMOTE_COLLECTED_SITES = {'CumberlandPlain'}
+
 
 # -----------------------------------------------------------------------------
 ### PULL
@@ -21,6 +28,13 @@ def pull_profile_raw(site: str) -> None:
 
 @register
 def pull_slow_flux(site: str) -> None:
+
+    if site not in REMOTE_COLLECTED_SITES:
+        raise ValueError(
+            f"'{site}' is not remote-collected — pull_slow_flux would "
+            "overwrite local data with a foreign copy. Remote-collected "
+            f"sites: {sorted(REMOTE_COLLECTED_SITES)}"
+            )
 
     rclone_transfer.transfer(
         src=paths.get_remote_stream_path('raw_data', 'flux_slow', site=site),
@@ -77,6 +91,12 @@ def push_profile_raw(site: str) -> None:
 
 @register
 def push_slow_flux(site: str) -> None:
+
+    if site in REMOTE_COLLECTED_SITES:
+        raise ValueError(
+            f"'{site}' is remote-collected — push_slow_flux would overwrite "
+            "the canonical remote copy with a downstream copy."
+            )
 
     rclone_transfer.transfer(
         src=paths.get_local_stream_path('raw_data', 'flux_slow', site=site),
