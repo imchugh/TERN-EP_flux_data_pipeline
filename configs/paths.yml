@@ -52,20 +52,23 @@ homogenised_data:
 
 network:
   base_path:
-    local: /opt/TERN_EP/network
+    local: /store/Network
   stream:
     state:
       local: state
     status:
-      local: status
       remote: sftpgo:/web-sites/flux-status-test.tern.org.au/RTMC
-
-network_info:
-  base_path:
-    local: /store/Network
-  stream:
     info:
       local: info
+      remote: sftpgo:/web-sites/flux-status-test.tern.org.au/RTMC
+    # rtmc_pull/rtmc_push relay images through the same local staging dir
+    # (remote A -> here -> remote B) — keep `local:` identical on both.
+    rtmc_pull:
+      local: RTMC
+      remote: OneDrive_UoM:Documents/RTMC/Snapshots
+    rtmc_push:
+      local: RTMC
+      remote: sftpgo:/web-sites/flux-status-test.tern.org.au/RTMC
 
 logs:
   base_path:

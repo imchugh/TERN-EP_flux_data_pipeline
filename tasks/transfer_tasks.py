@@ -13,7 +13,7 @@ REMOTE_COLLECTED_SITES = {'CumberlandPlain'}
 
 
 # -----------------------------------------------------------------------------
-### PULL
+### PULL - site-scoped
 # -----------------------------------------------------------------------------
 
 @register
@@ -39,6 +39,18 @@ def pull_slow_flux(site: str) -> None:
     rclone_transfer.transfer(
         src=paths.get_remote_stream_path('raw_data', 'flux_slow', site=site),
         dst=paths.get_local_stream_path('raw_data', 'flux_slow', site=site),
+        )
+
+# -----------------------------------------------------------------------------
+### PULL — global
+# -----------------------------------------------------------------------------
+
+@register
+def pull_rtmc_images() -> None:
+
+    rclone_transfer.transfer(
+        src=paths.get_remote_stream_path('network', 'rtmc_pull'),
+        dst=paths.get_local_stream_path('network', 'rtmc_pull'),
         )
 
 # -----------------------------------------------------------------------------
@@ -118,10 +130,10 @@ def push_cosmoz(site: str) -> None:
 @register
 def push_site_details_json() -> None:
 
-    src = paths.get_local_stream_path('network_info', 'info') / 'site_info.json'
+    src = paths.get_local_stream_path('network', 'info') / 'site_info.json'
     rclone_transfer.transfer(
         src=src,
-        dst=paths.get_remote_stream_path('network', 'status'),
+        dst=paths.get_remote_stream_path('network', 'info'),
         set_modtime=False,
         )
 

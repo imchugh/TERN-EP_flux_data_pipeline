@@ -41,6 +41,14 @@ class TestPullTasks(unittest.TestCase):
             tt.pull_slow_flux(SITE)
         mock_transfer.assert_not_called()
 
+    @patch(PATCH)
+    def test_pull_rtmc_images(self, mock_transfer):
+        tt.pull_rtmc_images()
+        mock_transfer.assert_called_once_with(
+            src='OneDrive_UoM:Documents/RTMC/Snapshots',
+            dst=Path('/store/Network/RTMC'),
+            )
+
 
 class TestPushSiteTasks(unittest.TestCase):
 
