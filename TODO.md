@@ -105,6 +105,59 @@ Replacing the legacy `data_constructors.details_constructor` (old repo) with
   TOA5/RTMC push pipeline is being shut down soon, so a new task isn't
   worth adding for the remaining lifetime.
 
+## COSMOZ data push migration (send_cosmoz_data.sh → push_cosmoz)
+
+Replacing the legacy bash/subprocess push of each site's COSMOZ cosmic-ray
+neutron soil-moisture file (`code/shell/send_cosmoz_data.sh` +
+`code/file_transfers/sftp_transfer.py::push_cosmoz`) with a
+`tasks/transfer_tasks.py::push_cosmoz(site)` task in this pipeline.
+
+### Done
+
+- [x] Replaced the pre-existing stub (`push_cosmoz` was already `@register`ed,
+      calling a nonexistent `infrastructure.sftp_transfer` module) with a
+      plain `rclone_transfer.transfer()` call — same shape as every other
+      task in the file, including the pipeline's other genuine SFTP
+      destination (`sftpgo:`). No bash script and no bespoke
+      `infrastructure/sftp_transfer.py`/subprocess layer in this repo at all;
+      the legacy shell script and its Python wrapper are fully superseded,
+      not duplicated.
+- [x] Added a `cosmoz` stream to `configs/paths.yml` under `raw_data`:
+      local `Ancillary/<site>_cosmoz_CRNS.dat`, remote `cosmoz:/incoming`.
+- [x] CSIRO's own site-naming convention for the remote `incoming/`
+      subdirectory (`AliceSpringsMulga`→`AliceMulga`,
+      `GreatWesternWoodlands`→`GWW`) is kept in a local `COSMOZ_ALIASES` dict
+      in `transfer_tasks.py`, deliberately separate from `paths.yml`'s global
+      `remote_aliases` map — that map applies to every remote stream for a
+      site, and `GreatWesternWoodlands` isn't aliased anywhere else (its
+      `uqrdm:` fast-flux/profile paths use the full name), so reusing it here
+      would have silently broken those transfers.
+- [x] Added a `push_cosmoz` column to `configs/tasks.csv`, `TRUE` for the
+      same 7 sites as the legacy CSV: `AliceSpringsMulga`, `Fletcherview`,
+      `GreatWesternWoodlands`, `Litchfield`, `MyallValeA`, `MyallValeB`,
+      `Tumbarumba`.
+- [x] Rewrote `tests/test_transfer_tasks.py::test_push_cosmoz` (previously
+      mocked the nonexistent `infrastructure.sftp_transfer` module) to mock
+      `rclone_transfer.transfer` like every sibling test; added an aliased-
+      site case (`GreatWesternWoodlands` → `GWW`) in `TestRemoteAlias`.
+- [x] New `cosmoz:` rclone remote registered (SFTP backend, host
+      `pftp.csiro.au`, user `cosmoz_station`, key
+      `~/.ssh/cosmoz_station_key`) — connectivity confirmed via
+      `rclone lsd cosmoz:/incoming` (per-site directories present, including
+      `AliceMulga`/`GWW`, confirming the alias mapping).
+- [x] Verified end-to-end with a real push:
+      `tasks.tasks.run_task('push_cosmoz', site='Litchfield')` succeeded, and
+      `Litchfield_cosmoz_CRNS.dat` confirmed present on the remote via
+      `rclone lsl cosmoz:/incoming/Litchfield`.
+- [x] Wired into `/etc/cron.d/epcn_tasks_new`:
+      `25 * * * * imchugh $HANDLER_PATH push_cosmoz` (own slot, hourly —
+      matches legacy cadence). No shared resources with any other cron
+      entry (own local file, own remote), so it doesn't matter whether it
+      shares a time slot with another line or not — cron doesn't serialize
+      across separate lines anyway (only same-line args, run sequentially by
+      `task_handler.sh`'s loop, are guaranteed ordered).
+- [x] Committed: `72a2864`.
+
 ## Known, out-of-scope issues noticed along the way
 
 - [ ] `WombatStateForest` sunrise/sunset comes back blank — RDF graph query
