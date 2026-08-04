@@ -47,7 +47,7 @@ def process_daily_tob_files(site: str, is_aux: bool = False) -> list[Path]:
     site_meta = SITE_REGISTRY.get_context(site=site).metadata
     time_step = int(site_meta.time_step)
     freq_hz = int(site_meta.freq_hz)
-    freq_str = f'{1000 // freq_hz}ms'
+    freq_str = _freq_str(freq_hz)
     today = dt.date.today()
 
     written = []
@@ -99,7 +99,7 @@ def process_daily_tob_files(site: str, is_aux: bool = False) -> list[Path]:
 
         try:
             _archive_tob3(
-                site=site, file=file, freq_hz=freq_hz,
+                site=site, file=file, freq_str=freq_str,
                 creation_date=creation_date, out_base=out_base,
             )
         except FileExistsError as exc:
@@ -137,15 +137,17 @@ def _parse_date(date_str: str) -> dt.date:
     return dt.datetime.strptime(date_str, tob.DATE_FORMAT).date()
 
 
+def _freq_str(freq_hz: int) -> str:
+    return f'{1000 // freq_hz}ms'
+
 
 def _archive_tob3(
     site: str,
     file: Path,
-    freq_hz: int,
+    freq_str: str,
     creation_date: dt.date,
     out_base: Path,
 ) -> None:
-    freq_str = f'{1000 // freq_hz}ms'
     archive_dir = out_base / creation_date.strftime('TOB3/%Y_%m')
     archive_dir.mkdir(parents=True, exist_ok=True)
 
