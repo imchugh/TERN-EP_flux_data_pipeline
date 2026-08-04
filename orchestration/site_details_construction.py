@@ -380,7 +380,7 @@ def build_site_details_json(site_list: list[str] | None = None) -> dict:
         }
 
     output_path = (
-        paths.get_local_stream_path(resource='network_info', stream='info')
+        paths.get_local_stream_path(resource='network', stream='info')
         / 'site_info.json'
         )
     file_io.write_json(file_path=output_path, data=data_list)
