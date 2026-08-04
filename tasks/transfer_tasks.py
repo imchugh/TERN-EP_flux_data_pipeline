@@ -19,6 +19,13 @@ REMOTE_COLLECTED_SITES = {'CumberlandPlain'}
 @register
 def pull_profile_raw(site: str) -> None:
 
+    if site not in REMOTE_COLLECTED_SITES:
+        raise ValueError(
+            f"'{site}' is not remote-collected — pull_profile_raw would "
+            "overwrite local data with a foreign copy. Remote-collected "
+            f"sites: {sorted(REMOTE_COLLECTED_SITES)}"
+            )    
+
     rclone_transfer.transfer(
         src=paths.get_remote_stream_path('raw_data', 'profile', site=site),
         dst=paths.get_local_stream_path('raw_data', 'profile', site=site),
@@ -93,6 +100,12 @@ def push_profile_processed(site: str) -> None:
 
 @register
 def push_profile_raw(site: str) -> None:
+
+    if site in REMOTE_COLLECTED_SITES:
+        raise ValueError(
+            f"'{site}' is remote-collected — push_profile_raw would overwrite "
+            "the canonical remote copy with a downstream copy."
+            )    
 
     rclone_transfer.transfer(
         src=paths.get_local_stream_path('raw_data', 'profile', site=site),
