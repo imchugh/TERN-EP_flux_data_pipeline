@@ -28,6 +28,12 @@ raw_data:
     profile:
       local: Profile
       remote: uqrdm:TERNEP-Q5937/Sites/<site>/Data/Profile/Raw
+    # Remote dir name doesn't follow <site>/remote_aliases like other
+    # streams — CSIRO's own site-naming convention (AliceMulga, GWW, ...)
+    # only applies here. See COSMOZ_ALIASES in transfer_tasks.py.
+    cosmoz:
+      local: Ancillary/<site>_cosmoz_CRNS.dat
+      remote: cosmoz:/incoming
 
 processed_data:
   base_path:

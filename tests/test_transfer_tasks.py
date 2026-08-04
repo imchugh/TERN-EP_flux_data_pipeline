@@ -102,11 +102,13 @@ class TestPushSiteTasks(unittest.TestCase):
             tt.push_slow_flux('CumberlandPlain')
         mock_transfer.assert_not_called()
 
-    def test_push_cosmoz(self):
-        mock_sftp = MagicMock()
-        with patch.dict(sys.modules, {'infrastructure.sftp_transfer': mock_sftp}):
-            tt.push_cosmoz(SITE)
-        mock_sftp.push_cosmoz.assert_called_once_with(site=SITE)
+    @patch(PATCH)
+    def test_push_cosmoz(self, mock_transfer):
+        tt.push_cosmoz(SITE)
+        mock_transfer.assert_called_once_with(
+            src=Path('/store/Raw_data/HowardSprings/Ancillary/HowardSprings_cosmoz_CRNS.dat'),
+            dst='cosmoz:/incoming/HowardSprings',
+            )
 
 
 class TestPushGlobalTasks(unittest.TestCase):
@@ -190,6 +192,14 @@ class TestRemoteAlias(unittest.TestCase):
         mock_transfer.assert_called_once_with(
             src=Path('/store/Raw_data/AliceSpringsMulga/Flux/Slow'),
             dst='uqrdm:TERNEP-Q5937/Sites/AliceMulga/Data/Flux/Raw/Slow',
+            )
+
+    @patch(PATCH)
+    def test_push_cosmoz_aliased_site(self, mock_transfer):
+        tt.push_cosmoz('GreatWesternWoodlands')
+        mock_transfer.assert_called_once_with(
+            src=Path('/store/Raw_data/GreatWesternWoodlands/Ancillary/GreatWesternWoodlands_cosmoz_CRNS.dat'),
+            dst='cosmoz:/incoming/GWW',
             )
 
 

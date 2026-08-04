@@ -117,11 +117,19 @@ def push_slow_flux(site: str) -> None:
 
 # -----------------------------------------------------------------------------
 
+# CSIRO's own site-naming convention for the incoming/ subdirectory — not
+# the same as paths.yml's remote_aliases (see note there).
+COSMOZ_ALIASES = {'AliceSpringsMulga': 'AliceMulga', 'GreatWesternWoodlands': 'GWW'}
+
+
 @register
 def push_cosmoz(site: str) -> None:
 
-    import infrastructure.sftp_transfer as sftpt
-    sftpt.push_cosmoz(site=site)
+    remote_dir = COSMOZ_ALIASES.get(site, site)
+    rclone_transfer.transfer(
+        src=paths.get_local_stream_path('raw_data', 'cosmoz', site=site),
+        dst=f"{paths.get_remote_stream_path('raw_data', 'cosmoz')}/{remote_dir}",
+        )
 
 # -----------------------------------------------------------------------------
 ### PUSH — global
