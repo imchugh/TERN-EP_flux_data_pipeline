@@ -3,7 +3,7 @@
 
 import datetime as dt
 
-from infrastructure import paths
+from infrastructure import file_io, paths
 from tasks.registry import register
 
 
@@ -68,10 +68,34 @@ def construct_site_details_json() -> None:
 # -----------------------------------------------------------------------------
 
 @register
-def update_EddyPro_master(site: str) -> None:
+def update_EddyPro_master(site: str) -> dict:
+    """Append new SmartFlux daily EddyPro summary files to the site's master file."""
 
-    import file_handling.eddypro_concatenator as epc
-    epc.update_eddypro_master(site=site)
+    from domain.enums import FluxSystemType
+    from services.data import eddypro_concatenator as epc
+    from services.metadata.site_registry import SiteRegistry
+
+    runtime_cfg = SiteRegistry().get_runtime_config(site)
+    if runtime_cfg.flux_system != FluxSystemType.SMARTFLUX:
+        # Guards against tasks.csv drift / a stray direct call fanning this
+        # out to a non-EddyPro site — derived from the site's own config
+        # rather than a separately maintained site list, so there's nothing
+        # to keep in sync.
+        raise ValueError(
+            f"'{site}' does not run SmartFlux (flux_system="
+            f"{runtime_cfg.flux_system.value!r}) — update_EddyPro_master "
+            "only applies to SmartFlux sites."
+            )
+
+    data_path = paths.get_local_stream_path(
+        resource='raw_data', stream='flux_slow', site=site
+        )
+    master = data_path / runtime_cfg.flux_filename
+    candidates = file_io.list_available_files(data_path, '*EP-Summary.txt')
+    slaves = epc.select_new_slaves(master=master, candidates=candidates)
+
+    report = epc.concatenate_eddypro(master=master, slaves=slaves, output=master)
+    return {'status': 'success', **report}
 
 # -----------------------------------------------------------------------------
 

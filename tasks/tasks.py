@@ -221,8 +221,15 @@ def _get_sites_for_task(task: str) -> list[str]:
     try:
         return mngr.get_site_list_for_task(task=task)
     except KeyError:
-        logger.warning('task_not_in_csv', extra={'task': task, 'fallback': 'all_sites'})
-        return mngr.get_site_list()
+        # Fail closed: a task missing from tasks.csv must not silently run
+        # against every site (a stale process holding an outdated tasks.csv
+        # snapshot, or a genuinely un-added column, would otherwise fan a
+        # site-scoped task out to sites it was never meant to touch).
+        raise ValueError(
+            f"Task '{task}' has no column in tasks.csv, so its site list is "
+            "undefined. Add a column for it (defaulting sites it doesn't "
+            "apply to as FALSE) before running it without an explicit --site."
+            ) from None
 
 # -----------------------------------------------------------------------------
 
