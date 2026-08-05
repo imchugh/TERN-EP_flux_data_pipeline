@@ -120,7 +120,7 @@ def split_by_interval(
         end = day_start + dt.timedelta(minutes=(i + 1) * interval_minutes)
         subset = df.loc[start:end]
         if not subset.empty:
-            yield end.to_pydatetime(), subset
+            yield end, subset
 
 
 def get_file_info(file: Path) -> dict:
