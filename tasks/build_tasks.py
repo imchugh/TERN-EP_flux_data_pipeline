@@ -100,24 +100,11 @@ def update_EddyPro_master(site: str) -> dict:
 # -----------------------------------------------------------------------------
 
 @register
-def process_profile_data(site: str) -> None:
+def process_profile_data(site: str) -> dict:
+    """Compute the CO2 storage term for legacy profile-instrumented sites."""
 
-    import profile_processing.profile_data_processor as pdp
-    output_path = paths.get_local_stream_path(
-        resource='processed_data', stream='profile', site=site,
-        )
-    processor = pdp.load_site_profile_processor(site=site)
-    processor.write_to_csv(file_name=output_path / 'storage_data.csv')
-    processor.plot_diel_storage_mean(
-        output_to_file=output_path / 'diel_storage_mean.png', open_window=False
-        )
-    processor.plot_time_series(
-        output_to_file=output_path / 'time_series.png', open_window=False
-        )
-    processor.plot_vertical_evolution_mean(
-        output_to_file=output_path / 'vertical_evolution_mean.png',
-        open_window=False
-        )
+    from orchestration import profile_processing
+    return profile_processing.build_profile_output(site=site)
 
 # -----------------------------------------------------------------------------
 
