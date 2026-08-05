@@ -21,10 +21,10 @@ raw_data:
       remote: uqrdm:TERNEP-Q5937/Sites/<site>/Data/Flux/Raw/Slow
     flux_fast:
       local: Flux/Fast
-      remote: uqrdm:FLUXARCH23-Q6223/Sites/<site>/Data/Flux/Raw/Fast/TOB3
+      remote: uqrdm:FLUXARCH23-Q6223/Sites/<site>/Data/Flux/Raw/Fast
     flux_fast_aux:
       local: Flux_aux/Fast
-      remote: uqrdm:FLUXARCH23-Q6223/Sites/<site>/Data/Flux_aux/Raw/Fast/TOB3
+      remote: uqrdm:FLUXARCH23-Q6223/Sites/<site>/Data/Flux_aux/Raw/Fast
     profile:
       local: Profile
       remote: uqrdm:TERNEP-Q5937/Sites/<site>/Data/Profile/Raw
