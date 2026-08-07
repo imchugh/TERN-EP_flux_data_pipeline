@@ -196,6 +196,20 @@ def push_status_geojson() -> None:
 # -----------------------------------------------------------------------------
 
 @register
+def push_legacy_status_geojson() -> None:
+    """Push the legacy-format network_status.json. See
+    orchestration/legacy_network_status.py for removal notes."""
+
+    src = paths.get_local_stream_path('network', 'status') / 'network_status.json'
+    rclone_transfer.transfer(
+        src=src,
+        dst=paths.get_remote_stream_path('network', 'status'),
+        set_modtime=False,
+        )
+
+# -----------------------------------------------------------------------------
+
+@register
 def push_rtmc_images() -> None:
 
     rclone_transfer.transfer(
