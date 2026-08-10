@@ -1,0 +1,39 @@
+name: ep_cntl
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - geojson
+  - mkdocs
+  - mkdocs-material
+  - mkdocstrings-python
+  - spyder-kernels=3.1.2
+  - configobj
+  - ephem
+  - git
+  - gspread
+  - jinja2
+  - matplotlib
+  - netcdf4
+  - numpy
+  - oauth2client
+  - openpyxl
+  - pandas
+  - pyyaml
+  - qt
+  - rich
+  - scipy
+  - timezonefinder
+  - xarray
+  - xlrd
+  - xlsxwriter
+  - dask-core
+  - pydantic
+  - pint
+  - nicegui
+  - rapidfuzz
+  - piexif
+  - cf-units
+  - pip
+  - pip:
+      - ruff

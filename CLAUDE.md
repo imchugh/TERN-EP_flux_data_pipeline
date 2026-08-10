@@ -2,8 +2,9 @@
 
 ## Development Environment
 
-- **Conda environment**: `ep_cntl` — activate before running scripts or installing packages
+- **Conda environment**: `ep_cntl` — activate before running scripts or installing packages. Build it from `environment.yml` (`conda env create -f environment.yml`); update that file (`conda env export --from-history`, then re-add the `pip:` section) after installing anything new.
 - `rapidfuzz` is installed in `ep_cntl` (used by `services/metadata/instrument_registry.py` for fuzzy instrument name matching)
+- `ruff` (formatting/linting, see `pyproject.toml`) is pip-installed in `ep_cntl`, not conda-installed
 - **Site config files**: `/opt/TERN_EP/site_configs/operational/` — per-site YAML configs (e.g. `MyallValeA.yml`)
 
 ## Project Purpose
