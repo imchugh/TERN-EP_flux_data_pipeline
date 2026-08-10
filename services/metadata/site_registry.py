@@ -6,8 +6,6 @@ runtime configuration YML file exists. The repository
 (site_metadata_repository) is broader — it covers all TERN sites
 including decommissioned and non-pipeline sites. The registry filters
 that down to the pipeline population.
-
-@author: imchugh
 """
 
 from collections.abc import Callable
@@ -22,14 +20,10 @@ from services.metadata.runtime_config_loader import (
     load_runtime_config,
 )
 
-# -----------------------------------------------------------------------------
-
 
 class InvalidSiteError(KeyError):
-    pass
+    """Raised when a site is not configured in the pipeline."""
 
-
-# -----------------------------------------------------------------------------
 
 SITE_CONFIG_DIR = paths.get_local_stream_path(
     resource="configs", stream="site_config_files"
@@ -48,8 +42,6 @@ LEGACY_SITE_CONFIG_DIR = paths.get_local_stream_path(
 # renamed; remove this entry once that migration is done.
 SITE_ALIASES = {"WombatStateForest": "WombatForest"}
 
-# -----------------------------------------------------------------------------
-
 
 @dataclass(frozen=True)
 class SiteContext:
@@ -57,9 +49,6 @@ class SiteContext:
 
     runtime_config: SiteRuntimeConfig
     metadata: SiteMetadata
-
-
-# -----------------------------------------------------------------------------
 
 
 class SiteRegistry:
@@ -76,33 +65,30 @@ class SiteRegistry:
         self,
         metadata_loader: Callable[[], dict[str, SiteMetadata]] = None,
     ):
+        """Create a registry instance with an empty metadata/runtime-config cache.
 
+        Args:
+            metadata_loader: callable returning site-name-keyed SiteMetadata.
+                Defaults to `yml_loader`; pass `rdf_loader` for live RDF data.
+        """
         self._metadata_loader = (
             metadata_loader if metadata_loader is not None else yml_loader
         )
         self._metadata_cache: dict[str, SiteMetadata] | None = None
         self._runtime_config_cache: dict[tuple[str, bool], SiteRuntimeConfig] = {}
 
-    # --------------------------------------------------------------------------
-
     def names(self) -> list[str]:
         """Return all configured pipeline site names."""
         return sorted(path.stem for path in SITE_CONFIG_DIR.glob("*.yml"))
-
-    # --------------------------------------------------------------------------
 
     def exists(self, site: str) -> bool:
         """Return True if site is configured in the pipeline."""
         return (SITE_CONFIG_DIR / f"{site}.yml").exists()
 
-    # --------------------------------------------------------------------------
-
     def require(self, site: str) -> None:
         """Raise InvalidSiteError if site is not in the pipeline."""
         if not self.exists(site):
             raise InvalidSiteError(f"Site is not configured in the pipeline: {site}")
-
-    # --------------------------------------------------------------------------
 
     def get_config_path(self, site: str, legacy: bool = False) -> Path:
         """Return the runtime config path for a pipeline site.
@@ -123,8 +109,6 @@ class SiteRegistry:
             raise InvalidSiteError(f"No legacy config found for site: {site}")
         return legacy_path
 
-    # --------------------------------------------------------------------------
-
     def get_all_metadata(self) -> dict[str, SiteMetadata]:
         """Return metadata for all pipeline sites.
 
@@ -141,8 +125,6 @@ class SiteRegistry:
 
         return self._metadata_cache
 
-    # --------------------------------------------------------------------------
-
     def get_metadata(self, site: str) -> SiteMetadata:
         """Load metadata for a single pipeline site."""
         self.require(site)
@@ -150,8 +132,6 @@ class SiteRegistry:
         if metadata is None:
             raise InvalidSiteError(f"No metadata found for site {site}!")
         return metadata
-
-    # --------------------------------------------------------------------------
 
     def get_runtime_config(self, site: str, legacy: bool = False) -> SiteRuntimeConfig:
         """Load runtime configuration for a pipeline site.
@@ -173,8 +153,6 @@ class SiteRegistry:
             self._runtime_config_cache[cache_key] = load_runtime_config(config_path)
         return self._runtime_config_cache[cache_key]
 
-    # --------------------------------------------------------------------------
-
     def get_context(self, site: str, legacy: bool = False) -> SiteContext:
         """Assemble the combined site context object.
 
@@ -189,9 +167,6 @@ class SiteRegistry:
             runtime_config=self.get_runtime_config(site, legacy=legacy),
             metadata=self.get_metadata(site),
         )
-
-
-# -----------------------------------------------------------------------------
 
 
 def yml_loader() -> dict[str, SiteMetadata]:

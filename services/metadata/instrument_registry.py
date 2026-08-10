@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""@author: imchugh
-"""
+"""TERN instrument-vocabulary lookups, alias mapping, and name corrections."""
 
 import functools
 import logging
@@ -73,7 +72,7 @@ def _get_name_corrections() -> dict[str, str]:
 
 @functools.lru_cache(maxsize=1)
 def _get_pending_instruments() -> dict[str, str]:
-    """Load pending instrument names (no vocab entry yet) mapped to their alias category."""
+    """Load pending instrument names (no vocab entry yet), mapped to alias category."""
     try:
         raw = config_loader.load_config_file_from_name("instrument_name_corrections")
         return raw.get("pending", {}) or {}
@@ -257,7 +256,8 @@ def list_instruments_for_quantity(quantity: str) -> list[str]:
         include the quantity.
 
     Raises:
-        KeyError: if quantity is compound — use list_instruments_for_compound_quantity().
+        KeyError: if quantity is compound — use
+            list_instruments_for_compound_quantity() instead.
     """
     if is_compound_quantity(quantity):
         raise KeyError(
@@ -268,7 +268,7 @@ def list_instruments_for_quantity(quantity: str) -> list[str]:
     vocab_registry = _get_vocab_registry()
 
     instruments: set[str] = set()
-    for alias, cfg in alias_map.items():
+    for cfg in alias_map.values():
         if quantity in cfg.get("quantities", []):
             for k in cfg["vocab_keys"]:
                 instruments.update(vocab_registry.get(_normalize_key(k), []))
@@ -295,7 +295,6 @@ def list_instruments_for_compound_quantity(quantity: str) -> dict[str, list[str]
         KeyError: if quantity is not a known compound quantity.
     """
     components = get_quantity_components(quantity)
-    alias_map = _get_alias_map()
     pending = _get_pending_instruments()
 
     result = {}

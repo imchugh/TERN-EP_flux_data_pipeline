@@ -1,13 +1,4 @@
-"""Created on Mon Sep 12 12:34:58 2022
-
-@author: jcutern-imchugh
-
-This script fetches flux station details from TERN's SPARQL endpoint
-"""
-
-###############################################################################
-### BEGIN IMPORTS ###
-###############################################################################
+"""Fetch flux station details from TERN's SPARQL endpoint."""
 
 from domain.data_models.metadata_classes import SiteMetadata
 from infrastructure import external_io, file_io, paths
@@ -15,15 +6,6 @@ from infrastructure.datetime_utils import get_timezone, get_UTC_offset
 from services import config_loader
 from services.metadata import rdf_label_resolver
 from services.metadata.site_registry import InvalidSiteError
-
-###############################################################################
-### END IMPORTS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN INITS ###
-###############################################################################
 
 ALIAS_DICT = {
     "Aqueduct Snow Gum": "SnowGum",
@@ -43,20 +25,8 @@ _SPARQL_CACHE = None
 _CREDS_CACHE = None
 _METADATA_CACHE = None
 
-###############################################################################
-### END INITS ###
-###############################################################################
 
-
-###############################################################################
-### BEGIN FUNCTIONS ###
-###############################################################################
-
-# -----------------------------------------------------------------------------
 # QUERY LOAD / EXECUTION UTILITIES
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
 
 
 def _get_CREDS_CACHE() -> dict:
@@ -75,14 +45,11 @@ def _get_CREDS_CACHE() -> dict:
     return _CREDS_CACHE
 
 
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-
 def load_sparql_configs() -> dict:
     """Load the SPARQL queries from YAML if not already loaded.
-    Returns a dictionary with keys for each query.
+
+    Returns:
+        Dict with keys for each query.
     """
     global _SPARQL_CACHE
     if _SPARQL_CACHE is None:
@@ -92,24 +59,13 @@ def load_sparql_configs() -> dict:
     return _SPARQL_CACHE
 
 
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-
 def available_sparql_queries() -> list[str]:
     """Return a list of available SPARQL query keywords."""
     return list(load_sparql_configs()["queries"].keys())
 
 
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-
 def get_sparql_query(query_key: str) -> str:
-    """Return the query string for a given keyword.
-    """
+    """Return the query string for a given keyword."""
     queries = load_sparql_configs()["queries"]
 
     try:
@@ -117,21 +73,18 @@ def get_sparql_query(query_key: str) -> str:
     except KeyError:
         raise ValueError(
             f"Query '{query_key}' not found. Available queries: {list(queries)}"
-        )
-
-
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
+        ) from None
 
 
 def run_query(query_key: str, end_point: str = "knowledge_graph_core") -> dict:
-    """Args:
-        query_key: query label in yml file (see available_sparqle_queries for a list).
+    """Execute a named SPARQL query against the given endpoint.
+
+    Args:
+        query_key: query label in yml file (see available_sparql_queries for a list).
+        end_point: SPARQL endpoint key in the sparql_endpoints config section.
 
     Returns:
-        json bindings.
-
+        JSON response bindings.
     """
     # Load the query config strings
     configs = load_sparql_configs()
@@ -151,23 +104,12 @@ def run_query(query_key: str, end_point: str = "knowledge_graph_core") -> dict:
     return rslt.get("results", {}).get("bindings", [])
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
 def parse_sparql_bindings(bindings: list[dict]) -> list[dict]:
-    """Convert SPARQL JSON bindings into a list of simple dictionaries.
-    """
+    """Convert SPARQL JSON bindings into a list of simple dictionaries."""
     return [{key: val["value"] for key, val in row.items()} for row in bindings]
 
 
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
 # DOMAIN QUERIES
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
 
 
 def get_flux_tower_predicates_from_rdf() -> dict:
@@ -182,21 +124,11 @@ def get_flux_tower_predicates_from_rdf() -> dict:
     return {row["predicate"].split("/")[-1]: row["predicate"] for row in rows}
 
 
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-
 def get_flux_tower_attrs_from_rdf() -> dict:
     """Get the UIDs of the RDF graph nested attrs for flux towers.
 
-    Args:
-        do_format (optional): return the data as a type-formatted and
-        validated site-indexed metadata dataframe. Defaults to False.
-
     Returns:
-        dictionary mapping common names (keys) to UIDs (values).
-
+        Dictionary mapping common names (keys) to UIDs (values).
     """
     bindings = run_query(query_key="get_attributes")
     uuid_list = [b["attr_uuid"]["value"] for b in bindings]
@@ -206,21 +138,15 @@ def get_flux_tower_attrs_from_rdf() -> dict:
     }
 
 
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-
 def get_flux_tower_geometry_from_rdf(format_site_names: bool = True) -> dict[str, dict]:
     """Get lat / long / elevation nested attributes.
 
     Args:
-        format_site_names (optional): return the data as a type-formatted and
-        validated site-indexed metadata dataframe. Defaults to True.
+        format_site_names: if True (default), rewrite RDF labels to EP/DSA
+            site names via `convert_site_label`.
 
     Returns:
-        dict with site name keys and geo info dict as value.
-
+        Dict with site name keys and geo info dict as value.
     """
     rows = parse_sparql_bindings(run_query("get_geometry"))
 
@@ -241,26 +167,26 @@ def get_flux_tower_geometry_from_rdf(format_site_names: bool = True) -> dict[str
     return rslt
 
 
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-
 def get_flux_tower_fields_from_rdf(
     query: str = "operational",
     format_site_names: bool = True,
     current_only: bool = True,
     add_tz_vars=True,
 ) -> dict:
-    """Get the values for the operationally-required global metadata fields from
-    the RDF graph.
+    """Get flux tower global metadata fields from the RDF graph, keyed by site name.
 
     Args:
-        fields (TYPE, optional): DESCRIPTION. Defaults to 'operational'.
+        query: 'operational' (default) or 'extended' — selects which
+            SPARQL query mode to run.
+        format_site_names: if True, rewrite RDF labels to EP/DSA site names
+            via `convert_site_label`.
+        current_only: if True, skip sites with a date_decommissioned value.
+        add_tz_vars: if True, add time_zone/UTC_offset fields derived from
+            latitude/longitude (left as None if either is missing).
 
     Returns:
-        data: type-formatted and validated site-indexed metadata dataframe.
-
+        Dict keyed by site name, sorted, each value a dict of raw RDF
+        attributes for that site.
     """
     # Set query
     mode = "get_operational"
@@ -300,11 +226,6 @@ def get_flux_tower_fields_from_rdf(
     return {site: rslt[site] for site in sorted(rslt)}
 
 
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-
 def _get_fields_from_source(source: str = "yml") -> dict:
     """Internal: load raw site fields from yml snapshot or RDF endpoint.
 
@@ -320,11 +241,6 @@ def _get_fields_from_source(source: str = "yml") -> dict:
     if source == "rdf":
         return get_flux_tower_fields_from_rdf()
     raise TypeError(f"Source {source} not recognised!")
-
-
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
 
 
 def write_flux_tower_fields_config(overwrite: bool = False) -> None:
@@ -349,11 +265,6 @@ def write_flux_tower_fields_config(overwrite: bool = False) -> None:
     file_io.write_yml_file(file_path=file_path, data=rslt)
 
 
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-
 def get_all_tern_metadata() -> dict[str, SiteMetadata]:
     """Return metadata for all TERN sites (cached).
 
@@ -374,20 +285,11 @@ def get_all_tern_metadata() -> dict[str, SiteMetadata]:
     return _METADATA_CACHE
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
 def get_instrument_vocab():
-
+    """Return the raw SPARQL bindings for the TERN instrument controlled vocabulary."""
     return parse_sparql_bindings(
         run_query(query_key="get_instrument_vocabulary", end_point="tern_vocabs_core")
     )
-
-
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
 
 
 def get_tern_site_metadata(site: str) -> SiteMetadata:
@@ -412,13 +314,7 @@ def get_tern_site_metadata(site: str) -> SiteMetadata:
     return metadata
 
 
-# -----------------------------------------------------------------------------
-
-# -------------------------------------------------------------------------------
 # UTILITY FUNCTIONS
-# -------------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
 
 
 def convert_site_label(label: str) -> str:
@@ -433,10 +329,3 @@ def convert_site_label(label: str) -> str:
     """
     label_clean = label.replace(" Flux Station", "")
     return ALIAS_DICT.get(label_clean, label_clean).replace(" ", "")
-
-
-# -----------------------------------------------------------------------------
-
-###############################################################################
-### END FUNCTIONS ###
-###############################################################################

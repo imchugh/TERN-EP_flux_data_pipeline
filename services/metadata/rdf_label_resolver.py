@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""Created on Tue Dec  9 12:02:01 2025
-
-@author: imchugh
-"""
+"""Resolve TERN CV URI labels from the TERN data store."""
 
 import logging
 from functools import lru_cache
@@ -30,8 +27,11 @@ LABEL_PREDICATES = {
 @lru_cache(maxsize=1024)
 def fetch_label(uri: str):
     """Dereference a TERN CV UUID URI and extract a human-readable label.
+
     Supports JSON-LD, RDF/XML, and Turtle.
-    Returns a string or None.
+
+    Returns:
+        Label string, or None if no usable label was found.
     """
     try:
         response = requests.get(uri, headers=ACCEPT_HEADERS, timeout=15)
@@ -40,7 +40,7 @@ def fetch_label(uri: str):
         logger.debug("Could not fetch label for %s: %s", uri, exc)
         return None  # network errors or 404 -> no label available
 
-    # ---- Try JSON-LD first (preferred) --------------------------------------
+    # Try JSON-LD first (preferred)
     try:
         data = response.json()
         # Could be @graph or single object
@@ -61,7 +61,7 @@ def fetch_label(uri: str):
         logger.debug("Response for %s was not usable JSON-LD: %s", uri, exc)
         # Not JSON-LD (or an unexpected shape) – try RDF/XML/Turtle
 
-    # ---- Fallback: regex text scan for literal labels -----------------------
+    # Fallback: regex text scan for literal labels
     # (works for RDF/XML or Turtle if lightweight)
     text = response.text
 
@@ -80,8 +80,7 @@ def fetch_label(uri: str):
 
 
 def dereference_labels(uris):
-    """Given a list of UUID URIs, return a mapping: URI → label or None.
-    """
+    """Given a list of UUID URIs, return a mapping: URI → label or None."""
     results = {}
     for uri in uris:
         results[uri] = fetch_label(uri)
