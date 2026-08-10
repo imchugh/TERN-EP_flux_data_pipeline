@@ -572,7 +572,15 @@ def build_query_str(
 
     Returns:
         Command substring suitable for passing to ``resolve_url``.
+
+    Raises:
+        ValueError: If ``mode`` is not one of ``ALLOWED_QUERY_MODES``.
     """
+
+    if mode not in ALLOWED_QUERY_MODES:
+        raise ValueError(
+            f'mode must be one of {", ".join(ALLOWED_QUERY_MODES)}'
+            )
 
     variable_syntax = '' if variable is None else f'.{variable}'
     return f'dataquery&uri=dl:{table}{variable_syntax}&mode={mode}{config_str}'
