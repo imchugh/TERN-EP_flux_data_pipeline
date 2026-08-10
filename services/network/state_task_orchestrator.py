@@ -29,7 +29,10 @@ Example:
     aggregate(output='geojson')
 
     # Low-level: run a task not in the registry (e.g. ad-hoc gateway scan):
-    from services.network.connectivity import connectivity_sites, persist_connectivity_state
+    from services.network.connectivity import (
+        connectivity_sites,
+        persist_connectivity_state,
+    )
 
     run_task_for_all_sites(
         task=make_connectivity_task(hardware='gateway'),
@@ -76,20 +79,16 @@ SITE_SUMMARY_PATH = STATE_DIR / "site_summary.json"
 # Shared type alias for the two-argument persist-callback contract.
 type PersistFn = Callable[[dict[str, Any], str], None]
 
-# ---------------------------------------------------------------------------
 # Shared registry — built once at import time, metadata cache pre-warmed
 # before each concurrent run.
-# ---------------------------------------------------------------------------
 
 SITE_REGISTRY = SiteRegistry()
 
-# ---------------------------------------------------------------------------
 # Task adapters
 #
 # Each adapter wraps an existing task function so that it conforms to the
 # task(site: str) -> dict contract expected by the orchestrator.
 # Add one adapter here for each new task; keep adapters thin.
-# ---------------------------------------------------------------------------
 
 
 def missing_data_task(site: str) -> dict[str, Any]:
@@ -204,9 +203,7 @@ def make_connectivity_task(
     return _task
 
 
-# ---------------------------------------------------------------------------
 # Persistence helpers
-# ---------------------------------------------------------------------------
 
 
 def write_state(
@@ -244,7 +241,6 @@ def write_state(
     logger.info("state_written", extra={"path": str(out_path)})
 
 
-# ---------------------------------------------------------------------------
 # State task registry
 #
 # Each entry maps directly to the kwargs of run_task_for_all_sites.
@@ -252,7 +248,6 @@ def write_state(
 # sites=None means run_task_for_all_sites uses the full pipeline registry.
 # connectivity_sites() is evaluated at import time; it reads a static config
 # so this is safe for a daily cron job.
-# ---------------------------------------------------------------------------
 
 _CONNECTIVITY_SITES = connectivity_sites()
 
@@ -293,9 +288,7 @@ STATE_TASK_SPECS: list[dict[str, Any]] = [
 ]
 
 
-# ---------------------------------------------------------------------------
 # Orchestration
-# ---------------------------------------------------------------------------
 
 
 def run_task_for_all_sites(
@@ -492,7 +485,7 @@ def run_task(task_name: str) -> dict[str, dict[str, Any]]:
     try:
         spec = next(s for s in STATE_TASK_SPECS if s["task_name"] == task_name)
     except StopIteration:
-        raise KeyError(f"No task registered under name {task_name!r}")
+        raise KeyError(f"No task registered under name {task_name!r}") from None
 
     return run_task_for_all_sites(**spec)
 

@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""Created on Fri May 22 15:11:54 2026
-
-@author: imchugh
-"""
+"""Logger last-contact status check."""
 
 import logging
 from typing import Any
@@ -28,7 +25,6 @@ NULL_RESULT: dict[str, Any] = {key: None for key in SUMMARY_SUBSET + STATUS_SUBS
 }
 
 
-# -----------------------------------------------------------------------------
 def get_logger_status(ip_addr: str) -> dict[str, Any]:
     """Fetch and filter status fields from a Campbell datalogger.
 
@@ -51,10 +47,6 @@ def get_logger_status(ip_addr: str) -> dict[str, Any]:
     }
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
 def check_logger_status(site: str) -> dict[str, Any]:
     """Fetch datalogger status for a named pipeline site.
 
@@ -92,6 +84,3 @@ def check_logger_status(site: str) -> dict[str, Any]:
             extra={"site": site, "ip_addr": ip_addr, "error": str(exc)},
         )
         return NULL_RESULT | {"error": str(exc)}
-
-
-# -----------------------------------------------------------------------------

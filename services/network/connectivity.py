@@ -11,10 +11,6 @@ Purpose:
 Designed for cron/systemd timer execution.
 """
 
-###############################################################################
-### BEGIN IMPORTS ###
-###############################################################################
-
 import logging
 from copy import deepcopy
 from dataclasses import dataclass
@@ -22,21 +18,10 @@ from pathlib import Path
 from typing import Any
 
 from infrastructure import paths
-
-# -----------------------------------------------------------------------------
 from infrastructure.connections import PortScanError, scan_tcp_port
 from infrastructure.datetime_utils import get_utc_now
 from infrastructure.file_io import read_json, write_json
 from services import config_loader
-
-###############################################################################
-### END IMPORTS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN INITS ###
-###############################################################################
 
 logger = logging.getLogger(__name__)
 
@@ -48,36 +33,24 @@ DEFAULT_STATE = {"updated_at": None, "sites": {}}
 SUBNET_IP = {"gateway": 1, "ec": 100, "soil": 101, "profile": 102}
 LOGGER_DEFAULT_PORT = 6785
 
-###############################################################################
-### END INITS ###
-###############################################################################
-
 
 @dataclass(frozen=True)
 class ConnectivityCheckResult:
+    """Result of one TCP connectivity scan against a site endpoint."""
+
     reachable: bool
     port: int
     latency_ms: int | None = None
     error: str | None = None
 
 
-###############################################################################
-### BEGIN FUNCTIONS ###
-###############################################################################
-
-
-# -----------------------------------------------------------------------------
 def connectivity_sites() -> list[str]:
     """Return site names available for connectivity scanning."""
     return list(SITE_IP.keys())
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
 def resolve_endpoint(vpn_ip: str, logger_type: str = "ec") -> str:
-
+    """Build the on-site subnet IP for a logger type from its VPN gateway IP."""
     if logger_type not in SUBNET_IP:
         raise ValueError(
             f"Logger type {logger_type} not implemented. "
@@ -87,39 +60,24 @@ def resolve_endpoint(vpn_ip: str, logger_type: str = "ec") -> str:
     return f"192.168.{vpn_ip.split('.')[-1]}.{subnet_addr}"
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
 def load_state(path: Path) -> dict[str, Any]:
-    """Load existing network state file.
-    """
+    """Load existing network state file."""
     if not path.exists():
         return deepcopy(DEFAULT_STATE)
 
     return read_json(file_path=path)
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
 def save_state(state: dict[str, Any], path: Path) -> None:
-    """Save state file.
-    """
+    """Save state file."""
     write_json(file_path=path, data=state, sort_keys=True)
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
 def ensure_site_block(
     state: dict[str, Any],
     site_name: str,
 ) -> dict[str, Any]:
-    """Ensure per-site state block exists, returning it for in-place mutation.
-    """
+    """Ensure per-site state block exists, returning it for in-place mutation."""
     return state.setdefault("sites", {}).setdefault(
         site_name,
         {
@@ -131,13 +89,8 @@ def ensure_site_block(
     )
 
 
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-
 def run_endpoint_scan(host: str, port: int) -> ConnectivityCheckResult:
-
+    """Scan one host/port endpoint, wrapping the result as a ConnectivityCheckResult."""
     try:
         result = scan_tcp_port(
             host=host,
@@ -160,10 +113,6 @@ def run_endpoint_scan(host: str, port: int) -> ConnectivityCheckResult:
     return output
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
 def run_site_connectivity(site: str, hardware: str = "gateway") -> dict[str, Any]:
     """Run a connectivity check for a single site.
 
@@ -204,10 +153,6 @@ def run_site_connectivity(site: str, hardware: str = "gateway") -> dict[str, Any
     }
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
 def persist_connectivity_state(
     results: dict[str, Any],
     task_name: str,
@@ -247,6 +192,3 @@ def persist_connectivity_state(
 
     state["updated_at"] = now
     save_state(state=state, path=path)
-
-
-# -----------------------------------------------------------------------------

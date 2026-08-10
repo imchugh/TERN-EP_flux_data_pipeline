@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""Created on Thu May 14 09:30:42 2026
-
-@author: imchugh
-"""
+"""Site health monitoring: record coverage, flux-variable quality, threshold checks."""
 
 import logging
 from datetime import datetime, timedelta
@@ -45,9 +42,6 @@ THRESHOLD_NULL_RESULT: dict[str, Any] = {
 
 _MONITOR_STATISTIC_TYPES = {StatisticType.AVG, None}
 _MONITOR_VARIABLE_TYPES = {VariableType.CONTINUOUS}
-
-
-# -----------------------------------------------------------------------------
 
 
 def get_missing_records(
@@ -126,12 +120,6 @@ def get_missing_records(
     return results
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
-
-
 def _build_monitor_series(
     df: pd.DataFrame,
     quantity: str,
@@ -188,12 +176,6 @@ def _build_monitor_series(
     return combined.dropna()
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
-
-
 def get_variable_quality(
     df: pd.DataFrame,
     context: SiteContext,
@@ -244,12 +226,6 @@ def get_variable_quality(
     return results
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
-
-
 def _build_threshold_series(
     df: pd.DataFrame,
     quantity: str,
@@ -296,12 +272,6 @@ def _build_threshold_series(
         combined = combined.combine_first(s)
 
     return combined.dropna()
-
-
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
 
 
 def get_threshold_quality(
@@ -356,10 +326,6 @@ def get_threshold_quality(
     return results
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
 def analyse_missing_data(context: SiteContext) -> dict[str, Any]:
     """Analyse data recency and record coverage for a site.
 
@@ -419,10 +385,6 @@ def analyse_missing_data(context: SiteContext) -> dict[str, Any]:
     return result
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
 def analyse_variable_quality(context: SiteContext) -> dict[str, Any]:
     """Analyse plausible-value coverage for each monitored flux variable.
 
@@ -454,10 +416,6 @@ def analyse_variable_quality(context: SiteContext) -> dict[str, Any]:
     )
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
 def analyse_threshold_quality(context: SiteContext) -> dict[str, Any]:
     """Analyse threshold-based coverage for each entry in THRESHOLD_SPECS.
 
@@ -496,6 +454,3 @@ def analyse_threshold_quality(context: SiteContext) -> dict[str, Any]:
         reference_date=local_now_naive,
         interval_minutes=context.metadata.time_step,
     )
-
-
-# -----------------------------------------------------------------------------

@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""Created on Fri May 22 2026
-
-@author: imchugh
-"""
+"""NetCDF file last-record freshness check."""
 
 import logging
 import pathlib
@@ -28,7 +25,6 @@ NULL_RESULT: dict[str, Any] = {
 }
 
 
-# -----------------------------------------------------------------------------
 def get_nc_site_dir(site: str) -> pathlib.Path:
     """Return the directory containing L1 NetCDF files for a site.
 
@@ -41,10 +37,6 @@ def get_nc_site_dir(site: str) -> pathlib.Path:
     return paths.get_local_stream_path(resource="homogenised_data", stream="nc") / site
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
 def get_latest_nc_file(site: str) -> pathlib.Path:
     """Return the path to the most recent L1 NetCDF file for a site.
 
@@ -82,10 +74,6 @@ def get_latest_nc_file(site: str) -> pathlib.Path:
     return stable[-1]
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
 def check_nc_last_record(site: str) -> dict[str, Any]:
     """Report the last data record in the most recent L1 NetCDF file for a site.
 
@@ -146,6 +134,3 @@ def check_nc_last_record(site: str) -> dict[str, Any]:
             extra={"site": site, "error": str(exc)},
         )
         return NULL_RESULT | {"error": str(exc)}
-
-
-# -----------------------------------------------------------------------------
