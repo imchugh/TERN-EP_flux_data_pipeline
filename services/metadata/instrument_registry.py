@@ -5,9 +5,12 @@
 """
 
 import functools
+import logging
 
 from services import config_loader
 from services.metadata.site_metadata_repository import get_instrument_vocab
+
+logger = logging.getLogger(__name__)
 
 
 def _normalize_key(label: str) -> str:
@@ -64,7 +67,8 @@ def _get_name_corrections() -> dict[str, str]:
     try:
         raw = config_loader.load_config_file_from_name('instrument_name_corrections')
         return raw.get('corrections', {}) or {}
-    except Exception:
+    except FileNotFoundError:
+        logger.debug("No instrument_name_corrections config found; no corrections applied")
         return {}
 
 
@@ -74,7 +78,8 @@ def _get_pending_instruments() -> dict[str, str]:
     try:
         raw = config_loader.load_config_file_from_name('instrument_name_corrections')
         return raw.get('pending', {}) or {}
-    except Exception:
+    except FileNotFoundError:
+        logger.debug("No instrument_name_corrections config found; no pending instruments")
         return {}
 
 

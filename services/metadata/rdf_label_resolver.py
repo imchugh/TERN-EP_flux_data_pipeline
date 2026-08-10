@@ -6,8 +6,12 @@ Created on Tue Dec  9 12:02:01 2025
 @author: imchugh
 """
 
-import requests
+import logging
 from functools import lru_cache
+
+import requests
+
+logger = logging.getLogger(__name__)
 
 # Some CV URIs return JSON-LD, some RDF/XML, some Turtle
 ACCEPT_HEADERS = {
@@ -36,7 +40,8 @@ def fetch_label(uri: str):
     try:
         response = requests.get(uri, headers=ACCEPT_HEADERS, timeout=15)
         response.raise_for_status()
-    except Exception:
+    except requests.RequestException as exc:
+        logger.debug("Could not fetch label for %s: %s", uri, exc)
         return None  # network errors or 404 -> no label available
 
     # ---- Try JSON-LD first (preferred) --------------------------------------
@@ -56,8 +61,9 @@ def fetch_label(uri: str):
                             return val.get("@value")
                         elif isinstance(val, str):
                             return val
-    except Exception:
-        pass  # Not JSON-LD – try RDF/XML/Turtle
+    except (ValueError, TypeError, AttributeError, IndexError, KeyError) as exc:
+        logger.debug("Response for %s was not usable JSON-LD: %s", uri, exc)
+        # Not JSON-LD (or an unexpected shape) – try RDF/XML/Turtle
 
     # ---- Fallback: regex text scan for literal labels -----------------------
     # (works for RDF/XML or Turtle if lightweight)
