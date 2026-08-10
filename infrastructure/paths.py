@@ -13,10 +13,6 @@ from pydantic import BaseModel
 from domain.constants import SITE_PLACEHOLDER
 from infrastructure import file_io
 
-###############################################################################
-### BEGIN INITS ###
-###############################################################################
-
 CONFIG_PATH = pathlib.Path(__file__).parents[1] / "configs"
 CONFIG_FILE = "paths.yml"
 
@@ -41,18 +37,9 @@ RESOURCES: dict[str, _ResourceConfig] = {
     name: _ResourceConfig.model_validate(cfg) for name, cfg in _RAW.items()
 }
 
-###############################################################################
-### END INITS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN FUNCTIONS ###
-###############################################################################
-
 
 def _resolve(resource: str, stream: str, kind: str, site: str | None) -> str:
-
+    """Resolve one resource/stream/kind combination to a path string."""
     cfg = RESOURCES[resource]
     suffix = getattr(cfg.stream[stream], kind)
     if suffix is None:
@@ -67,9 +54,6 @@ def _resolve(resource: str, stream: str, kind: str, site: str | None) -> str:
         path = path.replace(_PLACEHOLDER, site)
 
     return path
-
-
-# -----------------------------------------------------------------------------
 
 
 def get_local_stream_path(
@@ -89,9 +73,6 @@ def get_local_stream_path(
     return pathlib.Path(_resolve(resource, stream, "local", site))
 
 
-# -----------------------------------------------------------------------------
-
-
 def get_remote_stream_path(resource: str, stream: str, site: str | None = None) -> str:
     """Resolve a remote stream to an rclone designator string.
 
@@ -105,9 +86,6 @@ def get_remote_stream_path(resource: str, stream: str, site: str | None = None) 
         Rclone path string (e.g. 'uqrdm:TERNEP-Q5937/Sites/...').
     """
     return _resolve(resource, stream, "remote", site)
-
-
-# -----------------------------------------------------------------------------
 
 
 def show(resource: str | None = None) -> None:
@@ -137,8 +115,3 @@ def show(resource: str | None = None) -> None:
             base = cfg.base_path.get("remote")
             remote = f"{base}/{stream_cfg.remote}" if base else stream_cfg.remote
             print(f"    remote: {remote}")
-
-
-###############################################################################
-### END FUNCTIONS ###
-###############################################################################

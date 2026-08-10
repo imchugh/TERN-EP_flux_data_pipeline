@@ -22,11 +22,6 @@ _INFO_NAMES = [
 ]
 
 
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
-
-
 def read_tob(files: Path | list[Path]) -> tuple[pd.DataFrame, dict]:
     """Parse one or more TOB1/TOB3 files into a conditioned DataFrame.
 
@@ -142,12 +137,8 @@ def get_file_info(file: Path) -> dict:
     return dict(zip(_INFO_NAMES + [last_key], raw_meta[0]))
 
 
-# ---------------------------------------------------------------------------
-# Private helpers
-# ---------------------------------------------------------------------------
-
-
 def _build_metadata(raw_meta: list, fmt: str) -> dict:
+    """Assemble the (format, info, headers) metadata dict from raw header rows."""
     meta = list(raw_meta)
     if fmt == "TOB3":
         meta.pop(1)  # remove the TOB3-specific frame-descriptor line
@@ -165,6 +156,7 @@ def _build_metadata(raw_meta: list, fmt: str) -> dict:
 
 
 def _condition_dtypes(data: pd.DataFrame) -> pd.DataFrame:
+    """Downcast whole-valued float columns to Int32; round the rest to 7 sig figs."""
     for col in data.select_dtypes("float"):
         s = data[col].replace([np.inf, -np.inf], np.nan)
         if ((s.dropna() % 1) == 0).all():

@@ -1,42 +1,15 @@
 #!/usr/bin/env python3
-"""Created on Fri Feb 27 15:31:00 2026
-
-@author: imchugh
-"""
+"""Thin, typed wrapper around `requests` for GET/POST calls."""
 
 from __future__ import annotations
 
-###############################################################################
-### BEGIN IMPORTS ###
-###############################################################################
 import requests
-
-###############################################################################
-### END IMPORTS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN EXCEPTIONS ###
-###############################################################################
 
 
 class HTTPRequestError(Exception):
-    """Raised when an HTTP request fails.
-    """
+    """Raised when an HTTP request fails."""
 
 
-###############################################################################
-### END EXCEPTIONS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN FUNCTIONS ###
-###############################################################################
-
-
-# -----------------------------------------------------------------------------
 def get(
     url: str,
     *,
@@ -45,8 +18,7 @@ def get(
     timeout: int = 60,
     stream: bool = False,
 ) -> requests.Response:
-    """Execute HTTP GET request.
-    """
+    """Execute an HTTP GET request, raising HTTPRequestError on failure."""
     try:
         response = requests.get(
             url,
@@ -64,10 +36,6 @@ def get(
         raise HTTPRequestError(f"GET request failed for {url}: {exc}") from exc
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
 def post(
     url: str,
     *,
@@ -76,8 +44,7 @@ def post(
     auth: tuple[str, str] | None = None,
     timeout: int = 60,
 ) -> requests.Response:
-    """Execute HTTP POST request.
-    """
+    """Execute an HTTP POST request, raising HTTPRequestError on failure."""
     try:
         response = requests.post(
             url,
@@ -93,10 +60,3 @@ def post(
 
     except requests.RequestException as exc:
         raise HTTPRequestError(f"POST request failed for {url}: {exc}") from exc
-
-
-# -----------------------------------------------------------------------------
-
-###############################################################################
-### END FUNCTIONS ###
-###############################################################################

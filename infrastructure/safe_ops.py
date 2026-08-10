@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""Created on Wed Mar 18 11:41:02 2026
-
-@author: imchugh
-"""
+"""Run a component with logged, non-raising fallback on failure."""
 
 
 def safe_component(

@@ -18,7 +18,6 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-# -----------------------------------------------------------------------------
 def run_concurrent(
     task: Callable[[str], Any],
     items: list[str],
@@ -59,6 +58,3 @@ def run_concurrent(
                 results[item] = {"error": str(exc)}
 
     return results
-
-
-# -----------------------------------------------------------------------------

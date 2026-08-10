@@ -1,65 +1,29 @@
 #!/usr/bin/env python3
-"""Created on Tue Feb 17 09:14:02 2026
-
-@author: imchugh
-"""
-
-###############################################################################
-### BEGIN IMPORTS ###
-###############################################################################
+"""Subprocess wrapper around the rclone CLI for local/remote file transfer."""
 
 import logging
 import subprocess as spc
 from collections.abc import Iterable
 from pathlib import Path
 
-###############################################################################
-### END IMPORTS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN INITS ###
-###############################################################################
-
 APP_PATH = "rclone"
 COPY_ARGS = ("copy", "--transfers", "10", "--checksum", "--timeout", "0")
 logger = logging.getLogger(__name__)
 
-###############################################################################
-### END INITS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN EXCEPTIONS ###
-###############################################################################
-
 
 class RcloneError(spc.CalledProcessError):
-    """CalledProcessError whose default message includes captured stderr, so the
-    failure reason is visible from a bare traceback even without logging
-    configured.
+    """CalledProcessError whose message includes captured stderr.
+
+    Makes the failure reason visible from a bare traceback even without
+    logging configured.
     """
 
     def __str__(self) -> str:
+        """Append stripped stderr (if any) to the standard error message."""
         stderr = (self.stderr or "").strip()
         if not stderr:
             return super().__str__()
         return f"{super().__str__()}\nstderr:\n{stderr}"
-
-
-###############################################################################
-### END EXCEPTIONS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN FUNCTIONS ###
-###############################################################################
-
-# -----------------------------------------------------------------------------
-# Public API
 
 
 def transfer(
@@ -78,7 +42,9 @@ def transfer(
         src: Source path (local or remote)
         dst: Destination path (local or remote)
         exclude_dirs: Optional directory patterns to exclude
-        set_modtime: Whether to preserve modtime (SFTP specific)
+        set_modtime: If False, disable rclone's SFTP modtime-setting
+            (adds --sftp-set-modtime=false). If True (default), leave
+            rclone's default modtime behavior in place.
         validate: Whether to validate src/dst before transfer
         timeout: Subprocess timeout in seconds
         dry_run: If True, pass --dry-run to rclone (no files are transferred)
@@ -113,25 +79,14 @@ def transfer(
     return result
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
 def check_remote_available(remote_path: str, timeout: int = 60) -> None:
-    """Public remote health check.
-
-    Raises on failure.
-    """
+    """Confirm a remote path is listable via `rclone lsd`; raises on failure."""
     cmd = [APP_PATH, "lsd", remote_path]
     _run_subprocess(cmd, timeout=timeout)
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
 def check_remote_writable(remote_path: str, timeout: int = 60) -> None:
-    """Public remote write-permission check.
+    """Confirm a remote path is writable, not just listable.
 
     `lsd` only confirms the path is listable, not writable, so this probes
     with a throwaway `touch` (removed on success) to catch permission-denied
@@ -144,58 +99,32 @@ def check_remote_writable(remote_path: str, timeout: int = 60) -> None:
     _run_subprocess([APP_PATH, "deletefile", probe_path], timeout=timeout)
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
 def check_local_exists(path: str) -> None:
-    """Public local existence check.
-    """
+    """Raise FileNotFoundError if `path` does not exist locally."""
     if not Path(path).exists():
         raise FileNotFoundError(f"Local path does not exist: {path}")
 
 
-# -----------------------------------------------------------------------------
-
-# ------------------------------------------------------------------------------
-# Internal helpers
-# ------------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
 def _validate_local_if_applicable(path: str) -> None:
-    """Only validate if path looks local.
-    """
+    """Run the local-existence check only if `path` looks local."""
     if not _is_remote(path):
         check_local_exists(path)
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
 def _validate_remote_if_applicable(path: str) -> None:
-    """Only validate if path looks remote.
-    """
+    """Run the remote-availability check only if `path` looks remote."""
     if _is_remote(path):
         check_remote_available(path)
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
 def _is_remote(path: str) -> bool:
     """Simple heuristic: rclone remotes contain ':' before first slash.
+
     e.g. 'remote_name:path/to/dir'
     """
     return ":" in str(path).split("/")[0]
 
 
-# -----------------------------------------------------------------------------
-
-
-# -----------------------------------------------------------------------------
 def _build_copy_args(
     *,
     exclude_dirs: Iterable[str] | None,
@@ -205,13 +134,12 @@ def _build_copy_args(
     """Assemble the list of arguments to pass to rclone via spc.
 
     Args:
-        exclude_dirs (Iterable[str] | None): directories to exclude.
-        set_modtime: makes it work.
+        exclude_dirs: directories to exclude.
+        set_modtime: if False, append --sftp-set-modtime=false.
         dry_run: append --dry-run so no files are transferred.
 
     Returns:
-        list[str]: valid rclone arg list.
-
+        Valid rclone arg list.
     """
     args = list(COPY_ARGS)
 
@@ -226,11 +154,6 @@ def _build_copy_args(
         args.append("--dry-run")
 
     return args
-
-
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
 
 
 def _run_subprocess(cmd: list[str], timeout: int) -> spc.CompletedProcess:
@@ -291,6 +214,3 @@ def _run_subprocess(cmd: list[str], timeout: int) -> spc.CompletedProcess:
             output=exc.output,
             stderr=exc.stderr,
         ) from exc
-
-
-# -----------------------------------------------------------------------------

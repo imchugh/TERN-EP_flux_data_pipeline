@@ -15,10 +15,6 @@ import pandas as pd
 from domain.constants import DATA_TIME_FORMAT as TIME_FORMAT
 from infrastructure.external_io import get
 
-###############################################################################
-### BEGIN GLOBALS / CONSTANTS ###
-###############################################################################
-
 logger = logging.getLogger(__name__)
 
 SECONDARY_TIME_FORMAT = TIME_FORMAT + ".%f"
@@ -32,15 +28,6 @@ ALLOWED_QUERY_MODES = [
 VALID_FILE_SOURCES = ["CPU", "CRD", "USR"]
 VALID_FORMATS = ["html", "json", "toa5", "tob1", "xml"]
 
-###############################################################################
-### END GLOBALS / CONSTANTS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN CLASSES ###
-###############################################################################
-
 
 @dataclass(slots=True)
 class LoggerClient:
@@ -52,21 +39,14 @@ class LoggerClient:
 
     ip_addr: str
 
-    # -------------------------------------------------------------------------
     def get_table_list(self) -> pd.DataFrame:
-
+        """See module-level `get_table_list`."""
         return get_table_list(ip_addr=self.ip_addr)
 
-    # -------------------------------------------------------------------------
-
-    # -------------------------------------------------------------------------
     def get_table_variable_list(self, table: str) -> pd.DataFrame:
-
+        """See module-level `get_table_variable_list`."""
         return get_table_variable_list(ip_addr=self.ip_addr, table=table)
 
-    # -------------------------------------------------------------------------
-
-    # -------------------------------------------------------------------------
     def get_data_by_date_range(
         self,
         start_date: str | dt.datetime,
@@ -74,7 +54,7 @@ class LoggerClient:
         table: str,
         variable: str | None = None,
     ) -> pd.DataFrame:
-
+        """See module-level `get_data_by_date_range`."""
         return get_data_by_date_range(
             ip_addr=self.ip_addr,
             start_date=start_date,
@@ -83,16 +63,13 @@ class LoggerClient:
             variable=variable,
         )
 
-    # -------------------------------------------------------------------------
-
-    # -------------------------------------------------------------------------
     def get_data_since_date(
         self,
         start_date: str | dt.datetime,
         table: str,
         variable: str | None = None,
     ) -> pd.DataFrame:
-
+        """See module-level `get_data_since_date`."""
         return get_data_since_date(
             ip_addr=self.ip_addr,
             start_date=start_date,
@@ -100,16 +77,13 @@ class LoggerClient:
             variable=variable,
         )
 
-    # -------------------------------------------------------------------------
-
-    # -------------------------------------------------------------------------
     def get_data_n_records_back(
         self,
         table: str,
         recs_back: int = 1,
         variable: str | None = None,
     ) -> pd.DataFrame:
-
+        """See module-level `get_data_n_records_back`."""
         return get_data_n_records_back(
             ip_addr=self.ip_addr,
             table=table,
@@ -117,43 +91,19 @@ class LoggerClient:
             variable=variable,
         )
 
-    # -------------------------------------------------------------------------
-
-    # -------------------------------------------------------------------------
     def get_logger_status(self) -> tuple[dict, dict]:
-
+        """See module-level `get_logger_status`."""
         return get_logger_status(ip_addr=self.ip_addr)
 
-    # -------------------------------------------------------------------------
-
-    # -------------------------------------------------------------------------
     def list_files(self, source: str) -> pd.DataFrame:
-
+        """See module-level `list_files`."""
         return list_files(ip_addr=self.ip_addr, source=source)
 
-    # -------------------------------------------------------------------------
-
-    # -------------------------------------------------------------------------
     def get_used_space(self, source: str) -> dict:
-
+        """See module-level `get_used_space`."""
         return get_used_space(ip_addr=self.ip_addr, source=source)
 
-    # -------------------------------------------------------------------------
 
-
-# -----------------------------------------------------------------------------
-
-###############################################################################
-### END CLASSES ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN DATA QUERY SECTION ###
-###############################################################################
-
-
-# ------------------------------------------------------------------------------
 def get_data_by_date_range(
     ip_addr: str,
     start_date: str | dt.datetime,
@@ -186,10 +136,6 @@ def get_data_by_date_range(
     return _format_data(ip_addr=ip_addr, cmd_substr=cmd_substr)
 
 
-# ------------------------------------------------------------------------------
-
-
-# ------------------------------------------------------------------------------
 def get_data_since_date(
     ip_addr: str,
     start_date: str | dt.datetime,
@@ -217,10 +163,6 @@ def get_data_since_date(
     return _format_data(ip_addr=ip_addr, cmd_substr=cmd_substr)
 
 
-# ------------------------------------------------------------------------------
-
-
-# ------------------------------------------------------------------------------
 def get_data_n_records_back(
     ip_addr: str,
     table: str,
@@ -248,10 +190,6 @@ def get_data_n_records_back(
     return _format_data(ip_addr=ip_addr, cmd_substr=cmd_substr)
 
 
-# ------------------------------------------------------------------------------
-
-
-# ------------------------------------------------------------------------------
 def _format_data(ip_addr: str, cmd_substr: str) -> pd.DataFrame:
     """Execute a data query and shape the result into a DataFrame.
 
@@ -286,19 +224,6 @@ def _format_data(ip_addr: str, cmd_substr: str) -> pd.DataFrame:
     return pd.DataFrame(data=data_list, columns=var_list).set_index(keys="TIMESTAMP")
 
 
-# ------------------------------------------------------------------------------
-
-###############################################################################
-### END DATA QUERY SECTION ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN STATUS SECTION ###
-###############################################################################
-
-
-# ------------------------------------------------------------------------------
 def clock_check(ip_addr: str) -> dict:
     """Check the logger clock.
 
@@ -312,10 +237,6 @@ def clock_check(ip_addr: str) -> dict:
     return submit_request(cmd_str=cmd_str)
 
 
-# ------------------------------------------------------------------------------
-
-
-# ------------------------------------------------------------------------------
 def get_logger_status(ip_addr: str) -> tuple[dict, dict]:
     """Fetch the logger environment summary and status table.
 
@@ -342,19 +263,6 @@ def get_logger_status(ip_addr: str) -> tuple[dict, dict]:
     return summary_table, status_table
 
 
-# ------------------------------------------------------------------------------
-
-###############################################################################
-### END STATUS SECTION ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN TABLE QUERY SECTION ###
-###############################################################################
-
-
-# ------------------------------------------------------------------------------
 def get_table_list(ip_addr: str) -> pd.DataFrame:
     """Get the list of tables available on the logger.
 
@@ -367,10 +275,6 @@ def get_table_list(ip_addr: str) -> pd.DataFrame:
     return _browse_symbols(ip_addr=ip_addr, cmd_substr="browsesymbols&uri=dl:")
 
 
-# ------------------------------------------------------------------------------
-
-
-# ------------------------------------------------------------------------------
 def get_table_variable_list(ip_addr: str, table: str) -> pd.DataFrame:
     """Get the list of variables available in a given table.
 
@@ -388,10 +292,6 @@ def get_table_variable_list(ip_addr: str, table: str) -> pd.DataFrame:
     )
 
 
-# ------------------------------------------------------------------------------
-
-
-# ------------------------------------------------------------------------------
 def build_lookup_table(ip_addr: str) -> pd.DataFrame:
     """Build a cross-table variable lookup for all tables on the logger.
 
@@ -414,10 +314,6 @@ def build_lookup_table(ip_addr: str) -> pd.DataFrame:
     return pd.concat(df_list)[["units", "process", "table"]].fillna("")
 
 
-# ------------------------------------------------------------------------------
-
-
-# ------------------------------------------------------------------------------
 def _browse_symbols(ip_addr: str, cmd_substr: str) -> pd.DataFrame:
     """Submit a browsesymbols request and return results as a DataFrame.
 
@@ -437,19 +333,6 @@ def _browse_symbols(ip_addr: str, cmd_substr: str) -> pd.DataFrame:
     )
 
 
-# ------------------------------------------------------------------------------
-
-###############################################################################
-### END TABLE QUERY SECTION ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN FILE QUERY SECTION ###
-###############################################################################
-
-
-# ------------------------------------------------------------------------------
 def list_files(ip_addr: str, source: str) -> pd.DataFrame:
     """List the files available on a logger storage device.
 
@@ -483,10 +366,6 @@ def list_files(ip_addr: str, source: str) -> pd.DataFrame:
     )
 
 
-# ------------------------------------------------------------------------------
-
-
-# ------------------------------------------------------------------------------
 def get_used_space(ip_addr: str, source: str) -> dict:
     """Get the total used space on a logger storage device.
 
@@ -508,19 +387,6 @@ def get_used_space(ip_addr: str, source: str) -> dict:
     return {f"used space on {source} (GB)": used_in_gb}
 
 
-# ------------------------------------------------------------------------------
-
-###############################################################################
-### END FILE QUERY SECTION ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN HELPER FUNCTION SECTION ###
-###############################################################################
-
-
-# ------------------------------------------------------------------------------
 def submit_request(cmd_str: str, timeout: int = 2) -> dict | list:
     """Submit an HTTP request to the logger and return the parsed JSON response.
 
@@ -536,10 +402,6 @@ def submit_request(cmd_str: str, timeout: int = 2) -> dict | list:
     return json.loads(response.content)
 
 
-# ------------------------------------------------------------------------------
-
-
-# ------------------------------------------------------------------------------
 def resolve_url(
     ip_addr: str,
     cmd_substr: str,
@@ -579,10 +441,6 @@ def resolve_url(
     return "".join([addr_syntax, source_syntax, command_syntax, format_syntax])
 
 
-# ------------------------------------------------------------------------------
-
-
-# ------------------------------------------------------------------------------
 def build_query_str(
     table: str,
     mode: str,
@@ -611,19 +469,6 @@ def build_query_str(
     return f"dataquery&uri=dl:{table}{variable_syntax}&mode={mode}{config_str}"
 
 
-# ------------------------------------------------------------------------------
-
-###############################################################################
-### END HELPER FUNCTION SECTION ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN PRIVATE FUNCTION SECTION ###
-###############################################################################
-
-
-# ------------------------------------------------------------------------------
 def _convert_time_to_logger_format(time: str | dt.datetime) -> str:
     """Convert a datetime to the logger's ISO-like timestamp format.
 
@@ -639,10 +484,6 @@ def _convert_time_to_logger_format(time: str | dt.datetime) -> str:
     return dt.datetime.strftime(time, format_str)
 
 
-# ------------------------------------------------------------------------------
-
-
-# ------------------------------------------------------------------------------
 def _convert_time_from_logger_format(time_str: str) -> dt.datetime:
     """Parse a logger timestamp string into a Python datetime.
 
@@ -665,13 +506,9 @@ def _convert_time_from_logger_format(time_str: str) -> dt.datetime:
         try:
             return dt.datetime.strptime(eval_str, SECONDARY_TIME_FORMAT)
         except ValueError:
-            raise e
+            raise e from None
 
 
-# ------------------------------------------------------------------------------
-
-
-# ------------------------------------------------------------------------------
 def _check_source(source: str) -> None:
     """Validate a storage source identifier.
 
@@ -683,10 +520,3 @@ def _check_source(source: str) -> None:
     """
     if source not in VALID_FILE_SOURCES:
         raise ValueError(f"source must be one of {', '.join(VALID_FILE_SOURCES)}")
-
-
-# ------------------------------------------------------------------------------
-
-###############################################################################
-### END PRIVATE FUNCTION SECTION ###
-###############################################################################

@@ -1,74 +1,34 @@
 #!/usr/bin/env python3
-"""Created on Thu Feb 26 09:44:00 2026
-
-@author: imchugh
-"""
+"""TCP port-scan helper with typed exceptions for connectivity checks."""
 
 from __future__ import annotations
 
-###############################################################################
-### BEGIN IMPORTS ###
-###############################################################################
 import socket
 import time
 from dataclasses import dataclass
 
-###############################################################################
-### END IMPORTS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN DATACLASSES ###
-###############################################################################
-
 
 @dataclass(frozen=True)
 class PortScanResult:
-    """Result of a successful TCP port scan.
-    """
+    """Result of a successful TCP port scan."""
 
     host: str
     port: int
     latency_ms: int
 
 
-###############################################################################
-### END DATACLASSES ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN EXCEPTIONS ###
-###############################################################################
-
-
 class PortScanError(Exception):
-    """Base exception for TCP scan failures.
-    """
+    """Base exception for TCP scan failures."""
 
 
 class PortTimeoutError(PortScanError):
-    """Raised when a TCP connection attempt times out.
-    """
+    """Raised when a TCP connection attempt times out."""
 
 
 class PortConnectionError(PortScanError):
-    """Raised when a TCP connection attempt fails for non-timeout reasons.
-    """
+    """Raised when a TCP connection attempt fails for non-timeout reasons."""
 
 
-###############################################################################
-### END EXCEPTIONS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN FUNCTIONS ###
-###############################################################################
-
-
-# -----------------------------------------------------------------------------
 def scan_tcp_port(
     host: str,
     port: int,
@@ -116,10 +76,3 @@ def scan_tcp_port(
 
     except OSError as exc:
         raise PortConnectionError(f"Connection failed for {host}:{port}") from exc
-
-
-# -----------------------------------------------------------------------------
-
-###############################################################################
-### END FUNCTIONS ###
-###############################################################################
