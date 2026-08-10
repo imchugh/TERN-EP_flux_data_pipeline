@@ -136,6 +136,8 @@ def get_file_info(file: Path) -> dict:
         (TOB3) or table_name (TOB1).
     """
     raw_meta = rcf.read_cs_files(filename=file, metaonly=True)
+    if not isinstance(raw_meta, list):
+        raise RuntimeError(f'Unrecognized Campbell Scientific file format: {file.name}')
     fmt = raw_meta[0][0]
     last_key = 'creation_date' if fmt == 'TOB3' else 'table_name'
     return dict(zip(_INFO_NAMES + [last_key], raw_meta[0]))
