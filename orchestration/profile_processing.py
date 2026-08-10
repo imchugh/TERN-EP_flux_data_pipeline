@@ -16,9 +16,7 @@ from services.metadata.canonical_quantity_registry import (
 
 
 def build_profile_output(site: str) -> dict:
-    """Load raw profile data, compute the storage term, and write CSV +
-    NetCDF output for `site`.
-    """
+    """Load raw profile data, compute the storage term, and write CSV/NetCDF output."""
     ds = profile_loader.load_profile_dataset(site)
 
     csv_df = _build_csv_dataframe(ds)

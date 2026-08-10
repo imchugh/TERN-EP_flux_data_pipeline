@@ -9,10 +9,6 @@ canonical convention — changing a column name means updating the RTMC config,
 which this module tries to avoid.
 """
 
-###############################################################################
-### BEGIN IMPORTS ###
-###############################################################################
-
 import csv
 import logging
 import pathlib
@@ -22,15 +18,6 @@ import xarray as xr
 from services import config_loader
 from services.data import toa5_writer
 from services.data.transform_service import get_calculation
-
-###############################################################################
-### END IMPORTS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN INITS ###
-###############################################################################
 
 logger = logging.getLogger(__name__)
 
@@ -70,15 +57,6 @@ STATISTIC_LABELS = {
     "covariance": "Cov",
     "instantaneous": "Smp",
 }
-
-###############################################################################
-### END INITS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN PUBLIC FUNCTIONS ###
-###############################################################################
 
 
 def build_legacy_toa5(
@@ -144,16 +122,6 @@ def build_legacy_toa5(
     logger.info("Done!")
 
 
-###############################################################################
-### END PUBLIC FUNCTIONS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN PRIVATE FUNCTIONS ###
-###############################################################################
-
-
 def _drop_extraneous_variables(ds: xr.Dataset, site_name: str) -> xr.Dataset:
     """Drop QC flags, stdev variables, crs, and extraneous soil/met replicates."""
     drop = {"crs"}
@@ -187,9 +155,10 @@ def _get_extraneous_soil(ds: xr.Dataset, site_name: str) -> list[str]:
 
 
 def _get_extraneous_met(ds: xr.Dataset) -> list[str]:
-    """Choose one Ta/RH/AH variable to keep for each quantity: the one at (or
-    nearest) the flux measurement height, preferring the same instrument as
-    the chosen temperature sensor. Return the rest as a drop list.
+    """Choose one Ta/RH/AH variable to keep for each quantity, dropping the rest.
+
+    Keeps the one at (or nearest) the flux measurement height, preferring
+    the same instrument as the chosen temperature sensor.
 
     Raises:
         KeyError: if the flux measurement height cannot be determined.
@@ -420,8 +389,3 @@ def _build_headers(ds: xr.Dataset, columns: list[str]) -> list[list[str]]:
         sampling.append(STATISTIC_LABELS.get(attrs.get("statistic_type"), default))
 
     return [columns, units, sampling]
-
-
-###############################################################################
-### END PRIVATE FUNCTIONS ###
-###############################################################################

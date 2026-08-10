@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Collate the per-site "site details" required for RTMC (sunrise/sunset, flux
-logger metadata, missing-data percentage, latest 10Hz file) alongside the
-site's fixed metadata (location, commissioning, vegetation, etc.).
+"""Collate the per-site "site details" required for RTMC.
+
+Includes sunrise/sunset, flux logger metadata, missing-data percentage,
+latest 10Hz file, alongside the site's fixed metadata (location,
+commissioning, vegetation, etc.).
 
 `collate_site_info` is the single source of truth for this data — it returns
 a flat dict for one site. `build_site_details_json` is the JSON writer built
@@ -13,10 +15,6 @@ consumed by `tasks/build_tasks.py::construct_site_details_json`).
 `construct_site_details_toa5`).
 """
 
-###############################################################################
-### BEGIN IMPORTS ###
-###############################################################################
-
 import datetime as dt
 import logging
 
@@ -27,15 +25,6 @@ from infrastructure.parallel_executor import run_concurrent
 from infrastructure.safe_ops import safe_component
 from services.data import raw_data_loader, toa5_writer
 from services.metadata.site_registry import SiteContext, SiteRegistry
-
-###############################################################################
-### END IMPORTS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN INITS ###
-###############################################################################
 
 logger = logging.getLogger(__name__)
 
@@ -87,17 +76,6 @@ TOA5_EXCLUDED_FIELDS = {"site", "dsa_label"}
 
 SITE_REGISTRY = SiteRegistry()
 
-###############################################################################
-### END INITS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN FUNCTIONS ###
-###############################################################################
-
-# -----------------------------------------------------------------------------
-
 
 def collate_site_info(
     context: SiteContext, midnight: dt.datetime | None = None
@@ -122,7 +100,7 @@ def collate_site_info(
     runtime_cfg = context.runtime_config
     site_name = runtime_cfg.site_name
 
-    # --- Base site metadata ---------------------------------------------------
+    # Base site metadata
 
     site_info = dict(metadata)
     site_info.pop("site_name", None)
@@ -131,7 +109,7 @@ def collate_site_info(
     commissioned = metadata.get("date_commissioned")
     site_info["start_year"] = commissioned.year if commissioned is not None else ""
 
-    # --- Sunrise / sunset ------------------------------------------------------
+    # Sunrise/sunset
 
     sun_info = safe_component(
         fn=_get_solar_info,
@@ -142,7 +120,7 @@ def collate_site_info(
         date=midnight,
     )
 
-    # --- Latest 10Hz (fast) file ------------------------------------------------
+    # Latest 10Hz (fast) file
 
     fast_file_info = {
         "10Hz_file": safe_component(
@@ -154,7 +132,7 @@ def collate_site_info(
         )
     }
 
-    # --- Flux logger metadata + missing-data % ---------------------------------
+    # Flux logger metadata + missing-data %
 
     file_format = runtime_cfg.get_file_format(runtime_cfg.flux_file)
     flux_file_path = (
@@ -189,7 +167,7 @@ def collate_site_info(
         interval_minutes=metadata.time_step,
     )
 
-    # --- Combine ----------------------------------------------------------------
+    # Combine
 
     combined_info = site_info | sun_info | fast_file_info | logger_info | missing_info
     combined_info = {
@@ -199,11 +177,6 @@ def collate_site_info(
     combined_info = {k: ("" if v is None else v) for k, v in combined_info.items()}
 
     return combined_info
-
-
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
 
 
 def build_site_details_toa5(site: str, midnight: dt.datetime | None = None) -> None:
@@ -259,11 +232,6 @@ def build_site_details_toa5(site: str, midnight: dt.datetime | None = None) -> N
     )
 
 
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-
 def _get_solar_info(metadata, date: dt.datetime) -> dict:
     """Get next sunrise/sunset (HH:MM) for a site, relative to `date`."""
     sun = datetime_utils.SunTime(
@@ -276,11 +244,6 @@ def _get_solar_info(metadata, date: dt.datetime) -> dict:
         "sunrise": sun.get_next_sunrise(date=date).strftime("%H:%M"),
         "sunset": sun.get_next_sunset(date=date).strftime("%H:%M"),
     }
-
-
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
 
 
 def _get_last_fast_file(site: str) -> str:
@@ -300,22 +263,12 @@ def _get_last_fast_file(site: str) -> str:
     return latest.name
 
 
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-
 def _get_flux_logger_info(file_path, file_format: str) -> dict:
     """Read the fixed subset of TOA5 info-line fields from the flux file header."""
     header_adapter = raw_data_loader.get_header_adapter(system_type=file_format)
     header = header_adapter(file_path)
     info = dict(zip(TOA5_INFO_FIELDS, header["info"]))
     return {key: info.get(key) for key in LOGGER_SUBSET}
-
-
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
 
 
 def _get_flux_data_gaps(file_path, file_format: str, interval_minutes: int) -> dict:
@@ -326,15 +279,11 @@ def _get_flux_data_gaps(file_path, file_format: str, interval_minutes: int) -> d
     return {"pct_missing": gaps["pct_missing"]}
 
 
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
-
-
 def _build_site_entry(site: str) -> dict:
-    """Collate one site's info for `build_site_details_json`. Never raises — a
-    failure is returned as a result, not thrown, so one bad site can't take
-    down the concurrent run_concurrent dispatch for the rest.
+    """Collate one site's info for `build_site_details_json`.
+
+    Never raises — a failure is returned as a result, not thrown, so one bad
+    site can't take down the concurrent run_concurrent dispatch for the rest.
     """
     try:
         context = SITE_REGISTRY.get_context(site=site)
@@ -352,11 +301,6 @@ def _build_site_entry(site: str) -> dict:
             "error_type": type(e).__name__,
             "error": str(e),
         }
-
-
-# -----------------------------------------------------------------------------
-
-# -----------------------------------------------------------------------------
 
 
 def build_site_details_json(site_list: list[str] | None = None) -> dict:
@@ -422,10 +366,3 @@ def build_site_details_json(site_list: list[str] | None = None) -> dict:
     )
 
     return results
-
-
-# -----------------------------------------------------------------------------
-
-###############################################################################
-### END FUNCTIONS ###
-###############################################################################

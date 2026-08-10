@@ -17,10 +17,6 @@ L1 NetCDF files carry bare canonical names directly, so that resolution step
 is dropped here — ``SUBSET`` names are looked up as exact columns.
 """
 
-###############################################################################
-### BEGIN IMPORTS ###
-###############################################################################
-
 import datetime as dt
 import logging
 import time
@@ -37,15 +33,6 @@ from services.metadata.canonical_quantity_registry import (
 from services.metadata.site_registry import SiteRegistry
 from services.network.nc_monitor import get_latest_nc_file
 
-###############################################################################
-### END IMPORTS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN INITS ###
-###############################################################################
-
 logger = logging.getLogger(__name__)
 
 SITE_REGISTRY = SiteRegistry()
@@ -59,15 +46,6 @@ SUBSET = ["Fco2", "Fh", "Fe", "Fsd"]
 # site rather than letting one bad instant fail the whole run.
 _NC_OPEN_RETRIES = 2
 _NC_OPEN_RETRY_DELAY_SECS = 2
-
-###############################################################################
-### END INITS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN FUNCTIONS ###
-###############################################################################
 
 
 def build(site_list: list[str] | None = None) -> dict:
@@ -131,13 +109,11 @@ def build(site_list: list[str] | None = None) -> dict:
     return results
 
 
-# -----------------------------------------------------------------------------
-
-
 def _build_site_feature(site: str) -> dict:
-    """Build one site's geojson Feature. Never raises — a failure is returned as
-    a result, not thrown, so one bad site can't take down the concurrent
-    run_concurrent dispatch for the rest.
+    """Build one site's geojson Feature.
+
+    Never raises — a failure is returned as a result, not thrown, so one bad
+    site can't take down the concurrent run_concurrent dispatch for the rest.
     """
     try:
         status = _get_site_status(site)
@@ -179,9 +155,6 @@ def _build_site_feature(site: str) -> dict:
         }
 
 
-# -----------------------------------------------------------------------------
-
-
 def _open_dataset_with_retry(file_path) -> xr.Dataset:
     """Open a NetCDF file, retrying briefly on OSError.
 
@@ -203,12 +176,10 @@ def _open_dataset_with_retry(file_path) -> xr.Dataset:
             time.sleep(_NC_OPEN_RETRY_DELAY_SECS)
 
 
-# -----------------------------------------------------------------------------
-
-
 def _get_site_status(site: str) -> dict:
-    """Read the latest L1 NetCDF file for a site and compute per-SUBSET-variable
-    staleness/validity stats.
+    """Read the latest L1 NetCDF file for a site and compute per-variable stats.
+
+    Staleness/validity stats for the fixed subset of monitored variables.
     """
     file_path = get_latest_nc_file(site=site)
     ds = _open_dataset_with_retry(file_path)
@@ -242,11 +213,8 @@ def _get_site_status(site: str) -> dict:
     }
 
 
-# -----------------------------------------------------------------------------
-
-
 def _filter_range(series, max_val, min_val):
-    """Mask series values outside [min_val, max_val] to NaN (either bound may be None)."""
+    """Mask series values outside [min_val, max_val] to NaN (bounds are optional)."""
     if isinstance(max_val, (int, float)) and isinstance(min_val, (int, float)):
         return series.where((series <= max_val) & (series >= min_val), np.nan)
     if isinstance(max_val, (int, float)):
@@ -254,9 +222,6 @@ def _filter_range(series, max_val, min_val):
     if isinstance(min_val, (int, float)):
         return series.where(series >= min_val, np.nan)
     return series
-
-
-# -----------------------------------------------------------------------------
 
 
 def _parse_variable(
@@ -315,10 +280,3 @@ def _parse_variable(
     )
 
     return rec
-
-
-# -----------------------------------------------------------------------------
-
-###############################################################################
-### END FUNCTIONS ###
-###############################################################################
