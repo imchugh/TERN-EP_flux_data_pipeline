@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""Created on Fri Jul  3 09:22:04 2026
-
-@author: imchugh
-"""
+"""WIP investigation: TOB3/TOA5 fast-data filename vs. header timestamp mismatches."""
 
 import datetime as dt
 from pathlib import Path
@@ -13,7 +10,11 @@ path = "/store/Raw_data/Calperum/Flux/Fast/TOA5"
 
 
 def get_no_match_files():
+    """Find fast-data files where the filename date disagrees with the header date.
 
+    Note: currently accumulates `no_match`/`match` but does not return
+    either — still WIP.
+    """
     no_match, match = {}, []
     for file in sorted(Path(path).rglob("*.dat")):
         print(file.name)
@@ -41,7 +42,7 @@ def get_no_match_files():
 
 
 def get_no_date_headers():
-
+    """Return {filename: raw_value} for files whose header timestamp doesn't parse."""
     rslt = {}
     for file in sorted(Path(path).rglob("*.dat")):
         print(file.name)

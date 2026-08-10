@@ -25,16 +25,13 @@ from services.metadata.instrument_registry import (
 )
 from services.metadata.site_registry import SITE_CONFIG_DIR
 
-# ── constants ────────────────────────────────────────────────────────────────
-
+# Constants
 _SEP = "─" * 64
 _SUGGESTION_CUTOFF = 60.0
 _N_SUGGESTIONS = 5
 
 
-# ── helpers ──────────────────────────────────────────────────────────────────
-
-
+# Helpers
 def _extract_instrument_names(obj: object) -> list[str]:
     """Recursively collect all instrument strings from a parsed YAML dict."""
     names: list[str] = []
@@ -76,7 +73,7 @@ def _collect_all_instruments(
     return {k: list(dict.fromkeys(v)) for k, v in instrument_sites.items()}
 
 
-# ── report ───────────────────────────────────────────────────────────────────
+# Report
 
 
 def _format_sites(sites: list[str], max_inline: int = 4) -> str:
@@ -86,6 +83,7 @@ def _format_sites(sites: list[str], max_inline: int = 4) -> str:
 
 
 def run_audit(config_dir: Path = SITE_CONFIG_DIR) -> None:
+    """Print a report of every instrument name not recognised by the TERN vocabulary."""
     print(f"\nScanning: {config_dir}\n")
 
     instrument_sites = _collect_all_instruments(config_dir)
@@ -106,7 +104,7 @@ def run_audit(config_dir: Path = SITE_CONFIG_DIR) -> None:
         else:
             missing[name] = sites
 
-    # ── valid ────────────────────────────────────────────────────────────────
+    # Valid
     print(_SEP)
     print(f"VALID  ({len(valid)} instruments found in TERN vocab)")
     print(_SEP)
@@ -118,7 +116,7 @@ def run_audit(config_dir: Path = SITE_CONFIG_DIR) -> None:
     else:
         print("  (none)")
 
-    # ── missing ──────────────────────────────────────────────────────────────
+    # Missing
     print()
     print(_SEP)
     print(f"MISSING  ({len(missing)} instruments not in TERN vocab)")
@@ -145,7 +143,6 @@ def run_audit(config_dir: Path = SITE_CONFIG_DIR) -> None:
     print()
 
 
-# ── entry point ───────────────────────────────────────────────────────────────
-
+# Entry point
 if __name__ == "__main__":
     run_audit()

@@ -27,7 +27,7 @@ MAP_PATH = (
 )
 
 
-# ── substitution logic ────────────────────────────────────────────────────────
+# Substitution logic
 
 
 def _apply_to_obj(obj: object, subs: dict[str, str]) -> bool:
@@ -61,7 +61,7 @@ def _apply_to_obj(obj: object, subs: dict[str, str]) -> bool:
     return changed
 
 
-# ── main ──────────────────────────────────────────────────────────────────────
+# Main
 
 
 def apply_map(
@@ -69,6 +69,15 @@ def apply_map(
     config_dir: Path = SITE_CONFIG_DIR,
     map_path: Path = MAP_PATH,
 ) -> None:
+    """Apply instrument-name substitutions to every site YAML, writing to output_dir.
+
+    Args:
+        output_dir: destination directory for the corrected YAML files.
+        config_dir: source directory of site YAML configs. Defaults to the
+            live SITE_CONFIG_DIR.
+        map_path: path to the substitutions YAML (produced by
+            generate_substitution_map.py). Defaults to MAP_PATH.
+    """
     if not map_path.exists():
         print(f"ERROR: map file not found: {map_path}")
         print("Run python -m tools.generate_substitution_map first.")

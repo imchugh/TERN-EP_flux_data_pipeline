@@ -28,6 +28,7 @@ _SEP = "─" * 64
 
 
 def list_by_site(config_dir: Path = SITE_CONFIG_DIR) -> None:
+    """Print, per site YAML, which instrument names aren't in the TERN vocab."""
     yml_files = sorted(config_dir.glob("*.yml"))
     if not yml_files:
         print(f"No YAML files found in: {config_dir}")

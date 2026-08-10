@@ -35,6 +35,7 @@ def generate_map(
     config_dir: Path = SITE_CONFIG_DIR,
     output: Path = OUTPUT_PATH,
 ) -> None:
+    """Write a YAML map of fuzzy-matched suggestions for missing instrument names."""
     print(f"Scanning: {config_dir}\n")
 
     instrument_sites = _collect_all_instruments(config_dir)
@@ -87,7 +88,8 @@ def generate_map(
         )
 
     print(
-        f"\nWrote {len(suggestions)} substitutions + {len(no_match)} no-match entries to:"
+        f"\nWrote {len(suggestions)} substitutions + "
+        f"{len(no_match)} no-match entries to:"
     )
     print(f"  {output}")
 
