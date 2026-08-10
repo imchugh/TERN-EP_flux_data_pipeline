@@ -363,7 +363,7 @@ def build_site_details_json(site_list: list[str] | None = None) -> dict:
 
     logger.info('site_info_generation_start', extra={'site_count': len(site_list)})
 
-    entries = run_concurrent(task=_build_site_entry, items=site_list, max_workers=8)
+    entries = run_concurrent(task=_build_site_entry, items=site_list)
 
     # Iterate site_list (not `entries`) so JSON output order stays
     # deterministic — run_concurrent's dict is in thread-completion order.
