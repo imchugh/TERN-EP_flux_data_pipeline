@@ -305,11 +305,9 @@ def _rename_variables(ds: xr.Dataset) -> xr.Dataset:
     for var in ['Wd', 'Ws']:
         if var in ds:
             ds = ds.drop(var)
-        rename.update({f'{var}_SONIC': var})
-    # wind_rename = {
-    #     var: bare for var, bare in [('Wd_SONIC', 'Wd'), ('Ws_SONIC', 'Ws')]
-    #     if var in ds.variables
-    #     }
+        sonic_var = f'{var}_SONIC'
+        if sonic_var in ds.variables:
+            wind_rename[sonic_var] = var
     ds = ds.rename(wind_rename)
 
     # First precipitation replicate wins.
