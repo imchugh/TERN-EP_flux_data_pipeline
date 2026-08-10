@@ -11,7 +11,11 @@ SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
 PARENT_DIR=$(dirname "$SCRIPT_DIR")
 PY_RUN="$PARENT_DIR/run.py"
 
-# Pass sequential task args
+# Pass sequential task args. Every task runs even if an earlier one fails
+# (they're independent, not a pipeline); the script's own exit code
+# reflects whether any task failed, so cron can detect it.
+exit_code=0
 for task in "$@"; do
-    python "$PY_RUN" "$task"
+    python "$PY_RUN" "$task" || exit_code=1
 done
+exit "$exit_code"
