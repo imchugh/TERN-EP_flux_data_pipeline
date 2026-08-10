@@ -8,7 +8,7 @@ from tasks.tasks import run_task
 
 
 def main():
-
+    """Parse CLI args and run the requested task via tasks.tasks.run_task."""
     parser = argparse.ArgumentParser(description="Run a pipeline task.")
     parser.add_argument("task", help="Registered task name")
     parser.add_argument(

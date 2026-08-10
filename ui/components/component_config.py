@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""Created on Thu Apr 30 12:27:47 2026
-
-@author: imchugh
-"""
+"""Reusable NiceGUI components for the site config editor."""
 
 from collections.abc import Callable
 
@@ -12,7 +9,7 @@ from nicegui import ui
 def create_input_variable_table(
     get_rows: Callable, on_edit: Callable, file_list: list[str]
 ):
-
+    """Build the editable table of raw input variables for one canonical variable."""
     input_var_table = (
         ui.table(
             columns=[
@@ -56,9 +53,7 @@ def create_input_variable_table(
 
     input_var_table.on("edit", _handle)
 
-    # -------------------------
     # SLOTS
-    # -------------------------
 
     # Configure variable name slot
     input_var_table.add_slot(
@@ -216,9 +211,7 @@ def create_input_variable_table(
         """,
     )
 
-    # -------------------------
     # PUBLIC REFRESH
-    # -------------------------
     def refresh():
         input_var_table.rows = get_rows()
         input_var_table.update()
@@ -231,6 +224,7 @@ def create_file_formats_editor(
     on_change,
     file_type_options,
 ):
+    """Build the editable file-name-to-FileType mapping section."""
     container = ui.column()
 
     def refresh():

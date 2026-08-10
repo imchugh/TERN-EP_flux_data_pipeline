@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Site configuration editor.  Run from the repo root:
-conda run -n ep_cntl python -m ui.app
+"""Site configuration editor (NiceGUI app).
+
+Run from the repo root: conda run -n ep_cntl python -m ui.app
 """
 
 from pathlib import Path
@@ -29,8 +30,7 @@ from ui.components.component_config import (
     create_input_variable_table,
 )
 
-# ── Constants ─────────────────────────────────────────────────────────────────
-
+# Constants
 SITES_DIR = Path("/opt/TERN_EP/site_configs/operational")
 SAVE_DIR = Path("/tmp/site_config_edits")
 EXCLUDE_VARS = ["TIMESTAMP", "date", "time"]
@@ -44,8 +44,7 @@ VARIABLE_TYPE_OPTIONS = [e.value for e in VariableType]
 
 name_parser = NameParser()
 
-# ── App state ─────────────────────────────────────────────────────────────────
-
+# App state
 state = {
     "cfg": {},  # raw dict from YAML (mutated in place as user edits)
     "site": None,  # currently loaded site name
@@ -56,9 +55,8 @@ state = {
     "selected_var": None,
 }
 
-# ── Data helpers ──────────────────────────────────────────────────────────────
 
-
+# Data helpers
 def _site_names() -> list[str]:
     return sorted(p.stem for p in SITES_DIR.glob("*.yml"))
 
@@ -106,7 +104,7 @@ def _get_file_vars(file_stem: str, fmt: str) -> list[str]:
 
 
 def _extract_quantity(var_name: str | None) -> str | None:
-    """Parse the base quantity from a canonical variable name (e.g. 'Fco2' from 'Fco2_Av')."""
+    """Parse the base quantity ('Fco2') from a canonical variable name ('Fco2_Av')."""
     if not var_name:
         return None
     try:
@@ -116,10 +114,11 @@ def _extract_quantity(var_name: str | None) -> str | None:
 
 
 def _long_name_for(var_name: str, var_data: dict) -> str:
-    """Return the resolved long_name for var_name, accounting for variable_type and statistic_type.
+    """Return the resolved long_name for var_name.
 
-    Falls back to base long_name if resolve_metadata raises (e.g. variance units
-    not defined for some quantities — variance doesn't alter the long_name anyway).
+    Accounts for variable_type and statistic_type. Falls back to base
+    long_name if resolve_metadata raises (e.g. variance units not defined
+    for some quantities — variance doesn't alter the long_name anyway).
     """
     quantity = _extract_quantity(var_name)
     if not quantity or not CANONICAL_REGISTRY.has_quantity(quantity):
@@ -172,10 +171,9 @@ def _validate_date_ranges(input_variables: dict) -> None:
             prev_end = end
 
 
-# ── Site loading ──────────────────────────────────────────────────────────────
-
-
+# Site loading
 def load_site(site_name: str) -> None:
+    """Load a site's config YAML into app state and recompute derived file formats."""
     state["cfg"] = read_yml(SITES_DIR / f"{site_name}.yml")
     state["site"] = site_name
     state["var_cache"] = {}
@@ -190,9 +188,7 @@ def load_site(site_name: str) -> None:
     state["file_list"] = sorted(state["file_formats"].keys())
 
 
-# ── File-formats section callbacks ────────────────────────────────────────────
-
-
+# File-formats section callbacks
 def _get_file_formats_state() -> dict:
     return dict(state["cfg"].get("file_formats", {}) or {})
 
@@ -203,9 +199,7 @@ def _on_file_formats_change(event: dict) -> None:
     state["file_formats"][event["file"]] = event["value"]
 
 
-# ── Input-variable table helpers ──────────────────────────────────────────────
-
-
+# Input-variable table helpers
 def _instruments_for_alias(alias: str) -> list[str]:
     try:
         return list_instruments(alias)
@@ -297,7 +291,9 @@ def _make_table_edit_handler(var_name: str, refresh_fn) -> callable:
             return
 
         attrs = input_vars[key]
-        norm_date = lambda v: None if v in ("", None) else v
+
+        def norm_date(v):
+            return None if v in ("", None) else v
 
         # File change: reset dependent fields and exit early
         old_file, new_file = attrs.get("file"), row.get("file")
@@ -340,9 +336,7 @@ def _make_table_edit_handler(var_name: str, refresh_fn) -> callable:
     return handle
 
 
-# ── Variable detail panel ─────────────────────────────────────────────────────
-
-
+# Variable detail panel
 def render_variable(var_name: str, container) -> None:
     """Rebuild the variable detail panel inside container."""
     container.clear()
@@ -427,9 +421,7 @@ def render_variable(var_name: str, container) -> None:
         refresh()
 
 
-# ── Full editor ───────────────────────────────────────────────────────────────
-
-
+# Full editor
 def build_editor(content_col) -> None:
     """Build the full config editor inside content_col."""
     cfg = state["cfg"]
@@ -505,10 +497,9 @@ def build_editor(content_col) -> None:
                 render_variable(state["selected_var"], var_detail)
 
 
-# ── Actions ───────────────────────────────────────────────────────────────────
-
-
+# Actions
 def do_validate(error_col) -> None:
+    """Validate the current in-memory config and render any errors into error_col."""
     ok, errors = validate_all(state["cfg"])
     error_col.clear()
     if ok:
@@ -524,6 +515,7 @@ def do_validate(error_col) -> None:
 
 
 def do_save() -> None:
+    """Write the current in-memory config to SAVE_DIR as a draft YAML file."""
     if not state["site"]:
         ui.notify("No site loaded", color="orange")
         return
@@ -540,10 +532,9 @@ def do_save() -> None:
     ui.notify(f"Draft saved to {dest}", color="green")
 
 
-# ── Entry point ───────────────────────────────────────────────────────────────
-
-
+# Entry point
 def main():
+    """Build and launch the NiceGUI site-config-editor page."""
     sites = _site_names()
 
     dark = ui.dark_mode()
