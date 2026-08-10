@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Generate a YAML substitution map for instrument name cleanup.
+"""Generate a YAML substitution map for instrument name cleanup.
 
 Runs the instrument audit and writes configs/instrument_substitutions.yml
 with the best fuzzy suggestion for each missing instrument name.
@@ -20,11 +18,16 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from services.metadata.instrument_registry import is_valid_instrument, suggest_instruments
+from services.metadata.instrument_registry import (
+    is_valid_instrument,
+    suggest_instruments,
+)
 from services.metadata.site_registry import SITE_CONFIG_DIR
 from tools.audit_instrument_names import _collect_all_instruments
 
-OUTPUT_PATH = Path(__file__).resolve().parent.parent / 'configs' / 'instrument_substitutions.yml'
+OUTPUT_PATH = (
+    Path(__file__).resolve().parent.parent / "configs" / "instrument_substitutions.yml"
+)
 CUTOFF = 60.0
 
 
@@ -32,7 +35,7 @@ def generate_map(
     config_dir: Path = SITE_CONFIG_DIR,
     output: Path = OUTPUT_PATH,
 ) -> None:
-    print(f'Scanning: {config_dir}\n')
+    print(f"Scanning: {config_dir}\n")
 
     instrument_sites = _collect_all_instruments(config_dir)
 
@@ -54,27 +57,27 @@ def generate_map(
     suggestions.sort(key=lambda t: -t[2])
 
     # Print to terminal so scores are visible during review
-    print(f'{"score":>6}  {"from":<42}  to')
-    print('─' * 80)
+    print(f"{'score':>6}  {'from':<42}  to")
+    print("─" * 80)
     for old, new, score in suggestions:
-        print(f'{score:6.1f}  {old!r:<42}  {new!r}')
+        print(f"{score:6.1f}  {old!r:<42}  {new!r}")
     if no_match:
-        print(f'\nNo match (threshold {CUTOFF:.0f}):')
+        print(f"\nNo match (threshold {CUTOFF:.0f}):")
         for name in no_match:
-            print(f'  {name!r}')
+            print(f"  {name!r}")
 
     # Write the map YAML
     data = {
-        'substitutions': {old: new for old, new, _ in suggestions},
-        'no_match': no_match if no_match else None,
+        "substitutions": {old: new for old, new, _ in suggestions},
+        "no_match": no_match if no_match else None,
     }
 
-    with output.open('w', encoding='utf-8') as f:
-        f.write('# Instrument name substitution map\n')
-        f.write('# Review: remove any entry you do NOT want applied\n')
-        f.write('# Entries are ordered by match confidence (highest first)\n')
-        f.write('#\n')
-        f.write('# Apply with: python -m tools.apply_substitution_map [output_dir]\n\n')
+    with output.open("w", encoding="utf-8") as f:
+        f.write("# Instrument name substitution map\n")
+        f.write("# Review: remove any entry you do NOT want applied\n")
+        f.write("# Entries are ordered by match confidence (highest first)\n")
+        f.write("#\n")
+        f.write("# Apply with: python -m tools.apply_substitution_map [output_dir]\n\n")
         yaml.safe_dump(
             data,
             f,
@@ -83,9 +86,11 @@ def generate_map(
             allow_unicode=True,
         )
 
-    print(f'\nWrote {len(suggestions)} substitutions + {len(no_match)} no-match entries to:')
-    print(f'  {output}')
+    print(
+        f"\nWrote {len(suggestions)} substitutions + {len(no_match)} no-match entries to:"
+    )
+    print(f"  {output}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     generate_map()

@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Audit instrument names in site YAML configs against the TERN controlled vocab.
+"""Audit instrument names in site YAML configs against the TERN controlled vocab.
 
 For each unique instrument string found in the configs:
   - VALID: it exists in the TERN vocab (exact match)
@@ -29,22 +27,23 @@ from services.metadata.site_registry import SITE_CONFIG_DIR
 
 # ── constants ────────────────────────────────────────────────────────────────
 
-_SEP = '─' * 64
+_SEP = "─" * 64
 _SUGGESTION_CUTOFF = 60.0
 _N_SUGGESTIONS = 5
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
+
 def _extract_instrument_names(obj: object) -> list[str]:
     """Recursively collect all instrument strings from a parsed YAML dict."""
     names: list[str] = []
     if isinstance(obj, dict):
-        if 'instrument' in obj:
-            val = obj['instrument']
+        if "instrument" in obj:
+            val = obj["instrument"]
             if isinstance(val, str):
                 # Handle legacy comma-separated compound format
-                names.extend(p.strip() for p in val.split(',') if p.strip())
+                names.extend(p.strip() for p in val.split(",") if p.strip())
             elif isinstance(val, dict):
                 names.extend(v.strip() for v in val.values() if isinstance(v, str))
         for v in obj.values():
@@ -61,13 +60,13 @@ def _collect_all_instruments(
     """Return {instrument_name: [site_name, ...]} across all site YAMLs."""
     instrument_sites: dict[str, list[str]] = defaultdict(list)
 
-    for yml_path in sorted(config_dir.glob('*.yml')):
+    for yml_path in sorted(config_dir.glob("*.yml")):
         site_name = yml_path.stem
         try:
             with yml_path.open() as fh:
                 data = yaml.safe_load(fh)
         except Exception as exc:
-            print(f'  WARNING: could not parse {yml_path.name}: {exc}', file=sys.stderr)
+            print(f"  WARNING: could not parse {yml_path.name}: {exc}", file=sys.stderr)
             continue
 
         for name in _extract_instrument_names(data):
@@ -79,49 +78,50 @@ def _collect_all_instruments(
 
 # ── report ───────────────────────────────────────────────────────────────────
 
+
 def _format_sites(sites: list[str], max_inline: int = 4) -> str:
     if len(sites) <= max_inline:
-        return ', '.join(sites)
-    return ', '.join(sites[:max_inline]) + f', … (+{len(sites) - max_inline} more)'
+        return ", ".join(sites)
+    return ", ".join(sites[:max_inline]) + f", … (+{len(sites) - max_inline} more)"
 
 
 def run_audit(config_dir: Path = SITE_CONFIG_DIR) -> None:
-    print(f'\nScanning: {config_dir}\n')
+    print(f"\nScanning: {config_dir}\n")
 
     instrument_sites = _collect_all_instruments(config_dir)
     if not instrument_sites:
-        print('No instrument entries found.')
+        print("No instrument entries found.")
         return
 
-    valid: dict[str, tuple[str, list[str]]] = {}   # name → (alias, sites)
-    missing: dict[str, list[str]] = {}              # name → sites
+    valid: dict[str, tuple[str, list[str]]] = {}  # name → (alias, sites)
+    missing: dict[str, list[str]] = {}  # name → sites
 
     for name, sites in sorted(instrument_sites.items()):
         if is_valid_instrument(name):
             try:
                 alias = get_instrument_type(name)
             except KeyError:
-                alias = '?'
+                alias = "?"
             valid[name] = (alias, sites)
         else:
             missing[name] = sites
 
     # ── valid ────────────────────────────────────────────────────────────────
     print(_SEP)
-    print(f'VALID  ({len(valid)} instruments found in TERN vocab)')
+    print(f"VALID  ({len(valid)} instruments found in TERN vocab)")
     print(_SEP)
     if valid:
         name_w = max(len(n) for n in valid) + 2
         for name, (alias, sites) in sorted(valid.items()):
-            n_sites = f'{len(sites)} site{"s" if len(sites) != 1 else ""}'
-            print(f'  {name:<{name_w}}  [{alias}]  —  {n_sites}')
+            n_sites = f"{len(sites)} site{'s' if len(sites) != 1 else ''}"
+            print(f"  {name:<{name_w}}  [{alias}]  —  {n_sites}")
     else:
-        print('  (none)')
+        print("  (none)")
 
     # ── missing ──────────────────────────────────────────────────────────────
     print()
     print(_SEP)
-    print(f'MISSING  ({len(missing)} instruments not in TERN vocab)')
+    print(f"MISSING  ({len(missing)} instruments not in TERN vocab)")
     print(_SEP)
     if missing:
         for name, sites in sorted(missing.items()):
@@ -135,17 +135,17 @@ def run_audit(config_dir: Path = SITE_CONFIG_DIR) -> None:
                     try:
                         alias = get_instrument_type(match)
                     except KeyError:
-                        alias = '?'
-                    print(f'      {score:>5.1f}  {match}  [{alias}]')
+                        alias = "?"
+                    print(f"      {score:>5.1f}  {match}  [{alias}]")
             else:
-                print('      (no suggestions above threshold — manual review needed)')
+                print("      (no suggestions above threshold — manual review needed)")
     else:
-        print('  (none — all instrument names are valid)')
+        print("  (none — all instrument names are valid)")
 
     print()
 
 
 # ── entry point ───────────────────────────────────────────────────────────────
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run_audit()

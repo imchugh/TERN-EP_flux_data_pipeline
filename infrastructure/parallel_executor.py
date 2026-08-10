@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Generic concurrent task runner for I/O-bound work.
+"""Generic concurrent task runner for I/O-bound work.
 
 Uses a thread pool, which is appropriate for tasks dominated by file reads
 or network calls. The GIL does not block on I/O, and C-extension libraries
@@ -13,8 +11,9 @@ ProcessPoolExecutor from concurrent.futures — the public API is identical.
 """
 
 import logging
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -25,8 +24,7 @@ def run_concurrent(
     items: list[str],
     max_workers: int = 8,
 ) -> dict[str, Any]:
-    """
-    Run task(item) concurrently for every item in items.
+    """Run task(item) concurrently for every item in items.
 
     Individual failures are caught and stored as {'error': <message>} so a
     single failing item does not abort the whole run. All items are always
@@ -44,7 +42,6 @@ def run_concurrent(
         Dict mapping each item to its result, or to {'error': <str>} on
         failure.
     """
-
     results: dict[str, Any] = {}
 
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
@@ -62,4 +59,6 @@ def run_concurrent(
                 results[item] = {"error": str(exc)}
 
     return results
+
+
 # -----------------------------------------------------------------------------

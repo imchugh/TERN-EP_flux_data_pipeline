@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Feb 10 08:20:17 2026
+"""Created on Tue Feb 10 08:20:17 2026
 
 @author: imchugh
 """
 
-import logging
 import json
+import logging
 import time
+
 
 class JsonFormatter(logging.Formatter):
     """Formats logs as one JSON object per line, including all extra fields."""
@@ -17,7 +16,7 @@ class JsonFormatter(logging.Formatter):
         log_record = {
             "timestamp": time.strftime(
                 "%Y-%m-%dT%H:%M:%SZ", time.gmtime(record.created)
-                ),
+            ),
             "level": record.levelname,
             "name": record.name,
             "message": record.getMessage(),
@@ -26,11 +25,28 @@ class JsonFormatter(logging.Formatter):
         # Include structured extra fields (task, site, latency, etc.)
         for key, value in record.__dict__.items():
             if key not in (
-                "args", "asctime", "created", "exc_info", "exc_text",
-                "filename", "funcName", "levelname", "levelno",
-                "lineno", "module", "msecs", "message", "msg",
-                "name", "pathname", "process", "processName",
-                "relativeCreated", "stack_info", "thread", "threadName",
+                "args",
+                "asctime",
+                "created",
+                "exc_info",
+                "exc_text",
+                "filename",
+                "funcName",
+                "levelname",
+                "levelno",
+                "lineno",
+                "module",
+                "msecs",
+                "message",
+                "msg",
+                "name",
+                "pathname",
+                "process",
+                "processName",
+                "relativeCreated",
+                "stack_info",
+                "thread",
+                "threadName",
             ):
                 log_record[key] = value
 

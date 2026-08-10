@@ -1,30 +1,54 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Apr 30 12:27:47 2026
+"""Created on Thu Apr 30 12:27:47 2026
 
 @author: imchugh
 """
 
+from collections.abc import Callable
+
 from nicegui import ui
-from typing import Callable
+
 
 def create_input_variable_table(
     get_rows: Callable, on_edit: Callable, file_list: list[str]
-    ):
+):
 
-    input_var_table = ui.table(
-        columns=[
-            {"name": "file", "label": "File name", "field": "file", "align": "left"},
-            {"name": "name", "label": "Raw variable name", "field": "name", "align": "left"},
-            {"name": "instrument", "label": "Instrument", "field": "instrument", "align": "left"},
-            {"name": "units", "label": "Units", "field": "units", "align": "left"},
-            {"name": "begin", "label": "Start date", "field": "begin", "align": "left"},
-            {"name": "end", "label": "End date", "field": "end", "align": "left"},
-        ],
-        rows=[],
-        row_key="_key",
-    ).classes("w-full").props("separator=cell")
+    input_var_table = (
+        ui.table(
+            columns=[
+                {
+                    "name": "file",
+                    "label": "File name",
+                    "field": "file",
+                    "align": "left",
+                },
+                {
+                    "name": "name",
+                    "label": "Raw variable name",
+                    "field": "name",
+                    "align": "left",
+                },
+                {
+                    "name": "instrument",
+                    "label": "Instrument",
+                    "field": "instrument",
+                    "align": "left",
+                },
+                {"name": "units", "label": "Units", "field": "units", "align": "left"},
+                {
+                    "name": "begin",
+                    "label": "Start date",
+                    "field": "begin",
+                    "align": "left",
+                },
+                {"name": "end", "label": "End date", "field": "end", "align": "left"},
+            ],
+            rows=[],
+            row_key="_key",
+        )
+        .classes("w-full")
+        .props("separator=cell")
+    )
 
     # Event bridge (component -> main logic)
     def _handle(e):
@@ -38,7 +62,8 @@ def create_input_variable_table(
 
     # Configure variable name slot
     input_var_table.add_slot(
-        "body-cell-name", r'''
+        "body-cell-name",
+        r"""
         <q-td :props="props">
           <q-select
             v-model="props.row.name"
@@ -48,26 +73,30 @@ def create_input_variable_table(
             @update:model-value="$parent.$emit('edit', props.row)"
           />
         </q-td>
-        '''
+        """,
     )
-    
+
     # Configure file name slot
     input_var_table.add_slot(
-        "body-cell-file", r'''
+        "body-cell-file",
+        r'''
         <q-td :props="props">
           <q-select
             v-model="props.row.file"
-            :options="''' + str(file_list) + r'''"
+            :options="'''
+        + str(file_list)
+        + r""""
             dense borderless emit-value map-options
             @update:model-value="$parent.$emit('edit', props.row)"
           />
         </q-td>
-        '''
-        )
-    
+        """,
+    )
+
     # Configure instrument slot
     input_var_table.add_slot(
-        "body-cell-instrument", r'''
+        "body-cell-instrument",
+        r"""
         <q-td :props="props">
           <template v-if="props.row._instrument_is_compound">
             <div class="column" style="gap:2px">
@@ -94,12 +123,13 @@ def create_input_variable_table(
             />
           </template>
         </q-td>
-        '''
+        """,
     )
 
     # Configure unit slot
     input_var_table.add_slot(
-        "body-cell-units", r'''
+        "body-cell-units",
+        r"""
         <q-td :props="props">
           <q-select
             v-model="props.row.units"
@@ -113,12 +143,13 @@ def create_input_variable_table(
             @update:model-value="$parent.$emit('edit', props.row)"
           />
         </q-td>
-        '''
-        )
-    
+        """,
+    )
+
     # Configure start date slot
     input_var_table.add_slot(
-        "body-cell-begin", r'''
+        "body-cell-begin",
+        r"""
         <q-td :props="props">
           <q-input
             v-model="props.row.begin"
@@ -147,12 +178,13 @@ def create_input_variable_table(
             </template>
           </q-input>
         </q-td>
-        '''
-        )
+        """,
+    )
 
-    # Configure end date slot    
+    # Configure end date slot
     input_var_table.add_slot(
-        "body-cell-end", r'''
+        "body-cell-end",
+        r"""
         <q-td :props="props">
           <q-input
             v-model="props.row.end"
@@ -181,8 +213,8 @@ def create_input_variable_table(
             </template>
           </q-input>
         </q-td>
-        '''
-        )
+        """,
+    )
 
     # -------------------------
     # PUBLIC REFRESH
@@ -192,7 +224,6 @@ def create_input_variable_table(
         input_var_table.update()
 
     return input_var_table, refresh
-
 
 
 def create_file_formats_editor(
@@ -212,23 +243,31 @@ def create_file_formats_editor(
             table = ui.table(
                 columns=[
                     {"name": "file", "label": "File", "field": "file", "align": "left"},
-                    {"name": "type", "label": "Format", "field": "type", "align": "left"},
+                    {
+                        "name": "type",
+                        "label": "Format",
+                        "field": "type",
+                        "align": "left",
+                    },
                 ],
                 rows=rows,
                 row_key="file",
             ).classes("w-full")
 
             table.add_slot(
-                "body-cell-type", r'''
+                "body-cell-type",
+                r'''
                 <q-td :props="props">
                   <q-select
                     v-model="props.row.type"
-                    :options="''' + str(file_type_options) + r'''"
+                    :options="'''
+                + str(file_type_options)
+                + r""""
                     dense borderless emit-value map-options
                     @update:model-value="$parent.$emit('edit', props.row)"
                   />
                 </q-td>
-                '''
+                """,
             )
 
             def handle_edit(e):

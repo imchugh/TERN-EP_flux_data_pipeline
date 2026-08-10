@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-@author: imchugh
+"""@author: imchugh
 """
 
 import functools
@@ -33,23 +31,22 @@ def _get_vocab_registry() -> dict[str, list[str]]:
     broader_chain == broader, then exclude category nodes (any URI that itself
     appears as a broader reference) so only leaf instruments are listed.
     """
-
     data = get_instrument_vocab()
 
     # Any URI used as a broader reference is a category node, not a leaf instrument
-    parent_uris = {entry['broader'] for entry in data if entry.get('broader')}
+    parent_uris = {entry["broader"] for entry in data if entry.get("broader")}
 
     registry: dict[str, set[str]] = {}
     for entry in data:
-        if entry.get('is_top_concept') == 'true':
+        if entry.get("is_top_concept") == "true":
             continue
-        if entry['uri'] in parent_uris:
+        if entry["uri"] in parent_uris:
             continue
-        if entry.get('broader_chain') != entry.get('broader'):
+        if entry.get("broader_chain") != entry.get("broader"):
             continue
-        cat = entry.get('broader_chain_label')
+        cat = entry.get("broader_chain_label")
         if cat:
-            registry.setdefault(_normalize_key(cat), set()).add(entry['label'])
+            registry.setdefault(_normalize_key(cat), set()).add(entry["label"])
 
     return {k: sorted(v) for k, v in sorted(registry.items())}
 
@@ -57,18 +54,20 @@ def _get_vocab_registry() -> dict[str, list[str]]:
 @functools.lru_cache(maxsize=1)
 def _get_alias_map() -> dict[str, dict]:
     """Load alias entries from config (excludes flux_quantities section)."""
-    raw = config_loader.load_config_file_from_name('instrument_quantity_map')
-    return {k: v for k, v in raw.items() if k != 'flux_quantities'}
+    raw = config_loader.load_config_file_from_name("instrument_quantity_map")
+    return {k: v for k, v in raw.items() if k != "flux_quantities"}
 
 
 @functools.lru_cache(maxsize=1)
 def _get_name_corrections() -> dict[str, str]:
     """Load preferred→vocab-label corrections for incorrectly named vocab entries."""
     try:
-        raw = config_loader.load_config_file_from_name('instrument_name_corrections')
-        return raw.get('corrections', {}) or {}
+        raw = config_loader.load_config_file_from_name("instrument_name_corrections")
+        return raw.get("corrections", {}) or {}
     except FileNotFoundError:
-        logger.debug("No instrument_name_corrections config found; no corrections applied")
+        logger.debug(
+            "No instrument_name_corrections config found; no corrections applied"
+        )
         return {}
 
 
@@ -76,26 +75,28 @@ def _get_name_corrections() -> dict[str, str]:
 def _get_pending_instruments() -> dict[str, str]:
     """Load pending instrument names (no vocab entry yet) mapped to their alias category."""
     try:
-        raw = config_loader.load_config_file_from_name('instrument_name_corrections')
-        return raw.get('pending', {}) or {}
+        raw = config_loader.load_config_file_from_name("instrument_name_corrections")
+        return raw.get("pending", {}) or {}
     except FileNotFoundError:
-        logger.debug("No instrument_name_corrections config found; no pending instruments")
+        logger.debug(
+            "No instrument_name_corrections config found; no pending instruments"
+        )
         return {}
 
 
 @functools.lru_cache(maxsize=1)
 def _get_flux_quantities() -> dict[str, list[str]]:
     """Load compound flux quantity definitions from config."""
-    raw = config_loader.load_config_file_from_name('instrument_quantity_map')
-    return raw.get('flux_quantities', {})
+    raw = config_loader.load_config_file_from_name("instrument_quantity_map")
+    return raw.get("flux_quantities", {})
 
 
 @functools.lru_cache(maxsize=1)
 def _get_uri_maps() -> tuple[dict[str, str], dict[str, str]]:
     """Return (uri→label, uri→direct_parent_uri) maps from raw vocab."""
     data = get_raw_vocab()
-    uri_label = {e['uri']: e['label'] for e in data if e.get('uri') and e.get('label')}
-    parent_map = {e['uri']: e['broader'] for e in data if e.get('broader')}
+    uri_label = {e["uri"]: e["label"] for e in data if e.get("uri") and e.get("label")}
+    parent_map = {e["uri"]: e["broader"] for e in data if e.get("broader")}
     return uri_label, parent_map
 
 
@@ -114,10 +115,9 @@ def _get_vocab_keys(alias: str) -> list[str]:
     alias_map = _get_alias_map()
     if alias not in alias_map:
         raise KeyError(
-            f"Unknown instrument alias {alias!r}. "
-            f"Valid aliases: {list(alias_map)}"
+            f"Unknown instrument alias {alias!r}. Valid aliases: {list(alias_map)}"
         )
-    return alias_map[alias]['vocab_keys']
+    return alias_map[alias]["vocab_keys"]
 
 
 def list_types() -> list[str]:
@@ -158,7 +158,7 @@ def list_quantities(instrument_type: str) -> list[str]:
             f"Unknown instrument alias {instrument_type!r}. "
             f"Valid aliases: {list(alias_map)}"
         )
-    return alias_map[instrument_type]['quantities']
+    return alias_map[instrument_type]["quantities"]
 
 
 def is_compound_quantity(quantity: str) -> bool:
@@ -206,7 +206,10 @@ def get_instrument_type(name: str) -> str:
     resolved = _get_name_corrections().get(name, name)
 
     for alias, cfg in alias_map.items():
-        if any(resolved in vocab_registry.get(_normalize_key(k), []) for k in cfg['vocab_keys']):
+        if any(
+            resolved in vocab_registry.get(_normalize_key(k), [])
+            for k in cfg["vocab_keys"]
+        ):
             return alias
     raise KeyError(f"Unknown instrument {name!r}")
 
@@ -233,14 +236,15 @@ def is_valid_instrument(name: str) -> bool:
     return any(
         name in vocab_registry.get(_normalize_key(k), [])
         for cfg in alias_map.values()
-        for k in cfg['vocab_keys']
-        )
+        for k in cfg["vocab_keys"]
+    )
 
 
 def get_quantities_for_instrument(name: str) -> list[str]:
     """Return the canonical quantities for a specific instrument label."""
     alias = get_instrument_type(name)
     return list_quantities(alias)
+
 
 def list_instruments_for_quantity(quantity: str) -> list[str]:
     """Return all instruments that measure a given simple (non-compound) quantity.
@@ -265,13 +269,13 @@ def list_instruments_for_quantity(quantity: str) -> list[str]:
 
     instruments: set[str] = set()
     for alias, cfg in alias_map.items():
-        if quantity in cfg.get('quantities', []):
-            for k in cfg['vocab_keys']:
+        if quantity in cfg.get("quantities", []):
+            for k in cfg["vocab_keys"]:
                 instruments.update(vocab_registry.get(_normalize_key(k), []))
 
     pending = _get_pending_instruments()
     for name, alias in pending.items():
-        if alias in alias_map and quantity in alias_map[alias].get('quantities', []):
+        if alias in alias_map and quantity in alias_map[alias].get("quantities", []):
             instruments.add(name)
 
     return sorted(instruments)
@@ -357,7 +361,7 @@ def suggest_instruments(
     name: str,
     n: int = 5,
     score_cutoff: float = 60.0,
-    ) -> list[tuple[str, float]]:
+) -> list[tuple[str, float]]:
     """Return top-n fuzzy matches from the full TERN vocab.
 
     Uses rapidfuzz.token_set_ratio when available (handles word-order and
@@ -388,6 +392,7 @@ def suggest_instruments(
 
     try:
         from rapidfuzz import fuzz, process
+
         results = process.extract(
             name,
             candidates,
@@ -398,8 +403,18 @@ def suggest_instruments(
         return [(match, float(score)) for match, score, _ in results]
     except ImportError:
         import difflib
-        close = difflib.get_close_matches(name, candidates, n=n, cutoff=score_cutoff / 100)
+
+        close = difflib.get_close_matches(
+            name, candidates, n=n, cutoff=score_cutoff / 100
+        )
         return [
-            (m, round(difflib.SequenceMatcher(None, name.lower(), m.lower()).ratio() * 100, 1))
+            (
+                m,
+                round(
+                    difflib.SequenceMatcher(None, name.lower(), m.lower()).ratio()
+                    * 100,
+                    1,
+                ),
+            )
             for m in close
         ]

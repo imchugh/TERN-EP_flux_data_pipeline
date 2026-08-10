@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Orchestrates network-status tasks across all configured pipeline sites.
+"""Orchestrates network-status tasks across all configured pipeline sites.
 
 Each task is a callable with the signature:
 
@@ -52,26 +50,28 @@ from infrastructure.file_io import read_json, write_json
 from infrastructure.parallel_executor import run_concurrent
 from services.metadata.site_registry import SiteRegistry
 from services.network.connectivity import (
-    run_site_connectivity,
     connectivity_sites,
     persist_connectivity_state,
-    )
+    run_site_connectivity,
+)
 from services.network.data_monitor import (
-    analyse_missing_data,
-    analyse_variable_quality,
-    analyse_threshold_quality,
     NULL_RESULT as MISSING_DATA_NULL_RESULT,
-    VARIABLE_QUALITY_NULL_RESULT,
+)
+from services.network.data_monitor import (
     THRESHOLD_NULL_RESULT,
-    )
+    VARIABLE_QUALITY_NULL_RESULT,
+    analyse_missing_data,
+    analyse_threshold_quality,
+    analyse_variable_quality,
+)
 from services.network.logger_monitor import check_logger_status
 from services.network.nc_monitor import check_nc_last_record
 
 logger = logging.getLogger(__name__)
 
-STATE_DIR = paths.get_local_stream_path(resource='network', stream='state')
-GEOJSON_PATH = STATE_DIR / 'network_state.json'
-SITE_SUMMARY_PATH = STATE_DIR / 'site_summary.json'
+STATE_DIR = paths.get_local_stream_path(resource="network", stream="state")
+GEOJSON_PATH = STATE_DIR / "network_state.json"
+SITE_SUMMARY_PATH = STATE_DIR / "site_summary.json"
 
 # Shared type alias for the two-argument persist-callback contract.
 type PersistFn = Callable[[dict[str, Any], str], None]
@@ -91,9 +91,9 @@ SITE_REGISTRY = SiteRegistry()
 # Add one adapter here for each new task; keep adapters thin.
 # ---------------------------------------------------------------------------
 
+
 def missing_data_task(site: str) -> dict[str, Any]:
-    """
-    Adapter: analyse_missing_data -> site-name interface.
+    """Adapter: analyse_missing_data -> site-name interface.
 
     Args:
         site: Site name as registered in the pipeline site registry.
@@ -105,18 +105,17 @@ def missing_data_task(site: str) -> dict[str, Any]:
     """
     context = SITE_REGISTRY.get_context(site=site)
     try:
-        return analyse_missing_data(context=context) | {'error': None}
+        return analyse_missing_data(context=context) | {"error": None}
     except Exception as exc:
         logger.warning(
-            'missing_data_failed',
-            extra={'site': site, 'error': str(exc)},
+            "missing_data_failed",
+            extra={"site": site, "error": str(exc)},
         )
-        return MISSING_DATA_NULL_RESULT | {'error': str(exc)}
+        return MISSING_DATA_NULL_RESULT | {"error": str(exc)}
 
 
 def variable_quality_task(site: str) -> dict[str, Any]:
-    """
-    Adapter: analyse_variable_quality -> site-name interface.
+    """Adapter: analyse_variable_quality -> site-name interface.
 
     Args:
         site: Site name as registered in the pipeline site registry.
@@ -126,21 +125,19 @@ def variable_quality_task(site: str) -> dict[str, Any]:
         on success or all variable fields set to ``null`` and ``error``
         populated on failure.
     """
-
     context = SITE_REGISTRY.get_context(site=site)
     try:
-        return analyse_variable_quality(context=context) | {'error': None}
+        return analyse_variable_quality(context=context) | {"error": None}
     except Exception as exc:
         logger.warning(
-            'variable_quality_failed',
-            extra={'site': site, 'error': str(exc)},
+            "variable_quality_failed",
+            extra={"site": site, "error": str(exc)},
         )
-        return VARIABLE_QUALITY_NULL_RESULT | {'error': str(exc)}
+        return VARIABLE_QUALITY_NULL_RESULT | {"error": str(exc)}
 
 
 def threshold_quality_task(site: str) -> dict[str, Any]:
-    """
-    Adapter: analyse_threshold_quality -> site-name interface.
+    """Adapter: analyse_threshold_quality -> site-name interface.
 
     Args:
         site: Site name as registered in the pipeline site registry.
@@ -150,21 +147,19 @@ def threshold_quality_task(site: str) -> dict[str, Any]:
         ``error: null`` on success or all variable fields set to ``null``
         and ``error`` populated on failure.
     """
-
     context = SITE_REGISTRY.get_context(site=site)
     try:
-        return analyse_threshold_quality(context=context) | {'error': None}
+        return analyse_threshold_quality(context=context) | {"error": None}
     except Exception as exc:
         logger.warning(
-            'threshold_quality_failed',
-            extra={'site': site, 'error': str(exc)},
+            "threshold_quality_failed",
+            extra={"site": site, "error": str(exc)},
         )
-        return THRESHOLD_NULL_RESULT | {'error': str(exc)}
+        return THRESHOLD_NULL_RESULT | {"error": str(exc)}
 
 
 def logger_status_task(site: str) -> dict[str, Any]:
-    """
-    Adapter: check_logger_status -> site-name interface.
+    """Adapter: check_logger_status -> site-name interface.
 
     Args:
         site: Site name as registered in the VPN IP config.
@@ -172,13 +167,11 @@ def logger_status_task(site: str) -> dict[str, Any]:
     Returns:
         Logger status result dict for the site.
     """
-
     return check_logger_status(site=site)
 
 
 def nc_last_record_task(site: str) -> dict[str, Any]:
-    """
-    Adapter: check_nc_last_record -> site-name interface.
+    """Adapter: check_nc_last_record -> site-name interface.
 
     Args:
         site: Site name as registered in the pipeline site registry.
@@ -186,15 +179,13 @@ def nc_last_record_task(site: str) -> dict[str, Any]:
     Returns:
         NetCDF last-record result dict for the site.
     """
-
     return check_nc_last_record(site=site)
 
 
 def make_connectivity_task(
     hardware: str = "gateway",
-    ) -> Callable[[str], dict[str, Any]]:
-    """
-    Factory: return a per-site connectivity task for the given hardware type.
+) -> Callable[[str], dict[str, Any]]:
+    """Factory: return a per-site connectivity task for the given hardware type.
 
     The returned callable conforms to the ``task(site: str) -> dict`` contract
     and is intended to be passed directly to ``run_task_for_all_sites``.
@@ -217,13 +208,13 @@ def make_connectivity_task(
 # Persistence helpers
 # ---------------------------------------------------------------------------
 
+
 def write_state(
     results: dict[str, Any],
     task_name: str,
     state_dir: Path = STATE_DIR,
-    ) -> None:
-    """
-    Write a snapshot state file for a completed task.
+) -> None:
+    """Write a snapshot state file for a completed task.
 
     Wraps per-site results in the standard envelope and writes to
     ``<state_dir>/<task_name>.json``, matching the structure used by the
@@ -242,11 +233,10 @@ def write_state(
         state_dir: Directory to write into. Defaults to the configured
             network state path.
     """
-
     payload = {
         "updated_at": get_utc_now(as_iso=True),
         "sites": results,
-        }
+    }
 
     out_path = state_dir / f"{task_name}.json"
     write_json(file_path=out_path, data=payload, sort_keys=True)
@@ -269,34 +259,34 @@ _CONNECTIVITY_SITES = connectivity_sites()
 STATE_TASK_SPECS: list[dict[str, Any]] = [
     dict(
         task=missing_data_task,
-        task_name='missing_data',
+        task_name="missing_data",
     ),
     dict(
         task=variable_quality_task,
-        task_name='variable_quality',
+        task_name="variable_quality",
     ),
     dict(
         task=threshold_quality_task,
-        task_name='threshold_quality',
+        task_name="threshold_quality",
     ),
     dict(
         task=nc_last_record_task,
-        task_name='nc_last_record',
+        task_name="nc_last_record",
     ),
     dict(
         task=logger_status_task,
-        task_name='logger_status',
+        task_name="logger_status",
         sites=_CONNECTIVITY_SITES,
     ),
     dict(
-        task=make_connectivity_task('gateway'),
-        task_name='gateway_connectivity',
+        task=make_connectivity_task("gateway"),
+        task_name="gateway_connectivity",
         sites=_CONNECTIVITY_SITES,
         persist=persist_connectivity_state,
     ),
     dict(
-        task=make_connectivity_task('ec'),
-        task_name='ec_logger_connectivity',
+        task=make_connectivity_task("ec"),
+        task_name="ec_logger_connectivity",
         sites=_CONNECTIVITY_SITES,
         persist=persist_connectivity_state,
     ),
@@ -307,15 +297,15 @@ STATE_TASK_SPECS: list[dict[str, Any]] = [
 # Orchestration
 # ---------------------------------------------------------------------------
 
+
 def run_task_for_all_sites(
     task: Callable[[str], dict[str, Any]],
     task_name: str,
     sites: list[str] | None = None,
     max_workers: int = 8,
     persist: PersistFn | None = write_state,
-    ) -> dict[str, dict[str, Any]]:
-    """
-    Run task concurrently for every configured pipeline site.
+) -> dict[str, dict[str, Any]]:
+    """Run task concurrently for every configured pipeline site.
 
     Args:
         task: A callable conforming to ``task(site: str) -> dict[str, Any]``. Tasks are
@@ -336,7 +326,6 @@ def run_task_for_all_sites(
     Returns:
         Dict of the form ``{task_name: {site: result_or_error, ...}}``.
     """
-
     if sites is None:
         # Pre-warm the shared metadata cache before launching threads so that
         # all threads see a populated cache rather than racing to load the same
@@ -365,9 +354,8 @@ def run_task_for_all_sites(
 def compile_geojson(
     task_names: list[str] | None = None,
     state_dir: Path = STATE_DIR,
-    ) -> None:
-    """
-    Read per-task state files and write a site-pivoted GeoJSON FeatureCollection.
+) -> None:
+    """Read per-task state files and write a site-pivoted GeoJSON FeatureCollection.
 
     Reads each ``<task_name>.json`` from ``state_dir``, pivots from task-first
     to site-first, then assembles one GeoJSON Feature per pipeline-registry site.
@@ -382,7 +370,6 @@ def compile_geojson(
         task_names: Ordered list of task names to include.
         state_dir: Directory containing per-task state files and output.
     """
-
     if task_names is None:
         task_names = [spec["task_name"] for spec in STATE_TASK_SPECS]
 
@@ -413,15 +400,17 @@ def compile_geojson(
             )
             continue
 
-        features.append({
-            "type": "Feature",
-            "id": site_name,
-            "geometry": {
-                "type": "Point",
-                "coordinates": [lon, lat],
-            },
-            "properties": site_results.get(site_name, {}),
-        })
+        features.append(
+            {
+                "type": "Feature",
+                "id": site_name,
+                "geometry": {
+                    "type": "Point",
+                    "coordinates": [lon, lat],
+                },
+                "properties": site_results.get(site_name, {}),
+            }
+        )
 
     geojson = {
         "type": "FeatureCollection",
@@ -437,9 +426,8 @@ def compile_geojson(
 def compile_site_summary(
     task_names: list[str] | None = None,
     state_dir: Path = STATE_DIR,
-    ) -> None:
-    """
-    Read per-task state files and write a site-pivoted summary.
+) -> None:
+    """Read per-task state files and write a site-pivoted summary.
 
     Reads each ``<task_name>.json`` from ``state_dir``, pivots from the
     task-first structure ``{task: {site: result}}`` to a site-first view, and
@@ -465,7 +453,6 @@ def compile_site_summary(
         state_dir: Directory containing per-task state files. Defaults to the
             configured network state path.
     """
-
     if task_names is None:
         task_names = [spec["task_name"] for spec in STATE_TASK_SPECS]
 
@@ -487,8 +474,7 @@ def compile_site_summary(
 
 
 def run_task(task_name: str) -> dict[str, dict[str, Any]]:
-    """
-    Run a single registered task by name and write its state file.
+    """Run a single registered task by name and write its state file.
 
     Looks up the task spec in ``STATE_TASK_SPECS`` by ``task_name`` and
     delegates to ``run_task_for_all_sites``.
@@ -503,9 +489,8 @@ def run_task(task_name: str) -> dict[str, dict[str, Any]]:
     Raises:
         KeyError: If ``task_name`` is not found in ``STATE_TASK_SPECS``.
     """
-
     try:
-        spec = next(s for s in STATE_TASK_SPECS if s['task_name'] == task_name)
+        spec = next(s for s in STATE_TASK_SPECS if s["task_name"] == task_name)
     except StopIteration:
         raise KeyError(f"No task registered under name {task_name!r}")
 
@@ -513,8 +498,7 @@ def run_task(task_name: str) -> dict[str, dict[str, Any]]:
 
 
 def run_all_tasks() -> None:
-    """
-    Run every registered state task in sequence and write its state file.
+    """Run every registered state task in sequence and write its state file.
 
     Iterates ``STATE_TASK_SPECS`` and calls ``run_task_for_all_sites`` for
     each entry. Tasks fan out concurrently per-site internally; this function
@@ -522,7 +506,6 @@ def run_all_tasks() -> None:
     next task begins. Does not run aggregation — call ``aggregate()`` separately
     if needed.
     """
-
     logger.info("run_all_tasks_start", extra={"n_tasks": len(STATE_TASK_SPECS)})
 
     for spec in STATE_TASK_SPECS:
@@ -533,10 +516,9 @@ def run_all_tasks() -> None:
 
 def aggregate(
     run_tasks: bool = False,
-    output: Literal['json', 'geojson', 'both'] = 'both',
-    ) -> None:
-    """
-    Aggregate per-task state files into a combined summary.
+    output: Literal["json", "geojson", "both"] = "both",
+) -> None:
+    """Aggregate per-task state files into a combined summary.
 
     Optionally re-runs all tasks first, then compiles the selected output
     format(s) from the state files on disk.
@@ -553,16 +535,15 @@ def aggregate(
               used operationally).
             - ``'both'`` (default): writes both files.
     """
-
     if run_tasks:
         run_all_tasks()
 
-    if output in ('json', 'both'):
+    if output in ("json", "both"):
         compile_site_summary()
 
-    if output in ('geojson', 'both'):
+    if output in ("geojson", "both"):
         compile_geojson()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     aggregate(run_tasks=True)

@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Dec  9 12:02:01 2025
+"""Created on Tue Dec  9 12:02:01 2025
 
 @author: imchugh
 """
@@ -31,12 +29,10 @@ LABEL_PREDICATES = {
 
 @lru_cache(maxsize=1024)
 def fetch_label(uri: str):
-    """
-    Dereference a TERN CV UUID URI and extract a human-readable label.
+    """Dereference a TERN CV UUID URI and extract a human-readable label.
     Supports JSON-LD, RDF/XML, and Turtle.
     Returns a string or None.
     """
-
     try:
         response = requests.get(uri, headers=ACCEPT_HEADERS, timeout=15)
         response.raise_for_status()
@@ -84,8 +80,7 @@ def fetch_label(uri: str):
 
 
 def dereference_labels(uris):
-    """
-    Given a list of UUID URIs, return a mapping: URI → label or None.
+    """Given a list of UUID URIs, return a mapping: URI → label or None.
     """
     results = {}
     for uri in uris:

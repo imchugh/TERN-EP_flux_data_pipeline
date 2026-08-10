@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Thu May 14 09:30:42 2026
+"""Created on Thu May 14 09:30:42 2026
 
 @author: imchugh
 """
@@ -14,52 +12,52 @@ import pandas as pd
 
 from domain.enums import StatisticType, VariableType
 from infrastructure import data_diagnostics, datetime_utils, paths
+from orchestration.dataframe_builder import build_dataframe_from_context
 from services.data import raw_data_loader
 from services.metadata.site_registry import SiteContext
-from orchestration.dataframe_builder import build_dataframe_from_context
 
 logger = logging.getLogger(__name__)
 
-MONITOR_VARS = ['Fco2', 'Fh', 'Fe', 'Fsd']
+MONITOR_VARS = ["Fco2", "Fh", "Fe", "Fsd"]
 ANALYSIS_PERIODS_DAYS = [1, 7, 30]
 NULL_RESULT: dict[str, Any] = {
-    'last_record': None,
-    'days_since_last_record': None,
-    **{f'pct_missing_last_{p}_days': None for p in ANALYSIS_PERIODS_DAYS},
-    'error': None,
-    }
+    "last_record": None,
+    "days_since_last_record": None,
+    **{f"pct_missing_last_{p}_days": None for p in ANALYSIS_PERIODS_DAYS},
+    "error": None,
+}
 
 VARIABLE_QUALITY_NULL_RESULT: dict[str, Any] = {
     **{var: None for var in MONITOR_VARS},
-    'error': None,
-    }
+    "error": None,
+}
 
 THRESHOLD_SPECS: dict[str, dict[str, float]] = {
-    'Vbat': {'min': 11.5},
-    'Diag_IRGA':   {'max': 1000},
-    'Diag_SONIC':   {'max': 1000}
-    }
+    "Vbat": {"min": 11.5},
+    "Diag_IRGA": {"max": 1000},
+    "Diag_SONIC": {"max": 1000},
+}
 
 THRESHOLD_NULL_RESULT: dict[str, Any] = {
     **{var: None for var in THRESHOLD_SPECS},
-    'error': None,
-    }
+    "error": None,
+}
 
 _MONITOR_STATISTIC_TYPES = {StatisticType.AVG, None}
-_MONITOR_VARIABLE_TYPES  = {VariableType.CONTINUOUS}
+_MONITOR_VARIABLE_TYPES = {VariableType.CONTINUOUS}
 
 
 # -----------------------------------------------------------------------------
+
 
 def get_missing_records(
     df: pd.DataFrame | pd.Series,
     reference_date: datetime,
     interval_minutes: int = 30,
     days: int | list[int] | None = None,
-    metric_prefix: str = 'pct_missing',
-    ) -> dict[str, float]:
-    """
-    Analyse recent data gaps over one or more rolling periods.
+    metric_prefix: str = "pct_missing",
+) -> dict[str, float]:
+    """Analyse recent data gaps over one or more rolling periods.
 
     Args:
         df: Time-indexed DataFrame or Series to analyse.
@@ -83,7 +81,6 @@ def get_missing_records(
         ValueError: If df fails validation, days list is empty, or any period is <= 0.
         TypeError: If df fails validation, or days is not int/list.
     """
-
     data_diagnostics.validate_dataframe(df)
 
     if not df.index.is_monotonic_increasing:
@@ -92,62 +89,55 @@ def get_missing_records(
     analysis_periods = ANALYSIS_PERIODS_DAYS
 
     if days is not None:
-
         if isinstance(days, int) and not isinstance(days, bool):
             analysis_periods = [days]
 
         elif isinstance(days, list):
-
             if not days:
-                raise ValueError('days list cannot be empty')
+                raise ValueError("days list cannot be empty")
 
             if not all(isinstance(elem, int) for elem in days):
-                raise TypeError(
-                    'days argument must be either an int or a list of ints'
-                    )
+                raise TypeError("days argument must be either an int or a list of ints")
 
             analysis_periods = days
 
         else:
-            raise TypeError(
-                'days argument must be either an int or a list of ints'
-                )
+            raise TypeError("days argument must be either an int or a list of ints")
 
     if any(period <= 0 for period in analysis_periods):
-        raise ValueError('All analysis periods must be positive integers')
+        raise ValueError("All analysis periods must be positive integers")
 
     last = reference_date
     results = {}
 
     for period in analysis_periods:
-
         first = last - timedelta(days=period)
         analysis_df = df.loc[first:last]
 
-        missing = (
-            data_diagnostics.analyse_data_gaps(
-                df=analysis_df,
-                interval_minutes=interval_minutes,
-                start=first,
-                end=last,
-                )['pct_missing']
-            )
+        missing = data_diagnostics.analyse_data_gaps(
+            df=analysis_df,
+            interval_minutes=interval_minutes,
+            start=first,
+            end=last,
+        )["pct_missing"]
 
-        results[f'{metric_prefix}_last_{period}_days'] = missing
+        results[f"{metric_prefix}_last_{period}_days"] = missing
 
     return results
+
+
 # -----------------------------------------------------------------------------
 
 
 # -----------------------------------------------------------------------------
+
 
 def _build_monitor_series(
-        df: pd.DataFrame,
-        quantity: str,
-        context: SiteContext,
-        ) -> pd.Series | None:
-    """
-    Extract a plausibility-filtered sparse Series for a single quantity.
+    df: pd.DataFrame,
+    quantity: str,
+    context: SiteContext,
+) -> pd.Series | None:
+    """Extract a plausibility-filtered sparse Series for a single quantity.
 
     Walks the site variable registry to find canonical column name(s) for the
     quantity, restricts to continuous average-statistic variables, applies the
@@ -164,11 +154,9 @@ def _build_monitor_series(
     Returns:
         Sparse Series of plausible values, or None if not available.
     """
-
     series: list[pd.Series] = []
 
     for canonical_name, var_def in context.runtime_config.variables.items():
-
         if var_def.quantity != quantity:
             continue
         if var_def.variable_type not in _MONITOR_VARIABLE_TYPES:
@@ -198,20 +186,22 @@ def _build_monitor_series(
         combined = combined.combine_first(s)
 
     return combined.dropna()
+
+
 # -----------------------------------------------------------------------------
 
 
 # -----------------------------------------------------------------------------
+
 
 def get_variable_quality(
-        df: pd.DataFrame,
-        context: SiteContext,
-        reference_date: datetime,
-        interval_minutes: int = 30,
-        days: int | list[int] | None = None,
-        ) -> dict[str, dict[str, float] | None]:
-    """
-    Analyse plausible-value coverage for each monitored flux variable.
+    df: pd.DataFrame,
+    context: SiteContext,
+    reference_date: datetime,
+    interval_minutes: int = 30,
+    days: int | list[int] | None = None,
+) -> dict[str, dict[str, float] | None]:
+    """Analyse plausible-value coverage for each monitored flux variable.
 
     For each variable in MONITOR_VARS, extracts values from the canonical
     dataframe, discards readings outside canonical plausible bounds, then
@@ -234,11 +224,9 @@ def get_variable_quality(
         ``pct_outside_range_last_<N>_days`` floats (absent + implausible),
         or None if the variable is unavailable for this site.
     """
-
     results = {}
 
     for var in MONITOR_VARS:
-
         series = _build_monitor_series(df=df, quantity=var, context=context)
 
         if series is None or series.empty:
@@ -250,23 +238,25 @@ def get_variable_quality(
             reference_date=reference_date,
             interval_minutes=interval_minutes,
             days=days,
-            metric_prefix='pct_outside_range',
-            )
+            metric_prefix="pct_outside_range",
+        )
 
     return results
+
+
 # -----------------------------------------------------------------------------
 
 
 # -----------------------------------------------------------------------------
+
 
 def _build_threshold_series(
-        df: pd.DataFrame,
-        quantity: str,
-        pmin: float | None,
-        pmax: float | None,
-        ) -> pd.Series | None:
-    """
-    Extract a threshold-filtered sparse Series for a single quantity.
+    df: pd.DataFrame,
+    quantity: str,
+    pmin: float | None,
+    pmax: float | None,
+) -> pd.Series | None:
+    """Extract a threshold-filtered sparse Series for a single quantity.
 
     Scans canonical column names for those starting with the quantity prefix,
     applies threshold bounds (masking out-of-threshold values as NaN), then
@@ -283,11 +273,9 @@ def _build_threshold_series(
     Returns:
         Sparse Series of in-threshold values, or None if not available.
     """
-
     series: list[pd.Series] = []
 
     for col in df.columns:
-
         if not col.startswith(quantity):
             continue
 
@@ -308,20 +296,22 @@ def _build_threshold_series(
         combined = combined.combine_first(s)
 
     return combined.dropna()
+
+
 # -----------------------------------------------------------------------------
 
 
 # -----------------------------------------------------------------------------
+
 
 def get_threshold_quality(
-        df: pd.DataFrame,
-        context: SiteContext,
-        reference_date: datetime,
-        interval_minutes: int = 30,
-        days: int | list[int] | None = None,
-        ) -> dict[str, dict[str, float] | None]:
-    """
-    Analyse threshold-based coverage for each entry in THRESHOLD_SPECS.
+    df: pd.DataFrame,
+    context: SiteContext,
+    reference_date: datetime,
+    interval_minutes: int = 30,
+    days: int | list[int] | None = None,
+) -> dict[str, dict[str, float] | None]:
+    """Analyse threshold-based coverage for each entry in THRESHOLD_SPECS.
 
     For each variable, values outside the configured threshold are treated as
     absent, so the percentage reflects both missing records and out-of-threshold
@@ -341,17 +331,15 @@ def get_threshold_quality(
         ``pct_outside_range_last_<N>_days`` floats, or None if the variable
         is unavailable.
     """
-
     results = {}
 
     for var, thresholds in THRESHOLD_SPECS.items():
-
         series = _build_threshold_series(
             df=df,
             quantity=var,
-            pmin=thresholds.get('min'),
-            pmax=thresholds.get('max'),
-            )
+            pmin=thresholds.get("min"),
+            pmax=thresholds.get("max"),
+        )
 
         if series is None or series.empty:
             results[var] = None
@@ -362,17 +350,18 @@ def get_threshold_quality(
             reference_date=reference_date,
             interval_minutes=interval_minutes,
             days=days,
-            metric_prefix='pct_outside_range',
-            )
+            metric_prefix="pct_outside_range",
+        )
 
     return results
+
+
 # -----------------------------------------------------------------------------
 
 
 # -----------------------------------------------------------------------------
 def analyse_missing_data(context: SiteContext) -> dict[str, Any]:
-    """
-    Analyse data recency and record coverage for a site.
+    """Analyse data recency and record coverage for a site.
 
     Loads the site's flux slow data file, computes the time elapsed since the
     last record (relative to site-local time), and calculates the percentage
@@ -391,20 +380,19 @@ def analyse_missing_data(context: SiteContext) -> dict[str, Any]:
             - ``pct_missing_last_<N>_days``: Percentage of expected records
               absent over each standard analysis period.
     """
-
     data_cfg = context.runtime_config
     site_cfg = context.metadata
 
     file_path = paths.get_local_stream_path(
-        resource='raw_data',
-        stream='flux_slow',
+        resource="raw_data",
+        stream="flux_slow",
         site=data_cfg.site_name,
-        file_name=data_cfg.flux_filename
-        )
+        file_name=data_cfg.flux_filename,
+    )
 
     adapter = raw_data_loader.get_data_adapter(
         system_type=data_cfg.get_file_format(file_group=data_cfg.flux_file)
-        )
+    )
 
     df = adapter(file_path)
 
@@ -412,32 +400,31 @@ def analyse_missing_data(context: SiteContext) -> dict[str, Any]:
     local_now_naive = local_now.replace(tzinfo=None)
     last_data_record_naive = df.index[-1].to_pydatetime()
     last_data_record_tzaware = datetime_utils.get_tz_aware_datetime(
-        naive_dt=last_data_record_naive,
-        tz_name=site_cfg.time_zone,
-        as_iso=True
-        )
+        naive_dt=last_data_record_naive, tz_name=site_cfg.time_zone, as_iso=True
+    )
 
     result = {
-        'last_record': last_data_record_tzaware,
-        'days_since_last_record': (local_now_naive - last_data_record_naive).days,
-        }
+        "last_record": last_data_record_tzaware,
+        "days_since_last_record": (local_now_naive - last_data_record_naive).days,
+    }
 
     result.update(
         get_missing_records(
             df=df,
             reference_date=local_now_naive,
             interval_minutes=site_cfg.time_step,
-            )
         )
+    )
 
     return result
+
+
 # -----------------------------------------------------------------------------
 
 
 # -----------------------------------------------------------------------------
 def analyse_variable_quality(context: SiteContext) -> dict[str, Any]:
-    """
-    Analyse plausible-value coverage for each monitored flux variable.
+    """Analyse plausible-value coverage for each monitored flux variable.
 
     Builds a unit-converted canonical dataframe for MONITOR_VARS quantities,
     then computes per-variable percentage-outside-range over each standard
@@ -452,10 +439,11 @@ def analyse_variable_quality(context: SiteContext) -> dict[str, Any]:
         is a period-keyed dict of ``pct_outside_range_last_<N>_days`` floats,
         or None if the variable is not configured or present for this site.
     """
-
     df = build_dataframe_from_context(ctx=context, quantities=set(MONITOR_VARS))
 
-    local_now = datetime_utils.get_local_datetime_now(tz_name=context.metadata.time_zone)
+    local_now = datetime_utils.get_local_datetime_now(
+        tz_name=context.metadata.time_zone
+    )
     local_now_naive = local_now.replace(tzinfo=None)
 
     return get_variable_quality(
@@ -463,14 +451,15 @@ def analyse_variable_quality(context: SiteContext) -> dict[str, Any]:
         context=context,
         reference_date=local_now_naive,
         interval_minutes=context.metadata.time_step,
-        )
+    )
+
+
 # -----------------------------------------------------------------------------
 
 
 # -----------------------------------------------------------------------------
 def analyse_threshold_quality(context: SiteContext) -> dict[str, Any]:
-    """
-    Analyse threshold-based coverage for each entry in THRESHOLD_SPECS.
+    """Analyse threshold-based coverage for each entry in THRESHOLD_SPECS.
 
     Derives the base quantities (e.g. 'Diag' from 'Diag_IRGA') from the site
     variable config, builds a unit-converted canonical dataframe for those
@@ -487,17 +476,18 @@ def analyse_threshold_quality(context: SiteContext) -> dict[str, Any]:
         floats, or None if the variable is not configured or present for this
         site.
     """
-
     base_quantities = {
         var_def.quantity
         for quantity in THRESHOLD_SPECS
         for var_def in context.runtime_config.variables.values()
         if quantity.startswith(var_def.quantity)
-        }
+    }
 
     df = build_dataframe_from_context(ctx=context, quantities=base_quantities)
 
-    local_now = datetime_utils.get_local_datetime_now(tz_name=context.metadata.time_zone)
+    local_now = datetime_utils.get_local_datetime_now(
+        tz_name=context.metadata.time_zone
+    )
     local_now_naive = local_now.replace(tzinfo=None)
 
     return get_threshold_quality(
@@ -505,5 +495,7 @@ def analyse_threshold_quality(context: SiteContext) -> dict[str, Any]:
         context=context,
         reference_date=local_now_naive,
         interval_minutes=context.metadata.time_step,
-        )
+    )
+
+
 # -----------------------------------------------------------------------------

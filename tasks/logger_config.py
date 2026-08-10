@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Feb 10 08:18:26 2026
+"""Created on Tue Feb 10 08:18:26 2026
 
 @author: imchugh
 """
 
-from datetime import datetime, timezone
-import uuid
 import logging
+import uuid
+from datetime import UTC, datetime
 from logging.handlers import RotatingFileHandler
 
 from tasks.network_logger import JsonFormatter
 
+
 def generate_run_id() -> str:
-    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     rand = uuid.uuid4().hex[:6]
     return f"{ts}_{rand}"
 
@@ -35,7 +34,7 @@ def configure_logger_json(
     backup_count: int = 5,
     level: int = logging.DEBUG,
     run_id: str | None = None,
-    ) -> str:
+) -> str:
 
     if run_id is None:
         run_id = generate_run_id()
@@ -54,7 +53,7 @@ def configure_logger_json(
     )
     file_handler.setFormatter(JsonFormatter())
     file_handler.setLevel(level)
-    file_handler.addFilter(run_filter)   # ← attach here
+    file_handler.addFilter(run_filter)  # ← attach here
     logger.addHandler(file_handler)
 
     # Console handler

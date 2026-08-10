@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Mar 18 11:41:02 2026
+"""Created on Wed Mar 18 11:41:02 2026
 
 @author: imchugh
 """
+
 
 def safe_component(
     fn,
@@ -13,14 +12,12 @@ def safe_component(
     component: str,
     fallback,
     **kwargs,
-    ):
-    """
-    Execute a component safely.
+):
+    """Execute a component safely.
 
     - On success: return function result
     - On failure: log and return fallback
     """
-
     try:
         return fn(**kwargs)
 
@@ -32,6 +29,6 @@ def safe_component(
                 "component": component,
                 "status": "failure",
                 "error_type": type(e).__name__,
-                },
-            )
+            },
+        )
         return fallback
