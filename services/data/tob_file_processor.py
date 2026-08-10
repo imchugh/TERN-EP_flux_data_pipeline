@@ -15,9 +15,7 @@ logger = logging.getLogger(__name__)
 SITE_REGISTRY = SiteRegistry()
 
 
-# ---------------------------------------------------------------------------
 # Public API
-# ---------------------------------------------------------------------------
 
 
 def process_daily_tob_files(site: str, is_aux: bool = False) -> list[Path]:
@@ -126,9 +124,7 @@ def get_last_tob_file(site: str, is_aux: bool = False) -> Path:
     return files[-1]
 
 
-# ---------------------------------------------------------------------------
 # Private helpers
-# ---------------------------------------------------------------------------
 
 
 def _parse_date(date_str: str) -> dt.date:

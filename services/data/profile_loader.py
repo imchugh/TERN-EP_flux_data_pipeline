@@ -18,14 +18,11 @@ import xarray as xr
 from infrastructure import file_io, paths
 from services.data import profile_storage, raw_data_loader
 
-###############################################################################
-### BEGIN SHARED HELPERS ###
-###############################################################################
-
 
 def _stack_to_series(df: pd.DataFrame, name: str) -> pd.Series:
-    """Stack a wide (time x height) DataFrame into a (time, height)-indexed
-    Series, using this module's canonical dim names.
+    """Stack a wide (time x height) DataFrame into a (time, height)-indexed Series.
+
+    Uses this module's canonical dim names.
     """
     series = df.stack(future_stack=True)
     series.name = name
@@ -36,8 +33,10 @@ def _stack_to_series(df: pd.DataFrame, name: str) -> pd.Series:
 def _load_toa5_with_backups(
     file_path: Path, usecols: list[str] | None = None
 ) -> pd.DataFrame:
-    """Read a TOA5 file plus any `.backup` siblings, concatenated and
-    de-duplicated on the time index (master takes precedence).
+    """Read a TOA5 file plus any `.backup` siblings.
+
+    Concatenated and de-duplicated on the time index (master takes
+    precedence).
     """
     files = [file_path, *file_io.get_backup_files(file_path=file_path)]
     dfs = [
@@ -50,15 +49,6 @@ def _load_toa5_with_backups(
     df = pd.concat(dfs).sort_index()
     return df[~df.index.duplicated(keep="first")]
 
-
-###############################################################################
-### END SHARED HELPERS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN BOYAGIN ###
-###############################################################################
 
 _BOYAGIN_PROFILE_FILE = "Boyagin_CO2_prof_IRGA_avg.dat"
 _BOYAGIN_MET_FILE = "Boyagin_EC_slow_all.dat"
@@ -81,8 +71,7 @@ def _parse_boyagin_height(column: str) -> float:
 
 
 def load_boyagin_profile() -> xr.Dataset:
-    """Normalize Boyagin's raw profile + met files into a (time, height)
-    Dataset.
+    """Normalize Boyagin's raw profile + met files into a (time, height) Dataset.
 
     The CO2 profile instrument has one parallel sensor per intake height.
     Tair and P are single-point measurements broadcast to every height
@@ -148,15 +137,6 @@ def load_boyagin_profile() -> xr.Dataset:
     return ds
 
 
-###############################################################################
-### END BOYAGIN ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN CUMBERLAND PLAIN ###
-###############################################################################
-
 _CUP_INTAKE_HEIGHTS = [0.5, 1, 2, 3.5, 7, 12, 20, 29]
 _CUP_CO2_LIMITS = (300, 1000)
 _CUP_PROFILE_FILE = "CUP_AUTO_co2profile.dat"
@@ -167,13 +147,13 @@ _CUP_TAIR_UPPER = ("Ta_HMP_155_Avg", 30)
 
 
 def _timestack_CUP_CO2(df: pd.DataFrame) -> pd.DataFrame:
-    """Unstack a single, valve-multiplexed CO2 stream into one column per
-    intake height, on a regular 30-min time axis.
+    """Unstack a single, valve-multiplexed CO2 stream onto a regular 30-min axis.
 
-    `ValveNo` identifies which height is currently being sampled, encoded
-    as the minute-of-half-hour at which that valve is read. The logger
-    timestamps each scan ~1s before the labelled minute, so timestamps are
-    nudged forward before matching against `ValveNo`.
+    One column per intake height. `ValveNo` identifies which height is
+    currently being sampled, encoded as the minute-of-half-hour at which
+    that valve is read. The logger timestamps each scan ~1s before the
+    labelled minute, so timestamps are nudged forward before matching
+    against `ValveNo`.
     """
     df = df.copy()
     df.index = df.index + pd.Timedelta(seconds=1)
@@ -192,8 +172,9 @@ def _timestack_CUP_CO2(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def _interpolate_CUP_temperature(df: pd.DataFrame) -> pd.DataFrame:
-    """Linearly interpolate the two measured air temperatures (7m, 30m) to
-    all 8 intake heights.
+    """Linearly interpolate the two measured air temperatures to all 8 intake heights.
+
+    Measured at 7m and 30m.
     """
     lower_name, lower_ht = _CUP_TAIR_LOWER
     upper_name, upper_ht = _CUP_TAIR_UPPER
@@ -206,11 +187,11 @@ def _interpolate_CUP_temperature(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def load_cumberland_plain_profile() -> xr.Dataset:
-    """Normalize CumberlandPlain's raw profile + climate + EddyPro-master
-    files into a (time, height) Dataset.
+    """Normalize CumberlandPlain's raw profile/climate/EddyPro-master files.
 
-    CO2 comes from a single multiplexed sensor cycling through 8 intake
-    heights (unlike Boyagin's parallel sensors). Tair is measured at only
+    Produces a (time, height) Dataset. CO2 comes from a single multiplexed
+    sensor cycling through 8 intake heights (unlike Boyagin's parallel
+    sensors). Tair is measured at only
     two heights and vertically interpolated to all 8. P is a single-point
     measurement (from the EddyPro master file already maintained by
     `update_EddyPro_master`) broadcast to all heights.
@@ -273,15 +254,6 @@ def load_cumberland_plain_profile() -> xr.Dataset:
     return ds
 
 
-###############################################################################
-### END CUMBERLAND PLAIN ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN DISPATCH ###
-###############################################################################
-
 SITE_LOADERS: dict[str, Callable[[], xr.Dataset]] = {
     "Boyagin": load_boyagin_profile,
     "CumberlandPlain": load_cumberland_plain_profile,
@@ -301,8 +273,3 @@ def load_profile_dataset(site: str) -> xr.Dataset:
     ds = loader()
     profile_storage.validate_profile_dataset(ds)
     return ds
-
-
-###############################################################################
-### END DISPATCH ###
-###############################################################################
