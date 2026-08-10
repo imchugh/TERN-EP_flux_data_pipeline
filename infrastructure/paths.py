@@ -12,6 +12,7 @@ import pathlib
 
 from pydantic import BaseModel
 
+from domain.constants import SITE_PLACEHOLDER
 from infrastructure import file_io
 
 ###############################################################################
@@ -21,7 +22,7 @@ from infrastructure import file_io
 CONFIG_PATH = pathlib.Path(__file__).parents[1] / 'configs'
 CONFIG_FILE = 'paths.yml'
 
-_PLACEHOLDER = '<site>'
+_PLACEHOLDER = SITE_PLACEHOLDER
 
 
 class _StreamConfig(BaseModel):
