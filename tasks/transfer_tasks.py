@@ -11,14 +11,12 @@ from tasks.registry import register
 REMOTE_COLLECTED_SITES = {"CumberlandPlain"}
 
 
-# -----------------------------------------------------------------------------
-### PULL - site-scoped
-# -----------------------------------------------------------------------------
+# PULL - site-scoped
 
 
 @register
 def pull_profile_raw(site: str) -> None:
-
+    """Pull raw profile data from the remote store for a remote-collected site."""
     if site not in REMOTE_COLLECTED_SITES:
         raise ValueError(
             f"'{site}' is not remote-collected — pull_profile_raw would "
@@ -32,12 +30,9 @@ def pull_profile_raw(site: str) -> None:
     )
 
 
-# -----------------------------------------------------------------------------
-
-
 @register
 def pull_slow_flux(site: str) -> None:
-
+    """Pull raw slow-flux data from the remote store for a remote-collected site."""
     if site not in REMOTE_COLLECTED_SITES:
         raise ValueError(
             f"'{site}' is not remote-collected — pull_slow_flux would "
@@ -51,28 +46,24 @@ def pull_slow_flux(site: str) -> None:
     )
 
 
-# -----------------------------------------------------------------------------
-### PULL — global
-# -----------------------------------------------------------------------------
+# PULL — global
 
 
 @register
 def pull_rtmc_images() -> None:
-
+    """Pull RTMC snapshot images from the source remote to local staging."""
     rclone_transfer.transfer(
         src=paths.get_remote_stream_path("network", "rtmc_pull"),
         dst=paths.get_local_stream_path("network", "rtmc_pull"),
     )
 
 
-# -----------------------------------------------------------------------------
-### PUSH — site-scoped
-# -----------------------------------------------------------------------------
+# PUSH — site-scoped
 
 
 @register
 def push_aux_fast_flux(site: str) -> None:
-
+    """Push raw auxiliary fast-flux (TOB3) data to the remote store."""
     rclone_transfer.transfer(
         src=paths.get_local_stream_path("raw_data", "flux_fast_aux", site=site),
         dst=paths.get_remote_stream_path("raw_data", "flux_fast_aux", site=site),
@@ -81,12 +72,9 @@ def push_aux_fast_flux(site: str) -> None:
     )
 
 
-# -----------------------------------------------------------------------------
-
-
 @register
 def push_main_fast_flux(site: str) -> None:
-
+    """Push raw main fast-flux (TOB3) data to the remote store."""
     rclone_transfer.transfer(
         src=paths.get_local_stream_path("raw_data", "flux_fast", site=site),
         dst=paths.get_remote_stream_path("raw_data", "flux_fast", site=site),
@@ -95,24 +83,18 @@ def push_main_fast_flux(site: str) -> None:
     )
 
 
-# -----------------------------------------------------------------------------
-
-
 @register
 def push_profile_processed(site: str) -> None:
-
+    """Push processed profile data (CO2 storage term) to the remote store."""
     rclone_transfer.transfer(
         src=paths.get_local_stream_path("processed_data", "profile", site=site),
         dst=paths.get_remote_stream_path("processed_data", "profile", site=site),
     )
 
 
-# -----------------------------------------------------------------------------
-
-
 @register
 def push_profile_raw(site: str) -> None:
-
+    """Push raw profile data to the remote store for a non-remote-collected site."""
     if site in REMOTE_COLLECTED_SITES:
         raise ValueError(
             f"'{site}' is remote-collected — push_profile_raw would overwrite "
@@ -125,12 +107,9 @@ def push_profile_raw(site: str) -> None:
     )
 
 
-# -----------------------------------------------------------------------------
-
-
 @register
 def push_slow_flux(site: str) -> None:
-
+    """Push raw slow-flux data to the remote store for a non-remote-collected site."""
     if site in REMOTE_COLLECTED_SITES:
         raise ValueError(
             f"'{site}' is remote-collected — push_slow_flux would overwrite "
@@ -143,8 +122,6 @@ def push_slow_flux(site: str) -> None:
     )
 
 
-# -----------------------------------------------------------------------------
-
 # CSIRO's own site-naming convention for the incoming/ subdirectory — not
 # the same as paths.yml's remote_aliases (see note there).
 COSMOZ_ALIASES = {"AliceSpringsMulga": "AliceMulga", "GreatWesternWoodlands": "GWW"}
@@ -152,7 +129,7 @@ COSMOZ_ALIASES = {"AliceSpringsMulga": "AliceMulga", "GreatWesternWoodlands": "G
 
 @register
 def push_cosmoz(site: str) -> None:
-
+    """Push raw COSMOZ soil-moisture data to its remote incoming/ directory."""
     remote_dir = COSMOZ_ALIASES.get(site, site)
     rclone_transfer.transfer(
         src=paths.get_local_stream_path("raw_data", "cosmoz", site=site),
@@ -160,14 +137,12 @@ def push_cosmoz(site: str) -> None:
     )
 
 
-# -----------------------------------------------------------------------------
-### PUSH — global
-# -----------------------------------------------------------------------------
+# PUSH — global
 
 
 @register
 def push_site_details_json() -> None:
-
+    """Push the site_info.json details file to the remote store."""
     src = paths.get_local_stream_path("network", "info") / "site_info.json"
     rclone_transfer.transfer(
         src=src,
@@ -176,12 +151,9 @@ def push_site_details_json() -> None:
     )
 
 
-# -----------------------------------------------------------------------------
-
-
 @register
 def push_rtmc_toa5(dry_run: bool = False) -> None:
-
+    """Push the homogenised TOA5 RTMC data source files to the remote store."""
     rclone_transfer.transfer(
         src=paths.get_local_stream_path("homogenised_data", "toa5"),
         dst=paths.get_remote_stream_path("homogenised_data", "toa5"),
@@ -190,12 +162,9 @@ def push_rtmc_toa5(dry_run: bool = False) -> None:
     )
 
 
-# -----------------------------------------------------------------------------
-
-
 @register
 def push_L1_nc(dry_run: bool = False) -> None:
-
+    """Push L1 NetCDF output files to the remote store."""
     rclone_transfer.transfer(
         src=paths.get_local_stream_path("homogenised_data", "nc"),
         dst=paths.get_remote_stream_path("homogenised_data", "nc"),
@@ -204,12 +173,9 @@ def push_L1_nc(dry_run: bool = False) -> None:
     )
 
 
-# -----------------------------------------------------------------------------
-
-
 @register
 def push_status_geojson() -> None:
-
+    """Push the current-format network status geojson to the remote store."""
     from services.network.state_task_orchestrator import GEOJSON_PATH
 
     rclone_transfer.transfer(
@@ -218,13 +184,11 @@ def push_status_geojson() -> None:
     )
 
 
-# -----------------------------------------------------------------------------
-
-
 @register
 def push_legacy_status_geojson() -> None:
-    """Push the legacy-format network_status.json. See
-    orchestration/legacy_network_status.py for removal notes.
+    """Push the legacy-format network_status.json.
+
+    See orchestration/legacy_network_status.py for removal notes.
     """
     src = paths.get_local_stream_path("network", "status") / "network_status.json"
     rclone_transfer.transfer(
@@ -234,12 +198,9 @@ def push_legacy_status_geojson() -> None:
     )
 
 
-# -----------------------------------------------------------------------------
-
-
 @register
 def push_rtmc_images() -> None:
-
+    """Push RTMC snapshot images from local staging to the destination remote."""
     rclone_transfer.transfer(
         src=paths.get_local_stream_path("network", "rtmc_push"),
         dst=paths.get_remote_stream_path("network", "rtmc_push"),

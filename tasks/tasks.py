@@ -5,10 +5,6 @@ instantiates SiteTaskManager (validation requires SITE_TASKS / GLOBAL_TASKS
 to be fully populated first).
 """
 
-###############################################################################
-### BEGIN IMPORTS ###
-###############################################################################
-
 import inspect
 import logging
 from collections.abc import Callable
@@ -26,19 +22,8 @@ from services.metadata.site_registry import SiteRegistry
 from tasks.logger_config import configure_logger_json
 from tasks.registry import GLOBAL_TASKS, SITE_TASKS
 
-###############################################################################
-### END IMPORTS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN INITS ###
-###############################################################################
-
 logger = logging.getLogger(__name__)
 SITE_REGISTRY = SiteRegistry()
-
-# -----------------------------------------------------------------------------
 
 
 def _parse_bool_matrix(df: pd.DataFrame) -> pd.DataFrame:
@@ -63,14 +48,11 @@ def _parse_bool_matrix(df: pd.DataFrame) -> pd.DataFrame:
     return normalised.map(valid.get).astype(bool)
 
 
-# -----------------------------------------------------------------------------
-
-
 class SiteTaskManager:
     """CSV site/task boolean matrix — exposes per-task site lists."""
 
     def __init__(self) -> None:
-
+        """Load tasks.csv into a validated, boolean-typed site/task matrix."""
         self.tasks_df = (
             config_loader.load_config_file_from_name("tasks")
             .set_index(keys="Site")
@@ -79,26 +61,33 @@ class SiteTaskManager:
         self._validate()
 
     def get_site_list(self) -> list:
+        """Return every site name present in the matrix."""
         return self.tasks_df.index.tolist()
 
     def get_site_list_for_task(self, task: str, disabled: bool = False) -> list:
+        """Return sites where `task` is enabled (or disabled, if disabled=True)."""
         return self.tasks_df[~self.tasks_df[task] == disabled].index.tolist()
 
     def get_site_task_status(self, site: str, task: str) -> bool:
+        """Return whether `task` is enabled for `site`."""
         return self.tasks_df.loc[site, task]
 
     def get_task_list(self) -> list:
+        """Return every task name present in the matrix."""
         return self.tasks_df.columns.tolist()
 
     def get_task_list_for_site(self, site: str, disabled: bool = False) -> list:
+        """Return tasks enabled for `site` (or disabled, if disabled=True)."""
         return self.tasks_df.columns[~self.tasks_df.loc[site] == disabled].tolist()
 
     def set_site_task_status(self, site: str, task: str, status: bool) -> None:
+        """Set whether `task` is enabled for `site` (in memory only)."""
         if not isinstance(status, bool):
             raise TypeError("`status` kwarg must be a boolean")
         self.tasks_df.loc[site, task] = status
 
     def write_tasks_config(self) -> None:
+        """Persist the current in-memory matrix back to tasks.csv."""
         self.tasks_df.to_csv(CONFIG_PATH / "tasks.csv", index_label="Site")
 
     def _validate(self) -> None:
@@ -119,15 +108,6 @@ class SiteTaskManager:
 # Instantiated after task imports so SITE_TASKS / GLOBAL_TASKS are fully
 # populated before validation runs.
 mngr = SiteTaskManager()
-
-###############################################################################
-### END INITS ###
-###############################################################################
-
-
-###############################################################################
-### BEGIN RUNNER ###
-###############################################################################
 
 
 def run_task(task: str, site: str | None = None, dry_run: bool = False) -> None:
@@ -165,9 +145,6 @@ def run_task(task: str, site: str | None = None, dry_run: bool = False) -> None:
         raise
 
 
-# -----------------------------------------------------------------------------
-
-
 def _resolve_task(task: str, site: str | None) -> tuple[Callable, str]:
 
     if task in SITE_TASKS:
@@ -183,9 +160,6 @@ def _resolve_task(task: str, site: str | None) -> tuple[Callable, str]:
     return func, scope
 
 
-# -----------------------------------------------------------------------------
-
-
 def _setup_logger(task: str) -> None:
 
     log_path = (
@@ -193,9 +167,6 @@ def _setup_logger(task: str) -> None:
         / f"{task}.jsonl"
     )
     configure_logger_json(log_path=log_path)
-
-
-# -----------------------------------------------------------------------------
 
 
 def _run_site_task(task: str, function: Callable, site: str | None) -> None:
@@ -231,9 +202,6 @@ def _run_site_task(task: str, function: Callable, site: str | None) -> None:
     )
 
 
-# -----------------------------------------------------------------------------
-
-
 def _get_sites_for_task(task: str) -> list[str]:
 
     try:
@@ -250,9 +218,6 @@ def _get_sites_for_task(task: str) -> list[str]:
         ) from None
 
 
-# -----------------------------------------------------------------------------
-
-
 def _run_single_site_task(task: str, func: Callable, site: str) -> dict:
 
     try:
@@ -263,9 +228,6 @@ def _run_single_site_task(task: str, func: Callable, site: str) -> dict:
     except Exception:
         logger.exception("task_site_exception", extra={"task": task, "site": site})
         return {"status": "failure", "reason": "exception"}
-
-
-# -----------------------------------------------------------------------------
 
 
 def _run_global_task(task: str, func: Callable, dry_run: bool = False) -> None:
@@ -298,8 +260,3 @@ def _run_global_task(task: str, func: Callable, dry_run: bool = False) -> None:
             exc_info=True,
         )
         raise
-
-
-###############################################################################
-### END RUNNER ###
-###############################################################################

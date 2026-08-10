@@ -11,9 +11,6 @@ def construct_status_geojson() -> None:
     aggregate(run_tasks=True, output="geojson")
 
 
-# -----------------------------------------------------------------------------
-
-
 @register
 def construct_legacy_status_geojson() -> dict:
     """Construct the legacy-format network status geojson (network_status.json).

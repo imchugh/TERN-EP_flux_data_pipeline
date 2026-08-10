@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""Created on Tue Feb 10 08:20:17 2026
-
-@author: imchugh
-"""
+"""JsonFormatter for structured, one-object-per-line log lines."""
 
 import json
 import logging
@@ -13,6 +10,7 @@ class JsonFormatter(logging.Formatter):
     """Formats logs as one JSON object per line, including all extra fields."""
 
     def format(self, record):
+        """Return one JSON-encoded log line for `record`, including extra fields."""
         log_record = {
             "timestamp": time.strftime(
                 "%Y-%m-%dT%H:%M:%SZ", time.gmtime(record.created)

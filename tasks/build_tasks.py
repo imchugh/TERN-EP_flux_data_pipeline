@@ -16,9 +16,6 @@ def construct_L1_nc(site: str) -> dict:
     return {"status": "success", "files_written": [str(p) for p in written]}
 
 
-# -----------------------------------------------------------------------------
-
-
 @register
 def construct_toa5_from_nc(site: str) -> dict:
     """Rebuild the legacy-format merged TOA5 file from L1 NetCDF output."""
@@ -49,18 +46,12 @@ def construct_toa5_from_nc(site: str) -> dict:
     return {"status": "success", "output_path": str(output_path)}
 
 
-# -----------------------------------------------------------------------------
-
-
 @register
 def construct_site_details_toa5(site: str) -> None:
     """Construct the site details TOA5 file for RTMC plotting."""
     from orchestration.site_details_construction import build_site_details_toa5
 
     build_site_details_toa5(site=site)
-
-
-# -----------------------------------------------------------------------------
 
 
 @register
@@ -70,9 +61,6 @@ def construct_site_details_json() -> None:
     from tasks.tasks import mngr
 
     build_site_details_json(site_list=mngr.get_site_list())
-
-
-# -----------------------------------------------------------------------------
 
 
 @register
@@ -105,9 +93,6 @@ def update_EddyPro_master(site: str) -> dict:
     return {"status": "success", **report}
 
 
-# -----------------------------------------------------------------------------
-
-
 @register
 def process_profile_data(site: str) -> dict:
     """Compute the CO2 storage term for legacy profile-instrumented sites."""
@@ -116,29 +101,20 @@ def process_profile_data(site: str) -> dict:
     return profile_processing.build_profile_output(site=site)
 
 
-# -----------------------------------------------------------------------------
-
-
 @register
 def parse_main_fast_data(site: str) -> None:
-
+    """Split the main fast-flux (TOB3) daily files into 30-minute TOA5 blocks."""
     _parse_fast_data(site=site, is_aux=False)
-
-
-# -----------------------------------------------------------------------------
 
 
 @register
 def parse_aux_fast_data(site: str) -> None:
-
+    """Split the auxiliary fast-flux (TOB3) daily files into 30-minute TOA5 blocks."""
     _parse_fast_data(site=site, is_aux=True)
 
 
-# -----------------------------------------------------------------------------
-
-
 def _parse_fast_data(site: str, is_aux: bool) -> None:
-
+    """Shared implementation for parse_main_fast_data/parse_aux_fast_data."""
     import services.data.tob_file_processor as tfp
 
     tfp.process_daily_tob_files(site=site, is_aux=is_aux)

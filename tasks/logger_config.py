@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""Created on Tue Feb 10 08:18:26 2026
-
-@author: imchugh
-"""
+"""JSON rotating-file + console logger setup, with run-id tagging."""
 
 import logging
 import uuid
@@ -13,17 +10,22 @@ from tasks.network_logger import JsonFormatter
 
 
 def generate_run_id() -> str:
+    """Return a sortable, near-unique run id: UTC timestamp + 6 random hex chars."""
     ts = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     rand = uuid.uuid4().hex[:6]
     return f"{ts}_{rand}"
 
 
 class RunIDFilter(logging.Filter):
+    """Logging filter that stamps every record with a fixed run_id."""
+
     def __init__(self, run_id: str):
+        """Bind the run_id to stamp onto every filtered record."""
         super().__init__()
         self.run_id = run_id
 
     def filter(self, record):
+        """Attach run_id to the record and always allow it through."""
         record.run_id = self.run_id
         return True
 
@@ -35,7 +37,19 @@ def configure_logger_json(
     level: int = logging.DEBUG,
     run_id: str | None = None,
 ) -> str:
+    """Configure the root logger with JSON-formatted file + console handlers.
 
+    Args:
+        log_path: destination path for the rotating log file.
+        max_bytes: rotate the log file once it exceeds this size.
+        backup_count: number of rotated backups to keep.
+        level: logging level applied to both handlers and the root logger.
+        run_id: run identifier stamped on every record. Generated via
+            `generate_run_id` if not provided.
+
+    Returns:
+        The run_id used (generated or passed through).
+    """
     if run_id is None:
         run_id = generate_run_id()
 

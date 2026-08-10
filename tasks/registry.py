@@ -1,23 +1,17 @@
 #!/usr/bin/env python3
-"""Created on Thu Sep 11 15:49:52 2025
-
-@author: imchugh
-"""
+"""`@register` decorator: routes tasks into SITE_TASKS or GLOBAL_TASKS."""
 
 import inspect
-
-###############################################################################
-### BEGIN TASK DECORATOR DEFINITION ###
-###############################################################################
 
 SITE_TASKS = {}
 GLOBAL_TASKS = {}
 
 
 def register(func):
-    """Register a task into SITE_TASKS or GLOBAL_TASKS by inspecting its
-    signature: a lone 'site' parameter routes to SITE_TASKS, anything else
-    (no params, or params not including 'site') routes to GLOBAL_TASKS.
+    """Register a task into SITE_TASKS or GLOBAL_TASKS by inspecting its signature.
+
+    A lone 'site' parameter routes to SITE_TASKS, anything else (no params,
+    or params not including 'site') routes to GLOBAL_TASKS.
 
     Raises TypeError instead of silently routing to GLOBAL_TASKS if 'site'
     is present alongside other parameters, since that combination can't be
@@ -36,8 +30,3 @@ def register(func):
     else:
         GLOBAL_TASKS[func.__name__] = func
     return func
-
-
-###############################################################################
-### END TASK DECORATOR DEFINITION ###
-###############################################################################
