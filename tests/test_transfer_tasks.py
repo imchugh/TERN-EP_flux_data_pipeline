@@ -21,11 +21,18 @@ class TestPullTasks(unittest.TestCase):
 
     @patch(PATCH)
     def test_pull_profile_raw(self, mock_transfer):
-        tt.pull_profile_raw(SITE)
+        # pull_profile_raw is restricted to remote-collected sites.
+        tt.pull_profile_raw('CumberlandPlain')
         mock_transfer.assert_called_once_with(
-            src='uqrdm:TERNEP-Q5937/Sites/HowardSprings/Data/Profile/Raw',
-            dst=Path('/store/Raw_data/HowardSprings/Profile'),
+            src='uqrdm:TERNEP-Q5937/Sites/CumberlandPlain/Data/Profile/Raw',
+            dst=Path('/store/Raw_data/CumberlandPlain/Profile'),
             )
+
+    @patch(PATCH)
+    def test_pull_profile_raw_rejects_non_remote_collected_site(self, mock_transfer):
+        with self.assertRaises(ValueError):
+            tt.pull_profile_raw(SITE)
+        mock_transfer.assert_not_called()
 
     @patch(PATCH)
     def test_pull_slow_flux(self, mock_transfer):
@@ -57,7 +64,7 @@ class TestPushSiteTasks(unittest.TestCase):
         tt.push_aux_fast_flux(SITE)
         mock_transfer.assert_called_once_with(
             src=Path('/store/Raw_data/HowardSprings/Flux_aux/Fast'),
-            dst='uqrdm:FLUXARCH23-Q6223/Sites/HowardSprings/Data/Flux_aux/Raw/Fast/TOB3',
+            dst='uqrdm:FLUXARCH23-Q6223/Sites/HowardSprings/Data/Flux_aux/Raw/Fast',
             exclude_dirs=['TMP'],
             timeout=1200,
             )
@@ -67,7 +74,7 @@ class TestPushSiteTasks(unittest.TestCase):
         tt.push_main_fast_flux(SITE)
         mock_transfer.assert_called_once_with(
             src=Path('/store/Raw_data/HowardSprings/Flux/Fast'),
-            dst='uqrdm:FLUXARCH23-Q6223/Sites/HowardSprings/Data/Flux/Raw/Fast/TOB3',
+            dst='uqrdm:FLUXARCH23-Q6223/Sites/HowardSprings/Data/Flux/Raw/Fast',
             exclude_dirs=['TMP'],
             timeout=1200,
             )
