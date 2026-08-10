@@ -28,10 +28,10 @@ import logging
 import time
 
 import geojson
+import numpy as np
 import xarray as xr
 
 from infrastructure import datetime_utils, file_io, paths
-from infrastructure.convert_calc_filter import filter_range
 from infrastructure.parallel_executor import run_concurrent
 from services.metadata.canonical_quantity_registry import (
     build_canonical_quantity_registry,
@@ -243,6 +243,18 @@ def _get_site_status(site: str) -> dict:
         }
 # -----------------------------------------------------------------------------
 
+def _filter_range(series, max_val, min_val):
+    """Mask series values outside [min_val, max_val] to NaN (either bound may be None)."""
+
+    if isinstance(max_val, (int, float)) and isinstance(min_val, (int, float)):
+        return series.where((series <= max_val) & (series >= min_val), np.nan)
+    if isinstance(max_val, (int, float)):
+        return series.where(series <= max_val, np.nan)
+    if isinstance(min_val, (int, float)):
+        return series.where(series >= min_val, np.nan)
+    return series
+# -----------------------------------------------------------------------------
+
 def _parse_variable(
         series, valid_range: tuple, site_time: dt.datetime,
         ) -> dict:
@@ -272,7 +284,7 @@ def _parse_variable(
     rec['days_since_last_record'] = (site_time - series.index[-1]).days
 
     filtered = (
-        filter_range(series.copy(), max_val=valid_range[1], min_val=valid_range[0])
+        _filter_range(series.copy(), max_val=valid_range[1], min_val=valid_range[0])
         .dropna()
         )
 
