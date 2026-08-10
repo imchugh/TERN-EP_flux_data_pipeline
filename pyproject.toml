@@ -9,3 +9,9 @@ select = ["E", "W", "F", "I", "UP", "B", "D"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+# Test names are self-documenting (test_raises_on_missing_variable, etc.);
+# a module-level docstring covers shared setup. Requiring a docstring on
+# every test class/method would be pure redundancy, not documentation.
+"tests/*" = ["D"]
