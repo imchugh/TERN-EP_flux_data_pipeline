@@ -84,55 +84,52 @@ def read_cs_files(filename, forcedatetime=False,
         if not quiet:
             print('reading header and determening filetype')
 
+        if filetype not in ['TOA5', 'TOB1', 'TOB3', 'CSIXML']:
+            if not quiet:
+                print('Neither TOA5,TOB1, TOB3 not CSIXML-File')
+            return False, False
+
         meta = read_cs_meta(file_obj, filetype)
         if metaonly:
             return meta
         if not quiet:
             print(f'Reading the file {filename}')
 
-        if filetype in ['TOA5', 'TOB1', 'TOB3', 'CSIXML']:
-            if not quiet:
-                print(f'{filename} is a {filetype}-File')
-            if filetype == 'TOA5':
-                data = read_cs_toa5(file_obj,
-                                    bycol = bycol, forcedatetime = forcedatetime, **kwargs)
+        if not quiet:
+            print(f'{filename} is a {filetype}-File')
+        if filetype == 'TOA5':
+            data = read_cs_toa5(file_obj,
+                                bycol = bycol, forcedatetime = forcedatetime, **kwargs)
 
-            if filetype == 'TOB1':
-                data = read_cs_tob1(file_obj, meta, **kwargs)
+        if filetype == 'TOB1':
+            data = read_cs_tob1(file_obj, meta, **kwargs)
 
-                # Seconds / microseconds are in the raw headers, but we have
-                # converted to a TIMESTAMP, so update the headers to reflect this
-                add_list = ['', 'TIMESTAMP', 'TS', '', 'DATETIME']
-                for i in range(1,5):
-                    meta[i] = meta[i][2:]
-                    meta[i].insert(0, add_list[i])
+            # Seconds / microseconds are in the raw headers, but we have
+            # converted to a TIMESTAMP, so update the headers to reflect this
+            add_list = ['', 'TIMESTAMP', 'TS', '', 'DATETIME']
+            for i in range(1,5):
+                meta[i] = meta[i][2:]
+                meta[i].insert(0, add_list[i])
 
-            if filetype == 'TOB3':
-                data = read_cs_tob3(file_obj, meta, quiet = quiet, **kwargs)
-                # have to insert the timestamp and recordnumber into the meta
-                meta[2].insert(0, 'RECORD'), meta[2].insert(0, 'TIMESTAMP')
+        if filetype == 'TOB3':
+            data = read_cs_tob3(file_obj, meta, quiet = quiet, **kwargs)
+            # have to insert the timestamp and recordnumber into the meta
+            meta[2].insert(0, 'RECORD'), meta[2].insert(0, 'TIMESTAMP')
 
-                # units
-                meta[3].insert(0, 'RN'), meta[3].insert(0, 'TS')
+            # units
+            meta[3].insert(0, 'RN'), meta[3].insert(0, 'TS')
 
-                # sampled as what
-                meta[4].insert(0, ' '), meta[4].insert(0, ' ')
+            # sampled as what
+            meta[4].insert(0, ' '), meta[4].insert(0, ' ')
 
-                # corresponding units
-                meta[5].insert(0, 'ULONG'), meta[5].insert(0, 'DATETIME')
+            # corresponding units
+            meta[5].insert(0, 'ULONG'), meta[5].insert(0, 'DATETIME')
 
-            if filetype == 'CSIXML':
-                data = read_cs_csixml(file_obj, bycol=bycol,
-                                      forcedatetime = forcedatetime,**kwargs)
+        if filetype == 'CSIXML':
+            data = read_cs_csixml(file_obj, bycol=bycol,
+                                  forcedatetime = forcedatetime,**kwargs)
 
-            return data, meta
-
-
-
-        else:
-            if not quiet:
-                print('Neither TOA5,TOB1, TOB3 not CSIXML-File')
-            return False, False
+        return data, meta
 
 
 def read_cs_meta(file_obj, filetype):
