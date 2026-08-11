@@ -59,6 +59,16 @@ build_L1_nc         →  .nc files     (export: year-split, QC flags, CRS)
 
 Monitoring (`services/network/data_monitor.py`) calls `dataframe_builder.build_dataframe(quantities=...)` directly to get unit-converted data for a variable subset, bypassing the dataset construction stages. `analyse_missing_data` is the exception — it loads the raw flux file directly since timestamp-gap counting does not require unit conversion.
 
+### Generic-core / TERN-adapter / ops boundary (forward-looking, not yet split out)
+
+Within the four architectural layers above, modules further sort into three groups relevant to a possible future extraction of a generic, network-agnostic EC processing core (see the split-decision history in project memory). This is documentation of an existing informal boundary, not a new physical split — no files have moved. Decision: keep this as an in-repo discipline for now; revisit real extraction only once the boundary has proven stable in practice.
+
+**1. Generic core** (portable to any EC flux-processing setup): `domain/`, `infrastructure/`, `services/data/`, the core of `orchestration/` (`build_dataframe`, `build_dataset_from_context`, `derived_quantities.py`), and the schema/mechanism files in `services/metadata/`: `canonical_quantity_registry.py`, `site_config_schema.py`, `file_group_builder.py`, `variable_name_parser.py`, `services/config_loader.py`. Contract objects (`SiteRuntimeConfig`, `SiteContext`, `VariableSpec`, `FileGroup`, `CanonicalQuantityMetadata`) are the seam: any adapter that produces these shapes can drive the core.
+
+**2. TERN-EP adapter** (produces the contract objects from TERN's sourcing): `services/metadata/site_registry.py`, `site_metadata_repository.py`, `instrument_registry.py`, `rdf_label_resolver.py`, `runtime_config_loader.py` (instrument validation *and* URI resolution happen here — see Architecture Decisions below), the `*_from_site_name` convenience wrappers, and the TERN-specific config content in `configs/sites/*.yml`, `site_metadata.yml`, `nc_metadata.yml`, and the `remote:` section of `paths.yml`.
+
+**3. TERN-EP ops/data-movement**: `tasks/`, `tools/` (the instrument-audit CLI family), `ui/`, `run.py`, `orchestration/site_details_construction.py` (RTMC), and most of `services/network/` — site fan-out (`state_task_orchestrator.py`), physical logger connectivity (`logger_monitor.py`, `connectivity.py`), and NC-output freshness checks (`nc_monitor.py`). Exception: `services/network/data_monitor.py`'s analysis functions (`analyse_missing_data`, `analyse_variable_quality`, `analyse_threshold_quality`) are generic EC data-quality/QC logic misplaced by directory — candidates to move to `services/data/` (same tier as `transform_service.py`) in a future pass; not yet moved.
+
 ## Variable Naming Conventions
 
 - **Canonical form**: `{quantity}_{statistic_suffix}_{qualifier}` — e.g. `Fco2_Av`, `Ta_Sd_2m`
@@ -72,6 +82,7 @@ Monitoring (`services/network/data_monitor.py`) calls `dataframe_builder.build_d
 - `SITE_ALIASES = {'WombatStateForest': 'WombatForest'}` in `site_registry.py` is a deliberate temporary hack — legacy directory name kept until that directory is renamed. Remove when legacy code is switched off.
 - Configuration objects (`SiteRuntimeConfig`, etc.) are immutable frozen dataclasses.
 - Metadata is cached at the registry instance level (lazy-loaded on first access).
+- Any TERN-specific resolution (RDF/SPARQL instrument lookups, vocab validation) must complete in the TERN-adapter layer (`services/metadata/runtime_config_loader.py` et al.) before contract objects reach the generic core — the core's functions (`build_dataframe`, `build_dataset_from_context`, `derived_quantities.py`) must never themselves call out to TERN's RDF/vocab store.
 
 ## Configuration Files
 
