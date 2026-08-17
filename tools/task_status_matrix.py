@@ -6,7 +6,9 @@ per-task JSONL logs under the `logs`/`network_logs` stream, cross-references
 `configs/tasks.csv` (via `tasks.tasks.mngr`) to distinguish "not enabled for
 this site" from "enabled but no recent run", and renders a self-contained
 HTML heatmap: one row per site, one column per task, colour-coded by the
-most recent run's status.
+most recent run's status. Failure cells are enriched with the matching
+`task_site_exception` record's traceback (same run_id + site, logged by
+`tasks.tasks._run_single_site_task` immediately before the result line).
 
 Usage (from project root, with ep_cntl activated):
     python -m tools.task_status_matrix [--output PATH] [--days N]
@@ -28,7 +30,9 @@ from infrastructure import paths
 
 _SEP = "─" * 64
 _RESULT_MESSAGE = "task_site_result"
+_EXCEPTION_MESSAGE = "task_site_exception"
 _TS_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+_TRACEBACK_TAIL_LINES = 12
 
 STATE_SUCCESS = "success"
 STATE_FAILURE = "failure"
@@ -51,17 +55,21 @@ _FIXED_RECORD_KEYS = {
 }
 
 
-def _iter_result_records(
+def _iter_task_records(
     log_dir: Path, task: str, cutoff: datetime
-) -> tuple[list[dict], int]:
-    """Return (task_site_result records at/after cutoff, unparsable-line count).
+) -> tuple[list[dict], list[dict], int]:
+    """Return (task_site_result records, task_site_exception records, skipped count).
 
     Reads the task's current log file plus any rotated backups
-    (`{task}.jsonl*`). Root-logger noise from other modules and other
-    message types (task_start, task_end, task_site_exception, ...) are
-    filtered out here; only `task_site_result` lines are returned.
+    (`{task}.jsonl*`), at/after cutoff. Root-logger noise from other modules
+    and other message types (task_start, task_end, ...) are filtered out
+    here; only `task_site_result` and `task_site_exception` lines are kept.
+    The latter carries the formatted traceback (`exception` key) that
+    `tasks.tasks._run_single_site_task` logs immediately before the
+    corresponding result line, for the same run_id + site.
     """
-    records: list[dict] = []
+    results: list[dict] = []
+    exceptions: list[dict] = []
     skipped = 0
     cutoff_str = cutoff.strftime(_TS_FORMAT)
 
@@ -76,13 +84,28 @@ def _iter_result_records(
                 except json.JSONDecodeError:
                     skipped += 1
                     continue
-                if record.get("message") != _RESULT_MESSAGE:
+                message = record.get("message")
+                if message not in (_RESULT_MESSAGE, _EXCEPTION_MESSAGE):
                     continue
                 if record.get("timestamp", "") < cutoff_str:
                     continue
-                records.append(record)
+                (results if message == _RESULT_MESSAGE else exceptions).append(record)
 
-    return records, skipped
+    return results, exceptions, skipped
+
+
+def _traceback_tail(exception_text: str, max_lines: int = _TRACEBACK_TAIL_LINES) -> str:
+    """Return the last `max_lines` lines of a formatted traceback.
+
+    The most actionable part of a Python traceback (the exception type and
+    message) is at the end, so tail-truncate rather than head-truncate. Adds
+    a note when lines were dropped.
+    """
+    lines = exception_text.rstrip("\n").split("\n")
+    if len(lines) <= max_lines:
+        return exception_text.rstrip("\n")
+    dropped = len(lines) - max_lines
+    return f"... ({dropped} earlier line(s) omitted) ...\n" + "\n".join(lines[-max_lines:])
 
 
 def _latest_record(records: list[dict]) -> dict | None:
@@ -92,12 +115,15 @@ def _latest_record(records: list[dict]) -> dict | None:
     return max(records, key=lambda r: r["timestamp"])
 
 
-def classify_cell(enabled: bool, latest: dict | None) -> dict:
+def classify_cell(
+    enabled: bool, latest: dict | None, traceback: str | None = None
+) -> dict:
     """Classify one (site, task) cell from its enablement flag and latest record.
 
     Returns a dict with at least a "state" key
     (success | failure | na | no_data), plus timestamp/run_id/reason/details
-    when a record is available.
+    when a record is available, and a tail-truncated "traceback" when a
+    matching task_site_exception record was found for a failure.
     """
     if not enabled:
         return {"state": STATE_NA}
@@ -111,6 +137,8 @@ def classify_cell(enabled: bool, latest: dict | None) -> dict:
     }
     if latest["status"] == STATE_FAILURE:
         cell["reason"] = latest.get("reason")
+        if traceback:
+            cell["traceback"] = _traceback_tail(traceback)
     details = {k: v for k, v in latest.items() if k not in _FIXED_RECORD_KEYS}
     if details:
         cell["details"] = details
@@ -130,16 +158,27 @@ def build_matrix(
     total_skipped = 0
 
     for task in tasks:
-        records, skipped = _iter_result_records(log_dir, task, cutoff)
+        records, exception_records, skipped = _iter_task_records(log_dir, task, cutoff)
         total_skipped += skipped
 
         by_site: dict[str, list[dict]] = {}
         for record in records:
             by_site.setdefault(record.get("site"), []).append(record)
 
+        # run_id is stamped per process run (RunIDFilter), shared across every
+        # site processed in that run, so key on (run_id, site) to pick the
+        # exception that belongs to this specific site's failure.
+        traceback_by_run_site = {
+            (exc.get("run_id"), exc.get("site")): exc.get("exception")
+            for exc in exception_records
+        }
+
         for site in sites:
             latest = _latest_record(by_site.get(site, []))
-            matrix[site][task] = classify_cell(enabled[(site, task)], latest)
+            traceback = None
+            if latest is not None:
+                traceback = traceback_by_run_site.get((latest.get("run_id"), site))
+            matrix[site][task] = classify_cell(enabled[(site, task)], latest, traceback)
 
     return matrix, total_skipped
 
@@ -243,10 +282,15 @@ _HTML_TEMPLATE = """<!doctype html>
     position: fixed; pointer-events: none; z-index: 10;
     background: var(--text-primary); color: var(--surface-1);
     padding: 8px 10px; border-radius: 6px; font-size: 12px; line-height: 1.5;
-    max-width: 320px; box-shadow: 0 4px 12px var(--border);
+    max-width: 480px; box-shadow: 0 4px 12px var(--border);
     display: none; white-space: pre-line;
   }
   #tooltip .tt-value { font-weight: 700; }
+  #tooltip .tt-traceback-label { margin-top: 6px; }
+  #tooltip pre {
+    margin: 4px 0 0; font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    font-size: 11px; line-height: 1.4; white-space: pre-wrap; word-break: break-word;
+  }
   footer { margin-top: 12px; color: var(--muted); font-size: 12px; }
 </style>
 </head>
@@ -321,7 +365,8 @@ _HTML_TEMPLATE = """<!doctype html>
   table.appendChild(tbody);
 
   document.getElementById("footer").textContent =
-    "Log source: task_site_result records. Latest run only; see the table above for detail on hover/focus.";
+    "Log source: task_site_result records (failures enriched with the matching " +
+    "task_site_exception traceback). Latest run only; hover or focus a cell for detail.";
 
   var tooltip = document.getElementById("tooltip");
 
@@ -347,6 +392,15 @@ _HTML_TEMPLATE = """<!doctype html>
     if (cellData.timestamp) addRow(tooltip, "Last run", cellData.timestamp);
     if (cellData.run_id) addRow(tooltip, "Run id", cellData.run_id);
     if (cellData.reason) addRow(tooltip, "Reason", cellData.reason);
+    if (cellData.traceback) {
+      var tbLabel = document.createElement("div");
+      tbLabel.className = "tt-traceback-label";
+      tbLabel.textContent = "Traceback:";
+      tooltip.appendChild(tbLabel);
+      var pre = document.createElement("pre");
+      pre.textContent = cellData.traceback;
+      tooltip.appendChild(pre);
+    }
     if (cellData.details) {
       Object.keys(cellData.details).forEach(function (key) {
         addRow(tooltip, key, JSON.stringify(cellData.details[key]));
@@ -357,7 +411,7 @@ _HTML_TEMPLATE = """<!doctype html>
     var rect = el.getBoundingClientRect();
     var top = rect.bottom + 8;
     var left = rect.left;
-    if (left + 320 > window.innerWidth) left = window.innerWidth - 328;
+    if (left + 480 > window.innerWidth) left = window.innerWidth - 488;
     tooltip.style.top = top + "px";
     tooltip.style.left = Math.max(8, left) + "px";
   }
