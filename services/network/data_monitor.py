@@ -349,11 +349,13 @@ def analyse_missing_data(context: SiteContext) -> dict[str, Any]:
     data_cfg = context.runtime_config
     site_cfg = context.metadata
 
-    file_path = paths.get_local_stream_path(
-        resource="raw_data",
-        stream="flux_slow",
-        site=data_cfg.site_name,
-        file_name=data_cfg.flux_filename,
+    file_path = (
+        paths.get_local_stream_path(
+            resource="raw_data",
+            stream="flux_slow",
+            site=data_cfg.site_name,
+        )
+        / data_cfg.flux_filename
     )
 
     adapter = raw_data_loader.get_data_adapter(
