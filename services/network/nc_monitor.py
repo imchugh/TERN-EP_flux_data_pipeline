@@ -18,6 +18,12 @@ NC_SUFFIX = "_L1.nc"
 # Half-hourly updates mean a 60-second window is conservative enough to avoid
 # false positives once the monitor is scheduled away from the ingest window.
 _WRITE_QUIET_SECS: int = 60
+# Under host memory pressure, the netCDF4/HDF5 backend can fail to parse a
+# perfectly valid file and raise a generic "Unknown file format" OSError
+# instead of an out-of-memory error. A short retry rides out that transient
+# failure; genuine file corruption fails the same way on retry.
+_OPEN_RETRY_ATTEMPTS: int = 2
+_OPEN_RETRY_DELAY_SECS: float = 2.0
 NULL_RESULT: dict[str, Any] = {
     "last_record": None,
     "days_since_last_record": None,
@@ -65,13 +71,45 @@ def get_latest_nc_file(site: str) -> pathlib.Path:
     stable = [f for f in files if (now - f.stat().st_mtime) >= _WRITE_QUIET_SECS]
 
     if not stable:
-        logger.warning(
-            "nc_all_files_recently_modified",
-            extra={"site": site, "quiet_secs": _WRITE_QUIET_SECS},
+        raise TimeoutError(
+            f'All L1 NetCDF files for site "{site}" were modified within the last '
+            f"{_WRITE_QUIET_SECS}s and were skipped as likely mid-write; retry later"
         )
-        stable = files
 
     return stable[-1]
+
+
+def _open_dataset_with_retry(file_path: pathlib.Path) -> xr.Dataset:
+    """Open file_path as an xarray Dataset, retrying once on a transient OSError.
+
+    Args:
+        file_path: NetCDF file to open.
+
+    Returns:
+        The opened dataset.
+
+    Raises:
+        OSError: if every attempt fails.
+    """
+    last_exc: OSError | None = None
+
+    for attempt in range(1, _OPEN_RETRY_ATTEMPTS + 1):
+        try:
+            return xr.open_dataset(file_path)
+        except OSError as exc:
+            last_exc = exc
+            if attempt < _OPEN_RETRY_ATTEMPTS:
+                logger.warning(
+                    "nc_open_retry",
+                    extra={
+                        "file": str(file_path),
+                        "attempt": attempt,
+                        "error": str(exc),
+                    },
+                )
+                time.sleep(_OPEN_RETRY_DELAY_SECS)
+
+    raise last_exc
 
 
 def check_nc_last_record(site: str) -> dict[str, Any]:
@@ -104,7 +142,7 @@ def check_nc_last_record(site: str) -> dict[str, Any]:
             extra={"site": site, "file": str(file_path)},
         )
 
-        with xr.open_dataset(file_path) as ds:
+        with _open_dataset_with_retry(file_path) as ds:
             tz_name: str = ds.attrs["time_zone"]
             # Timestamps are stored as naive local time; convert via pandas
             # Timestamp to match the convention used by data_monitor.py.
