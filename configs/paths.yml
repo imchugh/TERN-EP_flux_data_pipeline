@@ -52,6 +52,8 @@ homogenised_data:
     nc:
       local: NetCDF
       remote: uqrdm:TERNEP-Q5937/EPCN_Share/Homogenised_data/NetCDF
+    zarr:
+      local: Zarr
     toa5:
       local: TOA5
       remote: OneDrive_UoM:Documents/RTMC/Site_data

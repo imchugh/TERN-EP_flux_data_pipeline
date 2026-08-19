@@ -37,3 +37,4 @@ dependencies:
   - pip
   - pip:
       - ruff
+      - zarr<3

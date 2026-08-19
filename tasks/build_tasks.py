@@ -17,6 +17,39 @@ def construct_L1_nc(site: str) -> dict:
 
 
 @register
+def construct_L1_zarr(site: str) -> dict:
+    """Incrementally update the site's whole-history L1 Zarr store.
+
+    Runs in parallel with construct_L1_nc for now (not yet a dependency of
+    it — NetCDF export still reads from raw data directly). Cheap
+    regardless of total site history length: checkpoints off the store's
+    own last timestamp and appends only newer records, self-healing to a
+    full rebuild if the append fails (e.g. a site-config change added or
+    removed a variable). See rebuild_L1_zarr for the periodic full-rebuild
+    reconciliation pass this depends on to correct for backfills/config
+    drift an incremental append can't see.
+    """
+    import orchestration.build_L1_zarr as build_zarr
+
+    store_path = build_zarr.update(site_name=site)
+    return {"status": "success", "store_path": str(store_path)}
+
+
+@register
+def rebuild_L1_zarr(site: str) -> dict:
+    """Full rebuild of the site's whole-history L1 Zarr store from raw data.
+
+    Reconciliation pass for construct_L1_zarr's incremental appends —
+    corrects for late-arriving/backfilled raw records and site-config
+    changes an append can't see. Scheduled nightly, off-peak.
+    """
+    import orchestration.build_L1_zarr as build_zarr
+
+    store_path = build_zarr.build(site_name=site)
+    return {"status": "success", "store_path": str(store_path)}
+
+
+@register
 def construct_toa5_from_nc(site: str) -> dict:
     """Rebuild the legacy-format merged TOA5 file from L1 NetCDF output."""
     import orchestration.legacy_rtmc_export as toa5con
