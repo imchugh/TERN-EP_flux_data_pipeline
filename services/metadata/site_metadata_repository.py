@@ -1,11 +1,9 @@
 """Fetch flux station details from TERN's SPARQL endpoint."""
 
-from domain.data_models.metadata_classes import SiteMetadata
 from infrastructure import external_io, file_io, paths
 from infrastructure.datetime_utils import get_timezone, get_UTC_offset
 from services import config_loader
 from services.metadata import rdf_label_resolver
-from services.metadata.site_registry import InvalidSiteError
 
 ALIAS_DICT = {
     "Aqueduct Snow Gum": "SnowGum",
@@ -23,7 +21,6 @@ ALIAS_DICT = {
 
 _SPARQL_CACHE = None
 _CREDS_CACHE = None
-_METADATA_CACHE = None
 
 
 # QUERY LOAD / EXECUTION UTILITIES
@@ -226,23 +223,6 @@ def get_flux_tower_fields_from_rdf(
     return {site: rslt[site] for site in sorted(rslt)}
 
 
-def _get_fields_from_source(source: str = "yml") -> dict:
-    """Internal: load raw site fields from yml snapshot or RDF endpoint.
-
-    Args:
-        source: 'yml' (default) or 'rdf'.
-
-    Raises:
-        TypeError: if source is not recognised.
-
-    """
-    if source == "yml":
-        return config_loader.load_config_file_from_name("global_metadata")
-    if source == "rdf":
-        return get_flux_tower_fields_from_rdf()
-    raise TypeError(f"Source {source} not recognised!")
-
-
 def write_flux_tower_fields_config(overwrite: bool = False) -> None:
     """Write data from rdf graph to local yml file.
 
@@ -265,53 +245,11 @@ def write_flux_tower_fields_config(overwrite: bool = False) -> None:
     file_io.write_yml_file(file_path=file_path, data=rslt)
 
 
-def get_all_tern_metadata() -> dict[str, SiteMetadata]:
-    """Return metadata for all TERN sites (cached).
-
-    This is broader than the pipeline registry — it includes decommissioned
-    sites and sites not currently configured in the pipeline. Use
-    SiteRegistry.get_all_metadata() for pipeline sites only.
-
-    Returns:
-        dict mapping site name to SiteMetadata for every TERN site.
-
-    """
-    global _METADATA_CACHE
-
-    if _METADATA_CACHE is None:
-        fields = _get_fields_from_source()
-        _METADATA_CACHE = {key: SiteMetadata(value) for key, value in fields.items()}
-
-    return _METADATA_CACHE
-
-
 def get_instrument_vocab():
     """Return the raw SPARQL bindings for the TERN instrument controlled vocabulary."""
     return parse_sparql_bindings(
         run_query(query_key="get_instrument_vocabulary", end_point="tern_vocabs_core")
     )
-
-
-def get_tern_site_metadata(site: str) -> SiteMetadata:
-    """Return metadata for any TERN site by name (cached).
-
-    Not limited to pipeline sites. Use SiteRegistry.get_metadata() if you
-    want validation that the site is in the pipeline.
-
-    Args:
-        site: TERN site name.
-
-    Returns:
-        SiteMetadata for the requested site.
-
-    Raises:
-        InvalidSiteError: if the site is not found in the TERN metadata.
-
-    """
-    metadata = get_all_tern_metadata().get(site)
-    if metadata is None:
-        raise InvalidSiteError(f"No TERN metadata found for site: {site}")
-    return metadata
 
 
 # UTILITY FUNCTIONS

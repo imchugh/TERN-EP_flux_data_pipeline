@@ -166,11 +166,12 @@ neutron soil-moisture file (`code/shell/send_cosmoz_data.sh` +
 - [ ] 10Hz fast-data processing needs attention ("get that processing working
       again" — per-site `TOB3` fast files largely absent from
       `/store/Raw_data/<site>/Flux/Fast/TOB3`). Separate task, not started.
-- [ ] `services/network/data_monitor.py::analyse_missing_data` calls
+- [x] `services/data/data_monitor.py::analyse_missing_data` calls
       `paths.get_local_stream_path(..., file_name=...)` — that kwarg doesn't
       exist on `get_local_stream_path` (removed when `paths.py` was
-      refactored to Pydantic models). Currently broken; noticed while
-      investigating site-details flux-file path resolution, not yet fixed.
+      refactored to Pydantic models). Fixed (stale `file_name` kwarg
+      removed); module also since moved from `services/network/` to
+      `services/data/`.
 - [ ] `tasks/tasks.py::_run_site_task` (line ~177) runs every site-scoped task
       strictly sequentially (`for s in site_list: ...`) — no `run_concurrent`
       or thread pool. Affects every `@register`ed task with a `site` param

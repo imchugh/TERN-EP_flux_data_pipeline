@@ -192,7 +192,7 @@ def _get_site_status(site: str) -> dict:
         df = ds[SUBSET].squeeze().to_dataframe()
 
     # NetCDF time values follow the local-time convention (naive timestamps),
-    # matching services.network.nc_monitor / data_monitor.
+    # matching services.network.nc_monitor / services.data.data_monitor.
     site_time = datetime_utils.get_local_datetime_now(
         tz_name=tz_name,
         return_tz_aware=False,

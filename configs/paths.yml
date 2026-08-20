@@ -87,5 +87,3 @@ logs:
   stream:
     network_logs:
       local: Network
-    site_logs:
-      local: Sites/<site>
