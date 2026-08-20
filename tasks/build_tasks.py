@@ -8,11 +8,11 @@ from tasks.registry import register
 
 @register
 def construct_L1_nc(site: str) -> dict:
-    """Build the current-year L1 NetCDF file."""
+    """Build the current-year L1 NetCDF file from the site's Zarr store."""
     import orchestration.build_L1_nc as build_nc
 
     this_year = dt.datetime.now().year
-    written = build_nc.build(site_name=site, year=this_year)
+    written = build_nc.build_from_zarr(site_name=site, year=this_year)
     return {"status": "success", "files_written": [str(p) for p in written]}
 
 
