@@ -7,10 +7,10 @@ hits the real state directory) are exercised via manual verification, not here.
 import json
 import tempfile
 import unittest
+from datetime import UTC, datetime
 from pathlib import Path
 
 from tools.network_health_matrix import (
-    CONNECTIVITY_COLUMNS,
     GROUPS,
     MISSING_DATA_COLUMNS,
     band_for_count,
@@ -19,6 +19,8 @@ from tools.network_health_matrix import (
     build_report_data,
 )
 from tools.network_state_common import STATE_ERROR, STATE_NA, STATE_NO_DATA
+
+_NOW = datetime(2026, 8, 17, 8, 0, tzinfo=UTC)
 
 
 class TestBandForCount(unittest.TestCase):
@@ -129,7 +131,7 @@ class TestBuildGroupMatrix(unittest.TestCase):
                 self.assertEqual(matrix["Boyagin"][col]["state"], STATE_ERROR)
                 self.assertEqual(matrix["Boyagin"][col]["error"], "boom")
 
-    def test_scoped_group_na_for_ineligible_site_even_with_a_record(self):
+    def test_connectivity_na_for_ineligible_site_even_with_a_record(self):
         with tempfile.TemporaryDirectory() as tmp:
             state_dir = Path(tmp)
             _write_state(
@@ -138,23 +140,23 @@ class TestBuildGroupMatrix(unittest.TestCase):
                 {
                     "Boyagin": {
                         "consecutive_failures": 0,
-                        "last_success": "x",
-                        "last_attempt": "x",
+                        "last_success": _NOW.isoformat(),
+                        "last_attempt": _NOW.isoformat(),
                         "last_latency_ms": 5,
                     }
                 },
             )
             matrix, _ = build_group_matrix(
-                self._group("gateway_connectivity"),
+                self._group("network_connectivity"),
                 state_dir,
                 ["Boyagin"],
                 connectivity_eligible=set(),
+                now=_NOW,
             )
-            self.assertEqual(
-                matrix["Boyagin"][CONNECTIVITY_COLUMNS[0]]["state"], STATE_NA
-            )
+            self.assertEqual(matrix["Boyagin"]["gateway"]["state"], STATE_NA)
+            self.assertEqual(matrix["Boyagin"]["EC logger"]["state"], STATE_NA)
 
-    def test_scoped_group_eligible_site_gets_severity(self):
+    def test_connectivity_eligible_site_gets_days_since_last_success_severity(self):
         with tempfile.TemporaryDirectory() as tmp:
             state_dir = Path(tmp)
             _write_state(
@@ -162,20 +164,69 @@ class TestBuildGroupMatrix(unittest.TestCase):
                 "gateway_connectivity",
                 {
                     "Boyagin": {
+                        "consecutive_failures": 0,
+                        "last_success": _NOW.isoformat(),
+                        "last_attempt": _NOW.isoformat(),
+                        "last_latency_ms": 5,
+                    }
+                },
+            )
+            _write_state(
+                state_dir,
+                "ec_logger_connectivity",
+                {
+                    "Boyagin": {
                         "consecutive_failures": 8,
                         "last_success": None,
-                        "last_attempt": "x",
+                        "last_attempt": _NOW.isoformat(),
                         "last_latency_ms": None,
                     }
                 },
             )
             matrix, _ = build_group_matrix(
-                self._group("gateway_connectivity"),
+                self._group("network_connectivity"),
                 state_dir,
                 ["Boyagin"],
                 connectivity_eligible={"Boyagin"},
+                now=_NOW,
             )
-            self.assertEqual(matrix["Boyagin"][CONNECTIVITY_COLUMNS[0]]["state"], "red")
+            gateway = matrix["Boyagin"]["gateway"]
+            self.assertEqual(gateway["state"], "green")
+            self.assertEqual(gateway["value"], 0)
+            ec_logger = matrix["Boyagin"]["EC logger"]
+            self.assertEqual(ec_logger["state"], "red")
+            self.assertEqual(ec_logger["display"], "never")
+            self.assertIsNone(ec_logger["value"])
+
+    def test_connectivity_missing_from_one_source_is_no_data_for_that_column_only(
+        self,
+    ):
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp)
+            _write_state(
+                state_dir,
+                "gateway_connectivity",
+                {
+                    "Boyagin": {
+                        "consecutive_failures": 0,
+                        "last_success": _NOW.isoformat(),
+                        "last_attempt": _NOW.isoformat(),
+                        "last_latency_ms": 5,
+                    }
+                },
+            )
+            # ec_logger_connectivity.json not written at all.
+            matrix, updated_at = build_group_matrix(
+                self._group("network_connectivity"),
+                state_dir,
+                ["Boyagin"],
+                connectivity_eligible={"Boyagin"},
+                now=_NOW,
+            )
+            self.assertEqual(matrix["Boyagin"]["gateway"]["state"], "green")
+            self.assertEqual(matrix["Boyagin"]["EC logger"]["state"], STATE_NO_DATA)
+            self.assertIn("gateway:", updated_at)
+            self.assertIn("EC logger: no state file", updated_at)
 
     def test_missing_state_file_is_no_data_for_every_site(self):
         with tempfile.TemporaryDirectory() as tmp:

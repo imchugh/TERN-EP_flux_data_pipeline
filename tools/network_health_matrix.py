@@ -5,18 +5,27 @@ Reads the per-task state JSON files that `services/network/state_task_orchestrat
 writes to its state directory (one `<task_name>.json` per task, refreshed by manually
 running `python run.py construct_status_geojson` — this tool does not trigger that
 itself, see the module's own docstring), and renders a self-contained HTML report:
-a dropdown selects one of six health-metric groups (missing_data, variable_quality,
-threshold_quality, nc_last_record, gateway_connectivity, ec_logger_connectivity),
-each rendered as a site x sub-metric heatmap. logger_status is a point-in-time device
-snapshot with no natural severity model — trend/rolling-window health vs. "is the
-device reachable right now" are different questions, so it has its own page,
-`logger_status_report.py`, cross-linked from this one's header.
+a dropdown selects one of five health-metric groups (missing_data, variable_quality,
+threshold_quality, nc_last_record, network_connectivity), each rendered as a site x
+sub-metric heatmap. logger_status is a point-in-time device snapshot with no natural
+severity model — trend/rolling-window health vs. "is the device reachable right now"
+are different questions, so it has its own page, `logger_status_report.py`,
+cross-linked from this one's header.
+
+`network_connectivity` combines the `gateway_connectivity` and
+`ec_logger_connectivity` state tasks into one group with two columns ("gateway",
+"EC logger") side by side, so the two reachability checks for a site can be
+compared at a glance instead of living behind separate dropdown entries. Its
+metric is `days_since_last_success` (derived here from each state file's
+`last_success` timestamp), not the raw `consecutive_failures` count the state
+files store — a wall-clock metric reads the same regardless of how often the
+underlying check runs, the same reasoning `nc_last_record` already applies.
 
 Cells are classified `na` (site not eligible for this task), `no_data` (eligible,
 but missing from the state file), `error` (the task's own `error` field is
 populated), or a 5-band severity ramp (green/blue/purple/orange/red) computed from
 the metric value — day-count metrics (`days_since_last_record`,
-`consecutive_failures`) and percentage metrics (`pct_missing_*`,
+`days_since_last_success`) and percentage metrics (`pct_missing_*`,
 `pct_outside_range_*`) each have their own band edges, see `band_for_count`/
 `band_for_pct`.
 
@@ -91,7 +100,14 @@ MISSING_DATA_COLUMNS = [
     "pct_missing_last_30_days",
 ]
 NC_LAST_RECORD_COLUMNS = ["days_since_last_record"]
-CONNECTIVITY_COLUMNS = ["consecutive_failures"]
+
+NETWORK_CONNECTIVITY_COLUMNS = ["gateway", "EC logger"]
+# Column label -> the state task file backing it (see the multi-source branch
+# in build_group_matrix).
+NETWORK_CONNECTIVITY_SOURCES = {
+    "gateway": "gateway_connectivity",
+    "EC logger": "ec_logger_connectivity",
+}
 
 
 def _band_from_edges(value: float | None, edges: list[float]) -> str | None:
@@ -120,10 +136,6 @@ def _fmt_days(value: float | int | None) -> str:
 
 def _fmt_pct(value: float | None) -> str:
     return "" if value is None else f"{value:.1f}%"
-
-
-def _fmt_count(value: float | int | None) -> str:
-    return "" if value is None else f"{value:.0f}"
 
 
 def _missing_data_row(result: dict) -> dict[str, dict]:
@@ -175,17 +187,31 @@ def _nc_last_record_row(result: dict) -> dict[str, dict]:
     }
 
 
-def _connectivity_row(result: dict) -> dict[str, dict]:
-    failures = result.get("consecutive_failures")
+def _connectivity_cell(result: dict, now: datetime) -> dict:
+    """Build one gateway/EC-logger connectivity cell: days since last_success.
+
+    A `last_success` of None means the site has never once succeeded since its
+    state block was created — forced to the worst band ("red"/"never") rather
+    than falling through to `no_data`, which is reserved for a site missing
+    from the state file entirely (a different, less alarming situation).
+    """
+    last_success = result.get("last_success")
+    if last_success is None:
+        days: int | None = None
+        state = "red"
+        display = "never"
+    else:
+        days = (now - datetime.fromisoformat(last_success)).days
+        state = band_for_count(days) or "red"
+        display = _fmt_days(days)
     return {
-        "consecutive_failures": {
-            "state": band_for_count(failures) or STATE_NO_DATA,
-            "value": failures,
-            "display": _fmt_count(failures),
-            "last_success": result.get("last_success"),
-            "last_attempt": result.get("last_attempt"),
-            "last_latency_ms": result.get("last_latency_ms"),
-        }
+        "state": state,
+        "value": days,
+        "display": display,
+        "consecutive_failures": result.get("consecutive_failures"),
+        "last_success": last_success,
+        "last_attempt": result.get("last_attempt"),
+        "last_latency_ms": result.get("last_latency_ms"),
     }
 
 
@@ -219,20 +245,52 @@ GROUPS = [
         "scoped": False,
     },
     {
-        "key": "gateway_connectivity",
-        "label": "Gateway connectivity",
-        "columns": CONNECTIVITY_COLUMNS,
-        "row_fn": _connectivity_row,
-        "scoped": True,
-    },
-    {
-        "key": "ec_logger_connectivity",
-        "label": "EC logger connectivity",
-        "columns": CONNECTIVITY_COLUMNS,
-        "row_fn": _connectivity_row,
+        "key": "network_connectivity",
+        "label": "Network connectivity",
+        "columns": NETWORK_CONNECTIVITY_COLUMNS,
+        "sources": NETWORK_CONNECTIVITY_SOURCES,
         "scoped": True,
     },
 ]
+
+
+def _build_connectivity_matrix(
+    group: dict,
+    state_dir: Path,
+    sites: list[str],
+    connectivity_eligible: set[str],
+    now: datetime,
+) -> tuple[dict[str, dict[str, dict]], str]:
+    """Build {site: {column: cell}} for a multi-source group (network_connectivity).
+
+    Each column is backed by its own state file (`group["sources"]`), unlike
+    single-source groups where every column comes from one state file.
+    """
+    sites_data: dict[str, dict] = {}
+    updated_parts: list[str] = []
+    for column, source_key in group["sources"].items():
+        state = load_state(state_dir, source_key)
+        sites_data[column] = state.get("sites", {}) if state else {}
+        source_updated = state.get("updated_at") if state else None
+        updated_parts.append(f"{column}: {source_updated or 'no state file'}")
+    updated_at = "; ".join(updated_parts)
+
+    matrix: dict[str, dict[str, dict]] = {}
+    for site in sites:
+        eligible = site in connectivity_eligible if group["scoped"] else True
+        row: dict[str, dict] = {}
+        for column in group["columns"]:
+            result = sites_data[column].get(site)
+            base = row_state(eligible, result)
+            if base is not None:
+                row[column] = uniform_row(
+                    [column], base, result.get("error") if result else None
+                )[column]
+            else:
+                row[column] = _connectivity_cell(result, now)
+        matrix[site] = row
+
+    return matrix, updated_at
 
 
 def build_group_matrix(
@@ -240,8 +298,14 @@ def build_group_matrix(
     state_dir: Path,
     sites: list[str],
     connectivity_eligible: set[str],
+    now: datetime | None = None,
 ) -> tuple[dict[str, dict[str, dict]], str | None]:
     """Build {site: {column: cell}} for one group, plus its state file's updated_at."""
+    if "sources" in group:
+        return _build_connectivity_matrix(
+            group, state_dir, sites, connectivity_eligible, now or datetime.now(UTC)
+        )
+
     state = load_state(state_dir, group["key"])
     sites_data = state.get("sites", {}) if state else {}
     updated_at = state.get("updated_at") if state else None
@@ -265,12 +329,14 @@ def build_report_data(
     state_dir: Path,
     sites: list[str],
     connectivity_eligible: set[str],
+    now: datetime | None = None,
 ) -> dict:
     """Assemble the full report payload: every group's matrix."""
+    now = now or datetime.now(UTC)
     groups_out = []
     for group in GROUPS:
         matrix, updated_at = build_group_matrix(
-            group, state_dir, sites, connectivity_eligible
+            group, state_dir, sites, connectivity_eligible, now
         )
         groups_out.append(
             {
@@ -641,8 +707,9 @@ def main() -> None:
     sites = SITE_REGISTRY.names()
     eligible = set(connectivity_sites())
 
-    data = build_report_data(state_dir, sites, eligible)
-    html = render_html(data, generated_at=datetime.now(UTC))
+    now = datetime.now(UTC)
+    data = build_report_data(state_dir, sites, eligible, now=now)
+    html = render_html(data, generated_at=now)
     args.output.write_text(html, encoding="utf-8")
 
     print(_SEP)
