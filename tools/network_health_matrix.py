@@ -8,8 +8,9 @@ itself, see the module's own docstring), and renders a self-contained HTML repor
 a dropdown selects one of six health-metric groups (missing_data, variable_quality,
 threshold_quality, nc_last_record, gateway_connectivity, ec_logger_connectivity),
 each rendered as a site x sub-metric heatmap. logger_status is a point-in-time device
-snapshot with no natural severity model, so it renders separately as a plain
-always-visible table below the matrix, not as a dropdown group.
+snapshot with no natural severity model — trend/rolling-window health vs. "is the
+device reachable right now" are different questions, so it has its own page,
+`logger_status_report.py`, cross-linked from this one's header.
 
 Cells are classified `na` (site not eligible for this task), `no_data` (eligible,
 but missing from the state file), `error` (the task's own `error` field is
@@ -40,16 +41,20 @@ from pathlib import Path
 # Ensure project root is on path when run as a script
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from tools.network_state_common import (
+    GRAFANA_URL,
+    STATE_NO_DATA,
+    load_state,
+    row_state,
+    uniform_row,
+)
+
 _SEP = "─" * 64
 
-# Proof-of-concept: same base URL for every site (per-site parameterisation
-# deferred). Points at the per-site Grafana dashboard used for historical
-# time-series deep-dives; this report is the fast "what's wrong now" triage view.
-GRAFANA_URL = "https://grafana.tern.org.au/d/gwtlbc4/flux-data-dashboard"
+# Cross-link to the logger-status page; both tools default to writing into
+# the same directory, so a relative filename is enough.
+LOGGER_STATUS_URL = "logger_status.html"
 
-STATE_NA = "na"
-STATE_NO_DATA = "no_data"
-STATE_ERROR = "error"
 BANDS = ["green", "blue", "purple", "orange", "red"]
 BAND_LABELS = {
     "green": "Good",
@@ -88,18 +93,6 @@ MISSING_DATA_COLUMNS = [
 NC_LAST_RECORD_COLUMNS = ["days_since_last_record"]
 CONNECTIVITY_COLUMNS = ["consecutive_failures"]
 
-LOGGER_FIELDS = [
-    "model",
-    "SerialNumber",
-    "OSVersion",
-    "ProgName",
-    "CardStatus",
-    "Battery",
-    "LithiumBattery",
-    "SkippedScan",
-    "WatchdogErrors",
-]
-
 
 def _band_from_edges(value: float | None, edges: list[float]) -> str | None:
     """Map value to BANDS via ascending edges: value < edges[i] gives BANDS[i]."""
@@ -119,27 +112,6 @@ def band_for_count(value: float | int | None) -> str | None:
 def band_for_pct(value: float | None) -> str | None:
     """Return the severity band for a percentage metric, or None."""
     return _band_from_edges(value, _PCT_EDGES)
-
-
-def _row_state(eligible: bool, result: dict | None) -> str | None:
-    """Return row state ('na'/'no_data'/'error'), or None if 'ok' (caller proceeds)."""
-    if not eligible:
-        return STATE_NA
-    if result is None:
-        return STATE_NO_DATA
-    if result.get("error"):
-        return STATE_ERROR
-    return None
-
-
-def _uniform_row(
-    columns: list[str], state: str, error: str | None = None
-) -> dict[str, dict]:
-    """Fill every column for a site with the same na/no_data/error cell."""
-    cell = {"state": state}
-    if error:
-        cell["error"] = error
-    return {col: dict(cell) for col in columns}
 
 
 def _fmt_days(value: float | int | None) -> str:
@@ -263,17 +235,6 @@ GROUPS = [
 ]
 
 
-def _load_state(state_dir: Path, task_name: str) -> dict | None:
-    """Read `<task_name>.json` from state_dir, or None if missing/unparsable."""
-    path = state_dir / f"{task_name}.json"
-    if not path.exists():
-        return None
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return None
-
-
 def build_group_matrix(
     group: dict,
     state_dir: Path,
@@ -281,7 +242,7 @@ def build_group_matrix(
     connectivity_eligible: set[str],
 ) -> tuple[dict[str, dict[str, dict]], str | None]:
     """Build {site: {column: cell}} for one group, plus its state file's updated_at."""
-    state = _load_state(state_dir, group["key"])
+    state = load_state(state_dir, group["key"])
     sites_data = state.get("sites", {}) if state else {}
     updated_at = state.get("updated_at") if state else None
 
@@ -289,9 +250,9 @@ def build_group_matrix(
     for site in sites:
         eligible = site in connectivity_eligible if group["scoped"] else True
         result = sites_data.get(site)
-        base = _row_state(eligible, result)
+        base = row_state(eligible, result)
         if base is not None:
-            matrix[site] = _uniform_row(
+            matrix[site] = uniform_row(
                 group["columns"], base, result.get("error") if result else None
             )
         else:
@@ -300,38 +261,12 @@ def build_group_matrix(
     return matrix, updated_at
 
 
-def build_logger_table(
-    state_dir: Path,
-    sites: list[str],
-    connectivity_eligible: set[str],
-) -> tuple[dict[str, dict], str | None]:
-    """Build {site: {row_state, error?, fields}} for the always-visible logger table."""
-    state = _load_state(state_dir, "logger_status")
-    sites_data = state.get("sites", {}) if state else {}
-    updated_at = state.get("updated_at") if state else None
-
-    rows: dict[str, dict] = {}
-    for site in sites:
-        result = sites_data.get(site)
-        base = _row_state(site in connectivity_eligible, result)
-        if base is not None:
-            row = {"row_state": base}
-            if base == STATE_ERROR:
-                row["error"] = result.get("error")
-        else:
-            row = {"row_state": "ok"}
-        row["fields"] = {k: result.get(k) for k in LOGGER_FIELDS} if result else {}
-        rows[site] = row
-
-    return rows, updated_at
-
-
 def build_report_data(
     state_dir: Path,
     sites: list[str],
     connectivity_eligible: set[str],
 ) -> dict:
-    """Assemble the full report payload: every group's matrix plus the logger table."""
+    """Assemble the full report payload: every group's matrix."""
     groups_out = []
     for group in GROUPS:
         matrix, updated_at = build_group_matrix(
@@ -347,19 +282,11 @@ def build_report_data(
             }
         )
 
-    logger_rows, logger_updated_at = build_logger_table(
-        state_dir, sites, connectivity_eligible
-    )
-
     return {
         "sites": sites,
         "groups": groups_out,
-        "logger": {
-            "updated_at": logger_updated_at,
-            "fields": LOGGER_FIELDS,
-            "rows": logger_rows,
-        },
         "grafana_url": GRAFANA_URL,
+        "logger_status_url": LOGGER_STATUS_URL,
         "band_labels": BAND_LABELS,
     }
 
@@ -488,12 +415,9 @@ _HTML_TEMPLATE = """<!doctype html>
   td.cell.no_data { background: var(--state-no-data); color: var(--muted); border: 1px dashed var(--gridline); }
   td.cell.error   { background: var(--state-error); }
   td.cell:hover, td.cell:focus-visible { outline: 2px solid var(--text-primary); }
-  table.logger-table td, table.logger-table th { font-size: 12px; padding: 4px 8px; }
-  table.logger-table td.logger-flag { text-align: center; width: 24px; border-radius: 4px; color: #fff; font-weight: 700; }
-  table.logger-table td.logger-flag.error { background: var(--state-error); }
-  table.logger-table td.logger-flag.na { background: var(--state-na); color: var(--muted); }
-  table.logger-table td.logger-flag.no_data { background: var(--state-no-data); color: var(--muted); }
-  table.logger-table td.logger-flag.ok { background: var(--band-green); }
+  .page-nav { margin: 0 0 12px; font-size: 13px; }
+  .page-nav a { color: var(--band-blue); text-decoration: none; }
+  .page-nav a:hover { text-decoration: underline; }
   #tooltip {
     position: fixed; pointer-events: none; z-index: 10;
     background: var(--text-primary); color: var(--surface-1);
@@ -507,6 +431,7 @@ _HTML_TEMPLATE = """<!doctype html>
 </head>
 <body>
   <h1>Network health matrix</h1>
+  <p class="page-nav"><a id="logger-status-link" href="#">Logger status →</a></p>
   <p class="meta" id="meta"></p>
   <div class="controls">
     <label for="group-select">Metric group</label>
@@ -515,10 +440,6 @@ _HTML_TEMPLATE = """<!doctype html>
   <div class="legend" id="legend"></div>
   <div class="grid-wrap"><table id="grid"></table></div>
   <footer id="footer"></footer>
-
-  <h2>Logger status (point-in-time snapshot, no severity model)</h2>
-  <p class="meta" id="logger-meta"></p>
-  <div class="grid-wrap"><table id="logger-grid" class="logger-table"></table></div>
 
   <div id="tooltip"></div>
 
@@ -530,6 +451,7 @@ _HTML_TEMPLATE = """<!doctype html>
 
   var data = JSON.parse(document.getElementById("report-data").textContent);
   var tooltip = document.getElementById("tooltip");
+  document.getElementById("logger-status-link").href = data.logger_status_url;
 
   function addRow(container, label, value) {
     var div = document.createElement("div");
@@ -673,53 +595,6 @@ _HTML_TEMPLATE = """<!doctype html>
     "State source: services/network/state_task_orchestrator.py per-task state files " +
     "(read as-is, not re-run by this report). Site names link to Grafana (base URL, " +
     "not yet site-parameterised). Hover or focus a cell for detail.";
-
-  // ---- logger status table ----
-
-  var loggerTable = document.getElementById("logger-grid");
-  document.getElementById("logger-meta").textContent =
-    data.logger.updated_at ? "state updated " + data.logger.updated_at : "no state file found";
-
-  var lthead = document.createElement("thead");
-  var lheadRow = document.createElement("tr");
-  ["Site", ""].concat(data.logger.fields).forEach(function (label) {
-    var th = document.createElement("th");
-    th.textContent = label;
-    lheadRow.appendChild(th);
-  });
-  lthead.appendChild(lheadRow);
-  loggerTable.appendChild(lthead);
-
-  var ltbody = document.createElement("tbody");
-  data.sites.forEach(function (site) {
-    var row = document.createElement("tr");
-    var siteTh = document.createElement("td");
-    siteTh.appendChild(siteLink(site));
-    row.appendChild(siteTh);
-
-    var rowData = data.logger.rows[site];
-    var flagTd = document.createElement("td");
-    flagTd.className = "logger-flag " + rowData.row_state;
-    flagTd.textContent = rowData.row_state === "ok" ? "\\u2713" : (BAND_SYMBOL[rowData.row_state] || "");
-    flagTd.tabIndex = 0;
-    var describeRow = function () {
-      showTooltip(flagTd, site + " \\u2014 logger status", rowData.row_state, rowData.error ? { error: rowData.error } : {});
-    };
-    flagTd.addEventListener("pointerenter", describeRow);
-    flagTd.addEventListener("focus", describeRow);
-    flagTd.addEventListener("pointerleave", hideTooltip);
-    flagTd.addEventListener("blur", hideTooltip);
-    row.appendChild(flagTd);
-
-    data.logger.fields.forEach(function (field) {
-      var td = document.createElement("td");
-      var val = rowData.fields[field];
-      td.textContent = (val === null || val === undefined) ? "" : String(val);
-      row.appendChild(td);
-    });
-    ltbody.appendChild(row);
-  });
-  loggerTable.appendChild(ltbody);
 })();
 </script>
 </body>
@@ -781,12 +656,6 @@ def main() -> None:
         updated = group["updated_at"] or "no state file"
         print(f"  {group['label']:<24} updated {updated}")
         print(f"    {counts}")
-    logger_counts: dict[str, int] = {}
-    for row in data["logger"]["rows"].values():
-        logger_counts[row["row_state"]] = logger_counts.get(row["row_state"], 0) + 1
-    logger_updated = data["logger"]["updated_at"] or "no state file"
-    print(f"  {'Logger status':<24} updated {logger_updated}")
-    print(f"    {logger_counts}")
     print(f"\nWrote {args.output}")
 
 

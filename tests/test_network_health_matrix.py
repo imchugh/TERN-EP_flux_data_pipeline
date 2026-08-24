@@ -13,15 +13,12 @@ from tools.network_health_matrix import (
     CONNECTIVITY_COLUMNS,
     GROUPS,
     MISSING_DATA_COLUMNS,
-    STATE_ERROR,
-    STATE_NA,
-    STATE_NO_DATA,
     band_for_count,
     band_for_pct,
     build_group_matrix,
-    build_logger_table,
     build_report_data,
 )
+from tools.network_state_common import STATE_ERROR, STATE_NA, STATE_NO_DATA
 
 
 class TestBandForCount(unittest.TestCase):
@@ -213,41 +210,15 @@ class TestBuildGroupMatrix(unittest.TestCase):
             self.assertEqual(matrix["Boyagin"]["Fh"]["state"], STATE_NO_DATA)
 
 
-class TestBuildLoggerTable(unittest.TestCase):
-    def test_na_no_data_error_ok_layering(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            state_dir = Path(tmp)
-            _write_state(
-                state_dir,
-                "logger_status",
-                {
-                    "Boyagin": {"model": "CR1000", "Battery": 13.1, "error": None},
-                    "Litchfield": {"model": None, "error": "timeout"},
-                },
-            )
-            rows, updated_at = build_logger_table(
-                state_dir,
-                ["Boyagin", "Litchfield", "Yanco", "NotScoped"],
-                {"Boyagin", "Litchfield", "Yanco"},
-            )
-            self.assertEqual(updated_at, "2026-08-17T07:00:00+00:00")
-            self.assertEqual(rows["Boyagin"]["row_state"], "ok")
-            self.assertEqual(rows["Boyagin"]["fields"]["model"], "CR1000")
-            self.assertEqual(rows["Litchfield"]["row_state"], STATE_ERROR)
-            self.assertEqual(rows["Litchfield"]["error"], "timeout")
-            self.assertEqual(rows["Yanco"]["row_state"], STATE_NO_DATA)
-            self.assertEqual(rows["NotScoped"]["row_state"], STATE_NA)
-
-
 class TestBuildReportData(unittest.TestCase):
-    def test_assembles_all_groups_and_logger_table(self):
+    def test_assembles_all_groups(self):
         with tempfile.TemporaryDirectory() as tmp:
             state_dir = Path(tmp)
             data = build_report_data(state_dir, ["Boyagin"], set())
             self.assertEqual(data["sites"], ["Boyagin"])
             self.assertEqual(len(data["groups"]), len(GROUPS))
-            self.assertIn("logger", data)
             self.assertIn("grafana_url", data)
+            self.assertIn("logger_status_url", data)
 
 
 if __name__ == "__main__":
