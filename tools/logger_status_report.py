@@ -281,6 +281,10 @@ _HTML_TEMPLATE = """<!doctype html>
     (data.updated_at ? "state updated " + data.updated_at : "no state file found") +
     " \\u2014 report generated " + data.generated_at;
 
+  var STATE_COLOR_VAR = {
+    ok: "--band-green", na: "--state-na",
+    no_data: "--state-no-data", error: "--state-error"
+  };
   var legend = document.getElementById("legend");
   var LEGEND_ITEMS = [
     ["ok", "\\u2713", "OK"],
@@ -292,7 +296,9 @@ _HTML_TEMPLATE = """<!doctype html>
     var item = document.createElement("div");
     item.className = "legend-item";
     var sw = document.createElement("span");
-    sw.className = "swatch logger-flag " + t[0];
+    sw.className = "swatch";
+    sw.style.background = "var(" + STATE_COLOR_VAR[t[0]] + ")";
+    if (t[0] === "na" || t[0] === "no_data") sw.style.color = "var(--muted)";
     sw.textContent = t[1];
     item.appendChild(sw);
     item.appendChild(document.createTextNode(t[2]));
