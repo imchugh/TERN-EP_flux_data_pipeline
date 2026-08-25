@@ -5,12 +5,12 @@ Reads the per-task state JSON files that `services/network/state_task_orchestrat
 writes to its state directory (one `<task_name>.json` per task, refreshed by manually
 running `python run.py construct_status_geojson` — this tool does not trigger that
 itself, see the module's own docstring), and renders a self-contained HTML report:
-a dropdown selects one of four health-metric groups (missing_data, data_quality,
-nc_last_record, network_connectivity), each rendered as a site x sub-metric
-heatmap. logger_status is a point-in-time device snapshot with no natural severity
-model — trend/rolling-window health vs. "is the device reachable right now" are
-different questions, so it has its own page, `logger_status_report.py`,
-cross-linked from this one's header.
+a dropdown selects one of five health-metric groups (missing_data,
+variable_quality, threshold_quality, nc_last_record, network_connectivity),
+each rendered as a site x sub-metric heatmap. logger_status is a point-in-time
+device snapshot with no natural severity model — trend/rolling-window health
+vs. "is the device reachable right now" are different questions, so it has its
+own page, `logger_status_report.py`, cross-linked from this one's header.
 
 `network_connectivity` combines the `gateway_connectivity` and
 `ec_logger_connectivity` state tasks into one group with two columns ("gateway",
@@ -21,25 +21,29 @@ metric is `days_since_last_success` (derived here from each state file's
 files store — a wall-clock metric reads the same regardless of how often the
 underlying check runs, the same reasoning `nc_last_record` already applies.
 
-`data_quality` similarly combines the `variable_quality` and `threshold_quality`
-state tasks into one group, rendered as two labelled column groups ("Variable
-quality" / "Threshold quality") side by side rather than flattened into one
-undifferentiated row. Both underlying tasks report per-window figures
-(`pct_outside_range_last_{1,7,30}_days`); a second "Time range" dropdown (default
-7 days) lets the user pick which window colours the grid, instead of hardcoding
-one window and relegating the rest to the tooltip.
+`variable_quality` and `threshold_quality` report per-window figures
+(`pct_outside_range_last_{1,7,30}_days`) per variable; a "Time range" dropdown
+(default 7 days) picks which window colours the grid, instead of hardcoding
+one window and relegating the rest to the tooltip. (These two groups were
+briefly merged into one "Data quality" entry with two labelled column groups,
+but that stopped making sense once the map/ghosting feature below existed —
+one map-metric selector across 7 mixed columns meant ghosting 6 of them at
+once, mixing two unrelated kinds of checks. Split back to their original
+identities.)
 
-`missing_data` and `network_connectivity` (any group with `"has_map": True` in
-`GROUPS`) render a zoomable map of Australia alongside their table, plotting
-every site by real location (`SITE_REGISTRY` lat/lon, same source
+`missing_data`, `variable_quality`, `threshold_quality`, and
+`network_connectivity` (any group with `"has_map": True` in `GROUPS`) render a
+zoomable map of Australia alongside their table, plotting every site by real
+location (`SITE_REGISTRY` lat/lon, same source
 `state_task_orchestrator.compile_geojson` uses) and colouring each marker by a
-third "Map metric" dropdown — the selected column stays full-opacity in the
+second dropdown, "Map metric" — the selected column stays full-opacity in the
 table, the rest dim (`ghost`) but stay readable, since these are genuinely
-different signals worth comparing side by side, unlike `data_quality`'s
-same-metric-different-window columns. The outline itself
-(`AUSTRALIA_OUTLINE_PATH`) is a static SVG path baked in once from Natural
-Earth's public-domain 110m boundary data via `_project_lonlat` — the tool makes
-no network calls at report-view time.
+different signals worth comparing side by side. `variable_quality`/
+`threshold_quality` are the first groups to combine this with the Time-range
+dropdown — the map/ghosting reflects whichever window is currently selected.
+The outline itself (`AUSTRALIA_OUTLINE_PATH`) is a static SVG path baked in
+once from Natural Earth's public-domain 110m boundary data via
+`_project_lonlat` — the tool makes no network calls at report-view time.
 
 Cells are classified `na` (site not eligible for this task), `no_data` (eligible,
 but missing from the state file), `error` (the task's own `error` field is
@@ -117,6 +121,10 @@ DEFAULT_WINDOW_DAYS = 7
 # are stable domain constants, not expected to drift silently.
 VARIABLE_QUALITY_VARS = ["Fco2", "Fh", "Fe", "Fsd"]
 THRESHOLD_QUALITY_VARS = ["Vbat", "Diag_IRGA", "Diag_SONIC"]
+# Identity maps -- unlike missing_data's snake_case field names, these are
+# already short, recognisable column names with no prettifying needed.
+VARIABLE_QUALITY_MAP_METRIC_LABELS = {v: v for v in VARIABLE_QUALITY_VARS}
+THRESHOLD_QUALITY_MAP_METRIC_LABELS = {v: v for v in THRESHOLD_QUALITY_VARS}
 
 MISSING_DATA_COLUMNS = [
     "days_since_last_record",
@@ -425,24 +433,26 @@ GROUPS = [
         },
     },
     {
-        "key": "data_quality",
-        "label": "Data quality",
-        "column_groups": [
-            {
-                "key": "variable_quality",
-                "label": "Variable quality",
-                "columns": VARIABLE_QUALITY_VARS,
-            },
-            {
-                "key": "threshold_quality",
-                "label": "Threshold quality",
-                "columns": THRESHOLD_QUALITY_VARS,
-            },
-        ],
-        "columns": VARIABLE_QUALITY_VARS + THRESHOLD_QUALITY_VARS,
+        "key": "variable_quality",
+        "label": "Variable quality",
+        "columns": VARIABLE_QUALITY_VARS,
         "windows": [1, 7, 30],
         "default_window": DEFAULT_WINDOW_DAYS,
         "scoped": False,
+        "has_map": True,
+        "map_metric_labels": VARIABLE_QUALITY_MAP_METRIC_LABELS,
+        "default_map_metric": VARIABLE_QUALITY_VARS[0],
+    },
+    {
+        "key": "threshold_quality",
+        "label": "Threshold quality",
+        "columns": THRESHOLD_QUALITY_VARS,
+        "windows": [1, 7, 30],
+        "default_window": DEFAULT_WINDOW_DAYS,
+        "scoped": False,
+        "has_map": True,
+        "map_metric_labels": THRESHOLD_QUALITY_MAP_METRIC_LABELS,
+        "default_map_metric": THRESHOLD_QUALITY_VARS[0],
     },
     {
         "key": "nc_last_record",
@@ -537,64 +547,72 @@ def build_group_matrix(
     return matrix, updated_at
 
 
-def build_data_quality_group(
+def _attach_map_data(
+    group_entry: dict,
+    group: dict,
+    site_coords: dict[str, tuple[float, float]],
+) -> None:
+    """Attach markers/outline/viewbox/map-metric options to a group_entry in place.
+
+    Shared by both windowed (`build_windowed_quality_group`) and
+    non-windowed (`build_report_data`'s generic branch) `has_map` groups.
+    """
+    labels = group["map_metric_labels"]
+    group_entry["markers"] = _build_site_markers(site_coords)
+    group_entry["map_outline"] = AUSTRALIA_OUTLINE_PATH
+    group_entry["map_viewbox"] = f"0 0 {MAP_VIEWBOX_WIDTH} {MAP_VIEWBOX_HEIGHT}"
+    group_entry["map_metric_options"] = [
+        {"key": col, "label": labels[col]} for col in group["columns"]
+    ]
+    group_entry["default_map_metric"] = group["default_map_metric"]
+
+
+def build_windowed_quality_group(
     group: dict,
     state_dir: Path,
     sites: list[str],
     connectivity_eligible: set[str],
+    site_coords: dict[str, tuple[float, float]],
 ) -> dict:
-    """Build the full report entry for the data_quality group: one matrix per window.
+    """Build the full report entry for a windowed, mappable quality group.
 
-    Unlike `build_group_matrix`, this returns the complete groups_out entry
-    (not a `(matrix, updated_at)` pair) since its shape genuinely differs from
-    every other group — multiple precomputed matrices, one per time-range
-    window, rather than one.
+    variable_quality/threshold_quality: single-source, one matrix per
+    time-range window. Unlike `build_group_matrix`, this returns the
+    complete groups_out entry (not a `(matrix, updated_at)` pair) since its
+    shape genuinely differs from every other single-window group.
     """
-    sub_sites_data: dict[str, dict] = {}
-    updated_parts: list[str] = []
-    for cg in group["column_groups"]:
-        state = load_state(state_dir, cg["key"])
-        sub_sites_data[cg["key"]] = state.get("sites", {}) if state else {}
-        source_updated = state.get("updated_at") if state else None
-        updated_parts.append(f"{cg['label']}: {source_updated or 'no state file'}")
-    updated_at = "; ".join(updated_parts)
+    state = load_state(state_dir, group["key"])
+    sites_data = state.get("sites", {}) if state else {}
+    updated_at = state.get("updated_at") if state else None
 
     matrices: dict[int, dict[str, dict[str, dict]]] = {}
     for window in group["windows"]:
         matrix: dict[str, dict[str, dict]] = {}
         for site in sites:
             eligible = site in connectivity_eligible if group["scoped"] else True
-            row: dict[str, dict] = {}
-            for cg in group["column_groups"]:
-                result = sub_sites_data[cg["key"]].get(site)
-                base = row_state(eligible, result)
-                if base is not None:
-                    row.update(
-                        uniform_row(
-                            cg["columns"],
-                            base,
-                            result.get("error") if result else None,
-                        )
-                    )
-                else:
-                    row.update(_nested_quality_row(result, cg["columns"], window))
-            matrix[site] = row
+            result = sites_data.get(site)
+            base = row_state(eligible, result)
+            if base is not None:
+                matrix[site] = uniform_row(
+                    group["columns"], base, result.get("error") if result else None
+                )
+            else:
+                matrix[site] = _nested_quality_row(result, group["columns"], window)
         matrices[window] = matrix
 
-    return {
+    group_entry = {
         "key": group["key"],
         "label": group["label"],
         "columns": group["columns"],
-        "column_groups": [
-            {"label": cg["label"], "columns": cg["columns"]}
-            for cg in group["column_groups"]
-        ],
         "column_kinds": {col: "pct" for col in group["columns"]},
         "windows": group["windows"],
         "default_window": group["default_window"],
         "updated_at": updated_at,
         "matrices": matrices,
     }
+    if group.get("has_map"):
+        _attach_map_data(group_entry, group, site_coords)
+    return group_entry
 
 
 def build_report_data(
@@ -609,9 +627,11 @@ def build_report_data(
     site_coords = site_coords or {}
     groups_out = []
     for group in GROUPS:
-        if "column_groups" in group:
+        if "windows" in group:
             groups_out.append(
-                build_data_quality_group(group, state_dir, sites, connectivity_eligible)
+                build_windowed_quality_group(
+                    group, state_dir, sites, connectivity_eligible, site_coords
+                )
             )
             continue
         matrix, updated_at = build_group_matrix(
@@ -626,14 +646,7 @@ def build_report_data(
             "matrix": matrix,
         }
         if group.get("has_map"):
-            labels = group["map_metric_labels"]
-            group_entry["markers"] = _build_site_markers(site_coords)
-            group_entry["map_outline"] = AUSTRALIA_OUTLINE_PATH
-            group_entry["map_viewbox"] = f"0 0 {MAP_VIEWBOX_WIDTH} {MAP_VIEWBOX_HEIGHT}"
-            group_entry["map_metric_options"] = [
-                {"key": col, "label": labels[col]} for col in group["columns"]
-            ]
-            group_entry["default_map_metric"] = group["default_map_metric"]
+            _attach_map_data(group_entry, group, site_coords)
         groups_out.append(group_entry)
 
     return {
@@ -765,17 +778,6 @@ _HTML_TEMPLATE = """<!doctype html>
     white-space: nowrap; font-size: 12px; font-weight: 500; color: var(--text-secondary);
   }
   th.site-header { z-index: 3; top: 0; }
-  th.group-header {
-    position: sticky; top: 0; height: 28px; background: var(--surface-1);
-    text-align: center; font-size: 12px; font-weight: 600; z-index: 3;
-    color: var(--text-secondary); border-bottom: 1px solid var(--border);
-    border-left: 1px solid var(--border);
-  }
-  table.two-row-header th.col-header { top: 28px; }
-  th.group-spacer, td.group-spacer { width: 14px; min-width: 14px; border: none; }
-  th.group-spacer {
-    position: sticky; top: 0; z-index: 3; background: var(--surface-1);
-  }
   .hidden { display: none; }
   td.cell {
     width: 140px; height: 28px; min-width: 140px; border-radius: 4px;
@@ -1111,7 +1113,7 @@ _HTML_TEMPLATE = """<!doctype html>
   mapSvg.addEventListener("pointercancel", endMapDrag);
   mapResetBtn.addEventListener("click", resetMapView);
 
-  function renderMap(group) {
+  function renderMap(group, matrix) {
     var metric = currentMapMetric;
     var metricLabel = group.map_metric_options.filter(function (o) {
       return o.key === metric;
@@ -1129,7 +1131,7 @@ _HTML_TEMPLATE = """<!doctype html>
     data.sites.forEach(function (site) {
       var pos = group.markers[site];
       if (!pos) return;
-      var cellData = group.matrix[site][metric];
+      var cellData = matrix[site][metric];
       var circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
       circle.setAttribute("cx", pos.x);
       circle.setAttribute("cy", pos.y);
@@ -1152,7 +1154,6 @@ _HTML_TEMPLATE = """<!doctype html>
   function renderGroup(key) {
     var group = data.groups.filter(function (g) { return g.key === key; })[0];
     table.textContent = "";
-    table.classList.toggle("two-row-header", !!group.column_groups);
 
     var windowed = !!group.matrices;
     windowLabel.classList.toggle("hidden", !windowed);
@@ -1183,34 +1184,10 @@ _HTML_TEMPLATE = """<!doctype html>
 
     var thead = document.createElement("thead");
 
-    if (group.column_groups) {
-      var groupHeadRow = document.createElement("tr");
-      var groupCorner = document.createElement("th");
-      groupCorner.className = "site-header";
-      groupCorner.rowSpan = 2;
-      groupHeadRow.appendChild(groupCorner);
-      group.column_groups.forEach(function (cg, i) {
-        var th = document.createElement("th");
-        th.className = "group-header";
-        th.colSpan = cg.columns.length;
-        th.textContent = cg.label;
-        groupHeadRow.appendChild(th);
-        if (i < group.column_groups.length - 1) {
-          var spacer = document.createElement("th");
-          spacer.className = "group-spacer";
-          spacer.rowSpan = 2;
-          groupHeadRow.appendChild(spacer);
-        }
-      });
-      thead.appendChild(groupHeadRow);
-    }
-
     var headRow = document.createElement("tr");
-    if (!group.column_groups) {
-      var corner = document.createElement("th");
-      corner.className = "site-header";
-      headRow.appendChild(corner);
-    }
+    var corner = document.createElement("th");
+    corner.className = "site-header";
+    headRow.appendChild(corner);
     group.columns.forEach(function (col) {
       var th = document.createElement("th");
       var ghostHeader = hasMap && col !== currentMapMetric ? " ghost" : "";
@@ -1248,28 +1225,15 @@ _HTML_TEMPLATE = """<!doctype html>
       th.appendChild(siteLink(site));
       row.appendChild(th);
 
-      if (group.column_groups) {
-        group.column_groups.forEach(function (cg, i) {
-          cg.columns.forEach(function (col) {
-            row.appendChild(buildCell(site, col));
-          });
-          if (i < group.column_groups.length - 1) {
-            var spacer = document.createElement("td");
-            spacer.className = "group-spacer";
-            row.appendChild(spacer);
-          }
-        });
-      } else {
-        group.columns.forEach(function (col) {
-          row.appendChild(buildCell(site, col));
-        });
-      }
+      group.columns.forEach(function (col) {
+        row.appendChild(buildCell(site, col));
+      });
       tbody.appendChild(row);
     });
     table.appendChild(tbody);
 
     if (hasMap) {
-      renderMap(group);
+      renderMap(group, matrix);
     }
   }
 

@@ -18,9 +18,9 @@ from tools.network_health_matrix import (
     _project_lonlat,
     band_for_count,
     band_for_pct,
-    build_data_quality_group,
     build_group_matrix,
     build_report_data,
+    build_windowed_quality_group,
 )
 from tools.network_state_common import STATE_ERROR, STATE_NA, STATE_NO_DATA
 
@@ -243,25 +243,19 @@ class TestBuildGroupMatrix(unittest.TestCase):
                 self.assertEqual(matrix["Boyagin"][col]["state"], STATE_NO_DATA)
 
 
-class TestBuildDataQualityGroup(unittest.TestCase):
-    def _group(self):
-        return next(g for g in GROUPS if g["key"] == "data_quality")
+class TestBuildWindowedQualityGroup(unittest.TestCase):
+    def _group(self, key):
+        return next(g for g in GROUPS if g["key"] == key)
 
     def test_metadata_matches_group_definition(self):
         with tempfile.TemporaryDirectory() as tmp:
-            result = build_data_quality_group(
-                self._group(), Path(tmp), ["Boyagin"], set()
+            result = build_windowed_quality_group(
+                self._group("variable_quality"), Path(tmp), ["Boyagin"], set(), {}
             )
             self.assertEqual(result["windows"], [1, 7, 30])
             self.assertEqual(result["default_window"], 7)
-            self.assertEqual(
-                [cg["label"] for cg in result["column_groups"]],
-                ["Variable quality", "Threshold quality"],
-            )
-            self.assertEqual(
-                result["columns"],
-                ["Fco2", "Fh", "Fe", "Fsd", "Vbat", "Diag_IRGA", "Diag_SONIC"],
-            )
+            self.assertEqual(result["columns"], ["Fco2", "Fh", "Fe", "Fsd"])
+            self.assertNotIn("column_groups", result)
 
     def test_window_selects_the_right_pct_and_band(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -283,9 +277,8 @@ class TestBuildDataQualityGroup(unittest.TestCase):
                     }
                 },
             )
-            _write_state(state_dir, "threshold_quality", {})
-            result = build_data_quality_group(
-                self._group(), state_dir, ["Boyagin"], set()
+            result = build_windowed_quality_group(
+                self._group("variable_quality"), state_dir, ["Boyagin"], set(), {}
             )
             self.assertEqual(result["matrices"][1]["Boyagin"]["Fco2"]["state"], "blue")
             self.assertEqual(
@@ -297,32 +290,32 @@ class TestBuildDataQualityGroup(unittest.TestCase):
             self.assertEqual(cell_7d["pct_outside_range_last_1_days"], 0.2)
             self.assertEqual(cell_7d["pct_outside_range_last_30_days"], 20.0)
 
-    def test_missing_from_one_source_is_no_data_for_that_column_group_only(self):
+    def test_missing_state_file_is_no_data_for_every_site(self):
         with tempfile.TemporaryDirectory() as tmp:
             state_dir = Path(tmp)
-            _write_state(
-                state_dir,
-                "variable_quality",
-                {
-                    "Boyagin": {
-                        "Fco2": {"pct_outside_range_last_7_days": 2.0},
-                        "Fh": None,
-                        "Fe": None,
-                        "Fsd": None,
-                        "error": None,
-                    }
-                },
-            )
             # threshold_quality.json not written at all.
-            result = build_data_quality_group(
-                self._group(), state_dir, ["Boyagin"], set()
+            result = build_windowed_quality_group(
+                self._group("threshold_quality"), state_dir, ["Boyagin"], set(), {}
             )
+            self.assertIsNone(result["updated_at"])
             matrix_7d = result["matrices"][7]
-            self.assertEqual(matrix_7d["Boyagin"]["Fco2"]["state"], "orange")
-            self.assertEqual(matrix_7d["Boyagin"]["Fh"]["state"], STATE_NO_DATA)
             self.assertEqual(matrix_7d["Boyagin"]["Vbat"]["state"], STATE_NO_DATA)
-            self.assertIn("Variable quality:", result["updated_at"])
-            self.assertIn("Threshold quality: no state file", result["updated_at"])
+
+    def test_carries_map_payload(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = build_windowed_quality_group(
+                self._group("variable_quality"),
+                Path(tmp),
+                ["Boyagin"],
+                set(),
+                {"Boyagin": (147.6, -37.0)},
+            )
+            self.assertIn("Boyagin", result["markers"])
+            self.assertEqual(result["default_map_metric"], "Fco2")
+            self.assertEqual(
+                [opt["key"] for opt in result["map_metric_options"]],
+                ["Fco2", "Fh", "Fe", "Fsd"],
+            )
 
 
 class TestProjectLonlat(unittest.TestCase):
@@ -439,7 +432,16 @@ class TestBuildReportData(unittest.TestCase):
                 "pct",
             )
             self.assertTrue(
-                all(k == "pct" for k in groups["data_quality"]["column_kinds"].values())
+                all(
+                    k == "pct"
+                    for k in groups["variable_quality"]["column_kinds"].values()
+                )
+            )
+            self.assertTrue(
+                all(
+                    k == "pct"
+                    for k in groups["threshold_quality"]["column_kinds"].values()
+                )
             )
             self.assertEqual(
                 groups["nc_last_record"]["column_kinds"]["days_since_last_record"],
