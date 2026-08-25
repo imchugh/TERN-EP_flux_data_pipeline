@@ -27,8 +27,19 @@ quality" / "Threshold quality") side by side rather than flattened into one
 undifferentiated row. Both underlying tasks report per-window figures
 (`pct_outside_range_last_{1,7,30}_days`); a second "Time range" dropdown (default
 7 days) lets the user pick which window colours the grid, instead of hardcoding
-one window and relegating the rest to the tooltip. This is the only group with a
-second dropdown — every other group's cells map onto one fixed metric already.
+one window and relegating the rest to the tooltip.
+
+`missing_data` and `network_connectivity` (any group with `"has_map": True` in
+`GROUPS`) render a zoomable map of Australia alongside their table, plotting
+every site by real location (`SITE_REGISTRY` lat/lon, same source
+`state_task_orchestrator.compile_geojson` uses) and colouring each marker by a
+third "Map metric" dropdown — the selected column stays full-opacity in the
+table, the rest dim (`ghost`) but stay readable, since these are genuinely
+different signals worth comparing side by side, unlike `data_quality`'s
+same-metric-different-window columns. The outline itself
+(`AUSTRALIA_OUTLINE_PATH`) is a static SVG path baked in once from Natural
+Earth's public-domain 110m boundary data via `_project_lonlat` — the tool makes
+no network calls at report-view time.
 
 Cells are classified `na` (site not eligible for this task), `no_data` (eligible,
 but missing from the state file), `error` (the task's own `error` field is
@@ -52,6 +63,7 @@ Default --output: ./network_health_matrix.html
 
 import argparse
 import json
+import math
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -86,9 +98,12 @@ BAND_LABELS = {
 # 1-2 blue, 3-4 purple, 5-6 orange, 7+ red.
 _COUNT_EDGES = [1, 3, 5, 7]
 
-# Percentage bands (pct_missing_*, pct_outside_range_*): proposed defaults,
-# <1% green, 1-5% blue, 5-15% purple, 15-30% orange, 30%+ red. Easy to retune.
-_PCT_EDGES = [1, 5, 15, 30]
+# Percentage bands (pct_missing_*, pct_outside_range_*): <0.1% green,
+# 0.1-1% blue, 1-2% purple, 2-5% orange, 5%+ red. Deliberately tight for
+# missing_data: any real (>=1%) data loss should read as at least "Elevated",
+# never "Fair" -- a few days offline that recovers is a lesser concern than
+# genuine lost records, so this is stricter than the day-count bands above.
+_PCT_EDGES = [0.1, 1, 2, 5]
 
 # Nested quality tasks report per-window (1/7/30-day) figures per sub-variable;
 # the Data quality group's time-range dropdown picks which window colours the
@@ -123,6 +138,10 @@ NETWORK_CONNECTIVITY_COLUMNS = ["gateway", "EC logger"]
 NETWORK_CONNECTIVITY_SOURCES = {
     "gateway": "gateway_connectivity",
     "EC logger": "ec_logger_connectivity",
+}
+NETWORK_CONNECTIVITY_MAP_METRIC_LABELS = {
+    "gateway": "Gateway",
+    "EC logger": "EC logger",
 }
 
 # Australia's bounding box (mainland + Tasmania), from Natural Earth's
@@ -201,6 +220,68 @@ def _project_lonlat(lon: float, lat: float) -> tuple[float, float]:
     return round(x, 1), round(y, 1)
 
 
+_MARKER_DECLUTTER_THRESHOLD = 4.0  # px; closer than this => treated as coincident
+_MARKER_DECLUTTER_RADIUS = 6.0  # px; radius of the circle they're spread onto
+
+
+def _declutter_markers(
+    markers: dict[str, dict[str, float]],
+) -> dict[str, dict[str, float]]:
+    """Spread markers that project to (almost) the same point apart.
+
+    Groups sites via single-linkage clustering on projected distance
+    (anything closer than `_MARKER_DECLUTTER_THRESHOLD`), then places each
+    cluster's members evenly around their shared centroid on a circle of
+    radius `_MARKER_DECLUTTER_RADIUS`. Singleton clusters (almost every
+    site) are left untouched.
+
+    This is needed because zoom alone can't separate near-coincident sites
+    (e.g. SilverPlains/Wedgetail, ~800m apart in reality): marker radius is
+    a fixed value in the same coordinate space as marker positions, so
+    relative separation between two points never changes with viewBox zoom
+    — a real position nudge is the only fix.
+    """
+    names = sorted(markers)
+    n = len(names)
+    parent = list(range(n))
+
+    def find(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    def union(i: int, j: int) -> None:
+        ri, rj = find(i), find(j)
+        if ri != rj:
+            parent[ri] = rj
+
+    for i in range(n):
+        xi, yi = markers[names[i]]["x"], markers[names[i]]["y"]
+        for j in range(i + 1, n):
+            xj, yj = markers[names[j]]["x"], markers[names[j]]["y"]
+            if math.hypot(xi - xj, yi - yj) < _MARKER_DECLUTTER_THRESHOLD:
+                union(i, j)
+
+    clusters: dict[int, list[int]] = {}
+    for i in range(n):
+        clusters.setdefault(find(i), []).append(i)
+
+    out = {name: dict(pos) for name, pos in markers.items()}
+    for members in clusters.values():
+        if len(members) < 2:
+            continue
+        cx = sum(markers[names[i]]["x"] for i in members) / len(members)
+        cy = sum(markers[names[i]]["y"] for i in members) / len(members)
+        for k, i in enumerate(members):
+            angle = 2 * math.pi * k / len(members)
+            out[names[i]] = {
+                "x": round(cx + _MARKER_DECLUTTER_RADIUS * math.cos(angle), 1),
+                "y": round(cy + _MARKER_DECLUTTER_RADIUS * math.sin(angle), 1),
+            }
+    return out
+
+
 def _build_site_markers(
     site_coords: dict[str, tuple[float, float]],
 ) -> dict[str, dict[str, float]]:
@@ -209,7 +290,7 @@ def _build_site_markers(
     for site, (lon, lat) in site_coords.items():
         x, y = _project_lonlat(lon, lat)
         markers[site] = {"x": x, "y": y}
-    return markers
+    return _declutter_markers(markers)
 
 
 def _band_from_edges(value: float | None, edges: list[float]) -> str | None:
@@ -334,6 +415,14 @@ GROUPS = [
         "row_fn": _missing_data_row,
         "scoped": False,
         "has_map": True,
+        "map_metric_labels": MISSING_DATA_MAP_METRIC_LABELS,
+        "default_map_metric": "days_since_last_record",
+        "column_kinds": {
+            "days_since_last_record": "count",
+            "pct_missing_last_1_days": "pct",
+            "pct_missing_last_7_days": "pct",
+            "pct_missing_last_30_days": "pct",
+        },
     },
     {
         "key": "data_quality",
@@ -361,6 +450,7 @@ GROUPS = [
         "columns": NC_LAST_RECORD_COLUMNS,
         "row_fn": _nc_last_record_row,
         "scoped": False,
+        "column_kinds": {"days_since_last_record": "count"},
     },
     {
         "key": "network_connectivity",
@@ -368,6 +458,10 @@ GROUPS = [
         "columns": NETWORK_CONNECTIVITY_COLUMNS,
         "sources": NETWORK_CONNECTIVITY_SOURCES,
         "scoped": True,
+        "has_map": True,
+        "map_metric_labels": NETWORK_CONNECTIVITY_MAP_METRIC_LABELS,
+        "default_map_metric": "gateway",
+        "column_kinds": {"gateway": "count", "EC logger": "count"},
     },
 ]
 
@@ -495,6 +589,7 @@ def build_data_quality_group(
             {"label": cg["label"], "columns": cg["columns"]}
             for cg in group["column_groups"]
         ],
+        "column_kinds": {col: "pct" for col in group["columns"]},
         "windows": group["windows"],
         "default_window": group["default_window"],
         "updated_at": updated_at,
@@ -526,18 +621,19 @@ def build_report_data(
             "key": group["key"],
             "label": group["label"],
             "columns": group["columns"],
+            "column_kinds": group["column_kinds"],
             "updated_at": updated_at,
             "matrix": matrix,
         }
         if group.get("has_map"):
+            labels = group["map_metric_labels"]
             group_entry["markers"] = _build_site_markers(site_coords)
             group_entry["map_outline"] = AUSTRALIA_OUTLINE_PATH
             group_entry["map_viewbox"] = f"0 0 {MAP_VIEWBOX_WIDTH} {MAP_VIEWBOX_HEIGHT}"
             group_entry["map_metric_options"] = [
-                {"key": col, "label": MISSING_DATA_MAP_METRIC_LABELS[col]}
-                for col in group["columns"]
+                {"key": col, "label": labels[col]} for col in group["columns"]
             ]
-            group_entry["default_map_metric"] = "days_since_last_record"
+            group_entry["default_map_metric"] = group["default_map_metric"]
         groups_out.append(group_entry)
 
     return {
@@ -546,6 +642,8 @@ def build_report_data(
         "grafana_url": GRAFANA_URL,
         "logger_status_url": LOGGER_STATUS_URL,
         "band_labels": BAND_LABELS,
+        "count_edges": _COUNT_EDGES,
+        "pct_edges": _PCT_EDGES,
     }
 
 
@@ -845,27 +943,57 @@ _HTML_TEMPLATE = """<!doctype html>
   });
 
   var legend = document.getElementById("legend");
-  ["green", "blue", "purple", "orange", "red"].forEach(function (band) {
-    var item = document.createElement("div");
-    item.className = "legend-item";
-    var sw = document.createElement("span");
-    sw.className = "swatch";
-    sw.style.background = "var(--band-" + band + ")";
-    item.appendChild(sw);
-    item.appendChild(document.createTextNode(data.band_labels[band]));
-    legend.appendChild(item);
-  });
-  [["na", "\\u2013", "Not applicable"], ["no_data", "?", "No data"], ["error", "!", "Task error"]].forEach(function (t) {
-    var item = document.createElement("div");
-    item.className = "legend-item";
-    var sw = document.createElement("span");
-    sw.className = "swatch " + t[0];
-    sw.style.background = "var(--state-" + t[0].replace("_", "-") + ")";
-    sw.textContent = t[1];
-    item.appendChild(sw);
-    item.appendChild(document.createTextNode(t[2]));
-    legend.appendChild(item);
-  });
+
+  function formatCountRange(lo, hi) {
+    if (lo === null) return "< " + hi + (hi === 1 ? " day" : " days");
+    if (hi === null) return lo + "+ days";
+    var hiIncl = hi - 1;
+    return lo === hiIncl ? lo + " day" : lo + "\\u2013" + hiIncl + " days";
+  }
+
+  function formatPctRange(lo, hi) {
+    if (lo === null) return "< " + hi + "%";
+    if (hi === null) return lo + "%+";
+    return lo + "\\u2013" + hi + "%";
+  }
+
+  function bandRangeLabels(edges, formatter) {
+    var bounds = [null].concat(edges, [null]);
+    var labels = [];
+    for (var i = 0; i < 5; i++) {
+      labels.push(formatter(bounds[i], bounds[i + 1]));
+    }
+    return labels;
+  }
+
+  function renderLegend(kind) {
+    legend.textContent = "";
+    var edges = kind === "count" ? data.count_edges : data.pct_edges;
+    var formatter = kind === "count" ? formatCountRange : formatPctRange;
+    var rangeLabels = bandRangeLabels(edges, formatter);
+    ["green", "blue", "purple", "orange", "red"].forEach(function (band, i) {
+      var item = document.createElement("div");
+      item.className = "legend-item";
+      var sw = document.createElement("span");
+      sw.className = "swatch";
+      sw.style.background = "var(--band-" + band + ")";
+      item.appendChild(sw);
+      var label = data.band_labels[band] + " (" + rangeLabels[i] + ")";
+      item.appendChild(document.createTextNode(label));
+      legend.appendChild(item);
+    });
+    [["na", "\\u2013", "Not applicable"], ["no_data", "?", "No data"], ["error", "!", "Task error"]].forEach(function (t) {
+      var item = document.createElement("div");
+      item.className = "legend-item";
+      var sw = document.createElement("span");
+      sw.className = "swatch " + t[0];
+      sw.style.background = "var(--state-" + t[0].replace("_", "-") + ")";
+      sw.textContent = t[1];
+      item.appendChild(sw);
+      item.appendChild(document.createTextNode(t[2]));
+      legend.appendChild(item);
+    });
+  }
 
   var table = document.getElementById("grid");
   var windowLabel = document.getElementById("window-label");
@@ -1044,6 +1172,9 @@ _HTML_TEMPLATE = """<!doctype html>
     if (hasMap) {
       populateMapMetricSelect(group);
     }
+
+    var activeColumn = hasMap ? currentMapMetric : group.columns[0];
+    renderLegend(group.column_kinds[activeColumn]);
 
     document.getElementById("meta").textContent =
       data.sites.length + " sites \\u00d7 " + group.columns.length + " metrics \\u2014 " +

@@ -14,6 +14,7 @@ from tools.network_health_matrix import (
     GROUPS,
     MISSING_DATA_COLUMNS,
     _build_site_markers,
+    _declutter_markers,
     _project_lonlat,
     band_for_count,
     band_for_pct,
@@ -58,14 +59,14 @@ class TestBandForPct(unittest.TestCase):
     def test_boundaries(self):
         cases = {
             0: "green",
-            0.99: "green",
-            1: "blue",
-            4.99: "blue",
-            5: "purple",
-            14.99: "purple",
-            15: "orange",
-            29.99: "orange",
-            30: "red",
+            0.09: "green",
+            0.1: "blue",
+            0.99: "blue",
+            1: "purple",
+            1.99: "purple",
+            2: "orange",
+            4.99: "orange",
+            5: "red",
             100: "red",
         }
         for value, expected in cases.items():
@@ -104,9 +105,9 @@ class TestBuildGroupMatrix(unittest.TestCase):
             self.assertEqual(updated_at, "2026-08-17T07:00:00+00:00")
             boyagin = matrix["Boyagin"]
             self.assertEqual(boyagin["days_since_last_record"]["state"], "green")
-            self.assertEqual(boyagin["pct_missing_last_1_days"]["state"], "green")
-            self.assertEqual(boyagin["pct_missing_last_7_days"]["state"], "blue")
-            self.assertEqual(boyagin["pct_missing_last_30_days"]["state"], "orange")
+            self.assertEqual(boyagin["pct_missing_last_1_days"]["state"], "blue")
+            self.assertEqual(boyagin["pct_missing_last_7_days"]["state"], "orange")
+            self.assertEqual(boyagin["pct_missing_last_30_days"]["state"], "red")
             # Litchfield never ran -> no_data on every column.
             for col in MISSING_DATA_COLUMNS:
                 self.assertEqual(matrix["Litchfield"][col]["state"], STATE_NO_DATA)
@@ -286,11 +287,11 @@ class TestBuildDataQualityGroup(unittest.TestCase):
             result = build_data_quality_group(
                 self._group(), state_dir, ["Boyagin"], set()
             )
-            self.assertEqual(result["matrices"][1]["Boyagin"]["Fco2"]["state"], "green")
-            self.assertEqual(result["matrices"][7]["Boyagin"]["Fco2"]["state"], "blue")
+            self.assertEqual(result["matrices"][1]["Boyagin"]["Fco2"]["state"], "blue")
             self.assertEqual(
-                result["matrices"][30]["Boyagin"]["Fco2"]["state"], "orange"
+                result["matrices"][7]["Boyagin"]["Fco2"]["state"], "orange"
             )
+            self.assertEqual(result["matrices"][30]["Boyagin"]["Fco2"]["state"], "red")
             # All three windows are always present as tooltip extras.
             cell_7d = result["matrices"][7]["Boyagin"]["Fco2"]
             self.assertEqual(cell_7d["pct_outside_range_last_1_days"], 0.2)
@@ -317,7 +318,7 @@ class TestBuildDataQualityGroup(unittest.TestCase):
                 self._group(), state_dir, ["Boyagin"], set()
             )
             matrix_7d = result["matrices"][7]
-            self.assertEqual(matrix_7d["Boyagin"]["Fco2"]["state"], "blue")
+            self.assertEqual(matrix_7d["Boyagin"]["Fco2"]["state"], "orange")
             self.assertEqual(matrix_7d["Boyagin"]["Fh"]["state"], STATE_NO_DATA)
             self.assertEqual(matrix_7d["Boyagin"]["Vbat"]["state"], STATE_NO_DATA)
             self.assertIn("Variable quality:", result["updated_at"])
@@ -361,6 +362,54 @@ class TestBuildSiteMarkers(unittest.TestCase):
         self.assertEqual(_build_site_markers({}), {})
 
 
+def _dist(a, b):
+    return ((a["x"] - b["x"]) ** 2 + (a["y"] - b["y"]) ** 2) ** 0.5
+
+
+class TestDeclutterMarkers(unittest.TestCase):
+    def test_two_coincident_markers_land_on_opposite_sides(self):
+        markers = {
+            "SiteA": {"x": 100.0, "y": 100.0},
+            "SiteB": {"x": 100.0, "y": 100.0},
+        }
+        out = _declutter_markers(markers)
+        self.assertAlmostEqual(_dist(out["SiteA"], out["SiteB"]), 12.0, places=3)
+        for name in ("SiteA", "SiteB"):
+            self.assertAlmostEqual(
+                _dist(out[name], {"x": 100.0, "y": 100.0}), 6.0, places=3
+            )
+
+    def test_three_coincident_markers_all_separate(self):
+        markers = {
+            "SiteA": {"x": 50.0, "y": 50.0},
+            "SiteB": {"x": 50.1, "y": 50.0},
+            "SiteC": {"x": 50.0, "y": 50.1},
+        }
+        out = _declutter_markers(markers)
+        positions = list(out.values())
+        for i in range(len(positions)):
+            for j in range(i + 1, len(positions)):
+                self.assertGreater(_dist(positions[i], positions[j]), 5.0)
+
+    def test_far_apart_markers_are_untouched(self):
+        markers = {
+            "SiteA": {"x": 0.0, "y": 0.0},
+            "SiteB": {"x": 500.0, "y": 500.0},
+        }
+        self.assertEqual(_declutter_markers(markers), markers)
+
+    def test_silverplains_wedgetail_regression(self):
+        # Real coordinates: ~800m apart in reality, ~0.22 SVG units apart
+        # when projected -- the exact case that motivated this function.
+        markers = _build_site_markers(
+            {
+                "SilverPlains": (147.0875, -42.090556),
+                "Wedgetail": (147.0794444, -42.09138889),
+            }
+        )
+        self.assertGreater(_dist(markers["SilverPlains"], markers["Wedgetail"]), 10.0)
+
+
 class TestBuildReportData(unittest.TestCase):
     def test_assembles_all_groups(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -370,6 +419,38 @@ class TestBuildReportData(unittest.TestCase):
             self.assertEqual(len(data["groups"]), len(GROUPS))
             self.assertIn("grafana_url", data)
             self.assertIn("logger_status_url", data)
+
+    def test_top_level_payload_carries_band_edges(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            data = build_report_data(Path(tmp), ["Boyagin"], set())
+            self.assertEqual(data["count_edges"], [1, 3, 5, 7])
+            self.assertEqual(data["pct_edges"], [0.1, 1, 2, 5])
+
+    def test_column_kinds_classify_count_vs_pct_per_group(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            data = build_report_data(Path(tmp), ["Boyagin"], set())
+            groups = {g["key"]: g for g in data["groups"]}
+            self.assertEqual(
+                groups["missing_data"]["column_kinds"]["days_since_last_record"],
+                "count",
+            )
+            self.assertEqual(
+                groups["missing_data"]["column_kinds"]["pct_missing_last_1_days"],
+                "pct",
+            )
+            self.assertTrue(
+                all(k == "pct" for k in groups["data_quality"]["column_kinds"].values())
+            )
+            self.assertEqual(
+                groups["nc_last_record"]["column_kinds"]["days_since_last_record"],
+                "count",
+            )
+            self.assertTrue(
+                all(
+                    k == "count"
+                    for k in groups["network_connectivity"]["column_kinds"].values()
+                )
+            )
 
     def test_missing_data_group_carries_map_payload(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -393,6 +474,25 @@ class TestBuildReportData(unittest.TestCase):
                 g for g in data["groups"] if g["key"] == "nc_last_record"
             )
             self.assertNotIn("markers", other_group)
+
+    def test_network_connectivity_group_carries_map_payload(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp)
+            data = build_report_data(
+                state_dir,
+                ["Boyagin"],
+                set(),
+                site_coords={"Boyagin": (147.6, -37.0)},
+            )
+            connectivity = next(
+                g for g in data["groups"] if g["key"] == "network_connectivity"
+            )
+            self.assertIn("Boyagin", connectivity["markers"])
+            self.assertEqual(connectivity["default_map_metric"], "gateway")
+            self.assertEqual(
+                [opt["key"] for opt in connectivity["map_metric_options"]],
+                ["gateway", "EC logger"],
+            )
 
 
 if __name__ == "__main__":
