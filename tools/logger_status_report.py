@@ -117,11 +117,13 @@ _HTML_TEMPLATE = """<!doctype html>
     --muted:          #898781;
     --gridline:       #e1e0d9;
     --border:         rgba(11,11,11,0.10);
-    --band-green:     #187114;
-    --band-blue:      #5090f7;
+    /* Matches network_health_matrix.py's colourblind-validated severity
+       colours -- keep the two pages' palettes in sync. */
+    --band-green:     #0e8a6d;
+    --band-blue:      #2a78d6;
     --state-na:       #e1e0d9;
     --state-no-data:  #f2f1ec;
-    --state-error:    #9c0038;
+    --state-error:    #a01330;
   }
   @media (prefers-color-scheme: dark) {
     :root:where(:not([data-theme="light"])) {
@@ -133,11 +135,11 @@ _HTML_TEMPLATE = """<!doctype html>
       --muted:          #898781;
       --gridline:       #2c2c2a;
       --border:         rgba(255,255,255,0.10);
-      --band-green:     #4fa830;
-      --band-blue:      #2b93c5;
+      --band-green:     #1fa87e;
+      --band-blue:      #4a90d8;
       --state-na:       #383835;
       --state-no-data:  #232322;
-      --state-error:    #c2426f;
+      --state-error:    #d94d5f;
     }
   }
   :root[data-theme="dark"] {
@@ -149,11 +151,11 @@ _HTML_TEMPLATE = """<!doctype html>
     --muted:          #898781;
     --gridline:       #2c2c2a;
     --border:         rgba(255,255,255,0.10);
-    --band-green:     #4fa830;
-    --band-blue:      #2b93c5;
+    --band-green:     #1fa87e;
+    --band-blue:      #4a90d8;
     --state-na:       #383835;
     --state-no-data:  #232322;
-    --state-error:    #c2426f;
+    --state-error:    #d94d5f;
   }
   * { box-sizing: border-box; }
   body {

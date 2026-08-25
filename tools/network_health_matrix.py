@@ -102,12 +102,20 @@ BAND_LABELS = {
 # 1-2 blue, 3-4 purple, 5-6 orange, 7+ red.
 _COUNT_EDGES = [1, 3, 5, 7]
 
-# Percentage bands (pct_missing_*, pct_outside_range_*): <0.1% green,
-# 0.1-1% blue, 1-2% purple, 2-5% orange, 5%+ red. Deliberately tight for
-# missing_data: any real (>=1%) data loss should read as at least "Elevated",
-# never "Fair" -- a few days offline that recovers is a lesser concern than
-# genuine lost records, so this is stricter than the day-count bands above.
+# Percentage bands for missing_data's pct_missing_*: <0.1% green, 0.1-1%
+# blue, 1-2% purple, 2-5% orange, 5%+ red. Deliberately tight: any real
+# (>=1%) data loss should read as at least "Elevated", never "Fair" -- a
+# few days offline that recovers is a lesser concern than genuine lost
+# records, so this is stricter than the day-count bands above.
 _PCT_EDGES = [0.1, 1, 2, 5]
+
+# Percentage bands for variable_quality/threshold_quality's
+# pct_outside_range_* (the fraction of expected records that are either
+# missing or implausible -- i.e. unusable, "lost" from an analysis
+# standpoint): <5% green, 5-10% blue, 10-20% purple, 20-30% orange, 30%+
+# red. Looser than _PCT_EDGES above -- these are separate metrics tuned to
+# separate operational tolerances, not the same scale.
+_QUALITY_PCT_EDGES = [5, 10, 20, 30]
 
 # Nested quality tasks report per-window (1/7/30-day) figures per sub-variable;
 # the Data quality group's time-range dropdown picks which window colours the
@@ -350,13 +358,16 @@ def _missing_data_row(result: dict) -> dict[str, dict]:
 
 
 def _nested_quality_row(
-    result: dict, variables: list[str], window: int
+    result: dict, variables: list[str], window: int, pct_edges: list[float]
 ) -> dict[str, dict]:
     """Build one column-group's cells, coloured by `window`'s pct_outside_range.
 
     All three windows are always included as tooltip extras, regardless of
     which one is currently selected — only `state`/`value`/`display` depend
-    on `window`.
+    on `window`. `pct_edges` is the calling group's own band edges (see
+    `_QUALITY_PCT_EDGES`) rather than the module-wide `band_for_pct`, since
+    variable_quality/threshold_quality are tuned separately from
+    missing_data's pct_missing_*.
     """
     row = {}
     for var in variables:
@@ -366,7 +377,7 @@ def _nested_quality_row(
             continue
         primary = sub.get(f"pct_outside_range_last_{window}_days")
         row[var] = {
-            "state": band_for_pct(primary) or STATE_NO_DATA,
+            "state": _band_from_edges(primary, pct_edges) or STATE_NO_DATA,
             "value": primary,
             "display": _fmt_pct(primary),
             "pct_outside_range_last_1_days": sub.get("pct_outside_range_last_1_days"),
@@ -442,6 +453,7 @@ GROUPS = [
         "has_map": True,
         "map_metric_labels": VARIABLE_QUALITY_MAP_METRIC_LABELS,
         "default_map_metric": VARIABLE_QUALITY_VARS[0],
+        "pct_edges": _QUALITY_PCT_EDGES,
     },
     {
         "key": "threshold_quality",
@@ -453,6 +465,7 @@ GROUPS = [
         "has_map": True,
         "map_metric_labels": THRESHOLD_QUALITY_MAP_METRIC_LABELS,
         "default_map_metric": THRESHOLD_QUALITY_VARS[0],
+        "pct_edges": _QUALITY_PCT_EDGES,
     },
     {
         "key": "nc_last_record",
@@ -597,7 +610,9 @@ def build_windowed_quality_group(
                     group["columns"], base, result.get("error") if result else None
                 )
             else:
-                matrix[site] = _nested_quality_row(result, group["columns"], window)
+                matrix[site] = _nested_quality_row(
+                    result, group["columns"], window, group["pct_edges"]
+                )
         matrices[window] = matrix
 
     group_entry = {
@@ -605,6 +620,7 @@ def build_windowed_quality_group(
         "label": group["label"],
         "columns": group["columns"],
         "column_kinds": {col: "pct" for col in group["columns"]},
+        "pct_edges": group["pct_edges"],
         "windows": group["windows"],
         "default_window": group["default_window"],
         "updated_at": updated_at,
@@ -675,14 +691,18 @@ _HTML_TEMPLATE = """<!doctype html>
     --muted:          #898781;
     --gridline:       #e1e0d9;
     --border:         rgba(11,11,11,0.10);
-    --band-green:     #187114;
-    --band-blue:      #5090f7;
-    --band-purple:    #7031b5;
-    --band-orange:    #d36e37;
-    --band-red:       #9c0038;
+    /* Colourblind-safe 5-step severity ramp -- validated (simulated
+       deuteranopia/protanopia, OKLab deltaE) against this surface: every
+       adjacent AND all-pairs comparison clears the CVD target and the
+       normal-vision floor. Re-validate before changing any of these five. */
+    --band-green:     #0e8a6d;
+    --band-blue:      #2a78d6;
+    --band-purple:    #6a3fa0;
+    --band-orange:    #b65f0a;
+    --band-red:       #a01330;
     --state-na:       #e1e0d9;
     --state-no-data:  #f2f1ec;
-    --state-error:    #9c0038;
+    --state-error:    #a01330;
     --map-land:       #eceae3;
   }
   @media (prefers-color-scheme: dark) {
@@ -695,14 +715,14 @@ _HTML_TEMPLATE = """<!doctype html>
       --muted:          #898781;
       --gridline:       #2c2c2a;
       --border:         rgba(255,255,255,0.10);
-      --band-green:     #4fa830;
-      --band-blue:      #2b93c5;
-      --band-purple:    #7c3fe3;
-      --band-orange:    #c58544;
-      --band-red:       #c2426f;
+      --band-green:     #1fa87e;
+      --band-blue:      #4a90d8;
+      --band-purple:    #c25a9c;
+      --band-orange:    #c08a10;
+      --band-red:       #d94d5f;
       --state-na:       #383835;
       --state-no-data:  #232322;
-      --state-error:    #c2426f;
+      --state-error:    #d94d5f;
       --map-land:       #26261f;
     }
   }
@@ -715,14 +735,14 @@ _HTML_TEMPLATE = """<!doctype html>
     --muted:          #898781;
     --gridline:       #2c2c2a;
     --border:         rgba(255,255,255,0.10);
-    --band-green:     #4fa830;
-    --band-blue:      #2b93c5;
-    --band-purple:    #7c3fe3;
-    --band-orange:    #c58544;
-    --band-red:       #c2426f;
+    --band-green:     #1fa87e;
+    --band-blue:      #4a90d8;
+    --band-purple:    #c25a9c;
+    --band-orange:    #c08a10;
+    --band-red:       #d94d5f;
     --state-na:       #383835;
     --state-no-data:  #232322;
-    --state-error:    #c2426f;
+    --state-error:    #d94d5f;
     --map-land:       #26261f;
   }
   * { box-sizing: border-box; }
@@ -968,9 +988,11 @@ _HTML_TEMPLATE = """<!doctype html>
     return labels;
   }
 
-  function renderLegend(kind) {
+  function renderLegend(kind, group) {
     legend.textContent = "";
-    var edges = kind === "count" ? data.count_edges : data.pct_edges;
+    var edges = kind === "count"
+      ? (group.count_edges || data.count_edges)
+      : (group.pct_edges || data.pct_edges);
     var formatter = kind === "count" ? formatCountRange : formatPctRange;
     var rangeLabels = bandRangeLabels(edges, formatter);
     ["green", "blue", "purple", "orange", "red"].forEach(function (band, i) {
@@ -1175,10 +1197,12 @@ _HTML_TEMPLATE = """<!doctype html>
     }
 
     var activeColumn = hasMap ? currentMapMetric : group.columns[0];
-    renderLegend(group.column_kinds[activeColumn]);
+    renderLegend(group.column_kinds[activeColumn], group);
 
     document.getElementById("meta").textContent =
-      data.sites.length + " sites \\u00d7 " + group.columns.length + " metrics \\u2014 " +
+      data.sites.length + " sites \\u00d7 " + group.columns.length + " metrics" +
+      (group.pct_edges ? " \\u2014 % = data loss (missing or out-of-range records)" : "") +
+      " \\u2014 " +
       (group.updated_at ? "state updated " + group.updated_at : "no state file found") +
       " \\u2014 report generated " + data.generated_at;
 

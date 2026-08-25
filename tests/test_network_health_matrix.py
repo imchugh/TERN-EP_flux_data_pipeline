@@ -255,7 +255,15 @@ class TestBuildWindowedQualityGroup(unittest.TestCase):
             self.assertEqual(result["windows"], [1, 7, 30])
             self.assertEqual(result["default_window"], 7)
             self.assertEqual(result["columns"], ["Fco2", "Fh", "Fe", "Fsd"])
+            self.assertEqual(result["pct_edges"], [5, 10, 20, 30])
             self.assertNotIn("column_groups", result)
+
+    def test_threshold_quality_shares_the_same_pct_edges(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = build_windowed_quality_group(
+                self._group("threshold_quality"), Path(tmp), ["Boyagin"], set(), {}
+            )
+            self.assertEqual(result["pct_edges"], [5, 10, 20, 30])
 
     def test_window_selects_the_right_pct_and_band(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -266,9 +274,9 @@ class TestBuildWindowedQualityGroup(unittest.TestCase):
                 {
                     "Boyagin": {
                         "Fco2": {
-                            "pct_outside_range_last_1_days": 0.2,
-                            "pct_outside_range_last_7_days": 2.0,
-                            "pct_outside_range_last_30_days": 20.0,
+                            "pct_outside_range_last_1_days": 3.0,
+                            "pct_outside_range_last_7_days": 15.0,
+                            "pct_outside_range_last_30_days": 35.0,
                         },
                         "Fh": None,
                         "Fe": None,
@@ -280,15 +288,15 @@ class TestBuildWindowedQualityGroup(unittest.TestCase):
             result = build_windowed_quality_group(
                 self._group("variable_quality"), state_dir, ["Boyagin"], set(), {}
             )
-            self.assertEqual(result["matrices"][1]["Boyagin"]["Fco2"]["state"], "blue")
+            self.assertEqual(result["matrices"][1]["Boyagin"]["Fco2"]["state"], "green")
             self.assertEqual(
-                result["matrices"][7]["Boyagin"]["Fco2"]["state"], "orange"
+                result["matrices"][7]["Boyagin"]["Fco2"]["state"], "purple"
             )
             self.assertEqual(result["matrices"][30]["Boyagin"]["Fco2"]["state"], "red")
             # All three windows are always present as tooltip extras.
             cell_7d = result["matrices"][7]["Boyagin"]["Fco2"]
-            self.assertEqual(cell_7d["pct_outside_range_last_1_days"], 0.2)
-            self.assertEqual(cell_7d["pct_outside_range_last_30_days"], 20.0)
+            self.assertEqual(cell_7d["pct_outside_range_last_1_days"], 3.0)
+            self.assertEqual(cell_7d["pct_outside_range_last_30_days"], 35.0)
 
     def test_missing_state_file_is_no_data_for_every_site(self):
         with tempfile.TemporaryDirectory() as tmp:
