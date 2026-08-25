@@ -15,6 +15,7 @@ from tools.network_health_matrix import (
     MISSING_DATA_COLUMNS,
     band_for_count,
     band_for_pct,
+    build_data_quality_group,
     build_group_matrix,
     build_report_data,
 )
@@ -238,7 +239,62 @@ class TestBuildGroupMatrix(unittest.TestCase):
             for col in MISSING_DATA_COLUMNS:
                 self.assertEqual(matrix["Boyagin"][col]["state"], STATE_NO_DATA)
 
-    def test_nested_quality_variable_not_configured_is_no_data(self):
+
+class TestBuildDataQualityGroup(unittest.TestCase):
+    def _group(self):
+        return next(g for g in GROUPS if g["key"] == "data_quality")
+
+    def test_metadata_matches_group_definition(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = build_data_quality_group(
+                self._group(), Path(tmp), ["Boyagin"], set()
+            )
+            self.assertEqual(result["windows"], [1, 7, 30])
+            self.assertEqual(result["default_window"], 7)
+            self.assertEqual(
+                [cg["label"] for cg in result["column_groups"]],
+                ["Variable quality", "Threshold quality"],
+            )
+            self.assertEqual(
+                result["columns"],
+                ["Fco2", "Fh", "Fe", "Fsd", "Vbat", "Diag_IRGA", "Diag_SONIC"],
+            )
+
+    def test_window_selects_the_right_pct_and_band(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp)
+            _write_state(
+                state_dir,
+                "variable_quality",
+                {
+                    "Boyagin": {
+                        "Fco2": {
+                            "pct_outside_range_last_1_days": 0.2,
+                            "pct_outside_range_last_7_days": 2.0,
+                            "pct_outside_range_last_30_days": 20.0,
+                        },
+                        "Fh": None,
+                        "Fe": None,
+                        "Fsd": None,
+                        "error": None,
+                    }
+                },
+            )
+            _write_state(state_dir, "threshold_quality", {})
+            result = build_data_quality_group(
+                self._group(), state_dir, ["Boyagin"], set()
+            )
+            self.assertEqual(result["matrices"][1]["Boyagin"]["Fco2"]["state"], "green")
+            self.assertEqual(result["matrices"][7]["Boyagin"]["Fco2"]["state"], "blue")
+            self.assertEqual(
+                result["matrices"][30]["Boyagin"]["Fco2"]["state"], "orange"
+            )
+            # All three windows are always present as tooltip extras.
+            cell_7d = result["matrices"][7]["Boyagin"]["Fco2"]
+            self.assertEqual(cell_7d["pct_outside_range_last_1_days"], 0.2)
+            self.assertEqual(cell_7d["pct_outside_range_last_30_days"], 20.0)
+
+    def test_missing_from_one_source_is_no_data_for_that_column_group_only(self):
         with tempfile.TemporaryDirectory() as tmp:
             state_dir = Path(tmp)
             _write_state(
@@ -254,11 +310,16 @@ class TestBuildGroupMatrix(unittest.TestCase):
                     }
                 },
             )
-            matrix, _ = build_group_matrix(
-                self._group("variable_quality"), state_dir, ["Boyagin"], set()
+            # threshold_quality.json not written at all.
+            result = build_data_quality_group(
+                self._group(), state_dir, ["Boyagin"], set()
             )
-            self.assertEqual(matrix["Boyagin"]["Fco2"]["state"], "blue")
-            self.assertEqual(matrix["Boyagin"]["Fh"]["state"], STATE_NO_DATA)
+            matrix_7d = result["matrices"][7]
+            self.assertEqual(matrix_7d["Boyagin"]["Fco2"]["state"], "blue")
+            self.assertEqual(matrix_7d["Boyagin"]["Fh"]["state"], STATE_NO_DATA)
+            self.assertEqual(matrix_7d["Boyagin"]["Vbat"]["state"], STATE_NO_DATA)
+            self.assertIn("Variable quality:", result["updated_at"])
+            self.assertIn("Threshold quality: no state file", result["updated_at"])
 
 
 class TestBuildReportData(unittest.TestCase):

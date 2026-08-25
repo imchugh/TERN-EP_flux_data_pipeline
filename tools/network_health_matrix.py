@@ -5,11 +5,11 @@ Reads the per-task state JSON files that `services/network/state_task_orchestrat
 writes to its state directory (one `<task_name>.json` per task, refreshed by manually
 running `python run.py construct_status_geojson` — this tool does not trigger that
 itself, see the module's own docstring), and renders a self-contained HTML report:
-a dropdown selects one of five health-metric groups (missing_data, variable_quality,
-threshold_quality, nc_last_record, network_connectivity), each rendered as a site x
-sub-metric heatmap. logger_status is a point-in-time device snapshot with no natural
-severity model — trend/rolling-window health vs. "is the device reachable right now"
-are different questions, so it has its own page, `logger_status_report.py`,
+a dropdown selects one of four health-metric groups (missing_data, data_quality,
+nc_last_record, network_connectivity), each rendered as a site x sub-metric
+heatmap. logger_status is a point-in-time device snapshot with no natural severity
+model — trend/rolling-window health vs. "is the device reachable right now" are
+different questions, so it has its own page, `logger_status_report.py`,
 cross-linked from this one's header.
 
 `network_connectivity` combines the `gateway_connectivity` and
@@ -20,6 +20,15 @@ metric is `days_since_last_success` (derived here from each state file's
 `last_success` timestamp), not the raw `consecutive_failures` count the state
 files store — a wall-clock metric reads the same regardless of how often the
 underlying check runs, the same reasoning `nc_last_record` already applies.
+
+`data_quality` similarly combines the `variable_quality` and `threshold_quality`
+state tasks into one group, rendered as two labelled column groups ("Variable
+quality" / "Threshold quality") side by side rather than flattened into one
+undifferentiated row. Both underlying tasks report per-window figures
+(`pct_outside_range_last_{1,7,30}_days`); a second "Time range" dropdown (default
+7 days) lets the user pick which window colours the grid, instead of hardcoding
+one window and relegating the rest to the tooltip. This is the only group with a
+second dropdown — every other group's cells map onto one fixed metric already.
 
 Cells are classified `na` (site not eligible for this task), `no_data` (eligible,
 but missing from the state file), `error` (the task's own `error` field is
@@ -82,9 +91,10 @@ _COUNT_EDGES = [1, 3, 5, 7]
 _PCT_EDGES = [1, 5, 15, 30]
 
 # Nested quality tasks report per-window (1/7/30-day) figures per sub-variable;
-# this is the window used to colour the cell, with the other two windows shown
-# in the tooltip.
-PRIMARY_WINDOW_DAYS = 7
+# the Data quality group's time-range dropdown picks which window colours the
+# cell, defaulting to this. The other two windows always ride along as tooltip
+# extras regardless of which one is selected.
+DEFAULT_WINDOW_DAYS = 7
 
 # Mirrors data_monitor.MONITOR_VARS / THRESHOLD_SPECS.keys() — duplicated
 # rather than imported so this tool's pure logic doesn't pull in the heavier
@@ -158,19 +168,28 @@ def _missing_data_row(result: dict) -> dict[str, dict]:
     return row
 
 
-def _nested_quality_row(result: dict, variables: list[str]) -> dict[str, dict]:
+def _nested_quality_row(
+    result: dict, variables: list[str], window: int
+) -> dict[str, dict]:
+    """Build one column-group's cells, coloured by `window`'s pct_outside_range.
+
+    All three windows are always included as tooltip extras, regardless of
+    which one is currently selected — only `state`/`value`/`display` depend
+    on `window`.
+    """
     row = {}
     for var in variables:
         sub = result.get(var)
         if sub is None:
             row[var] = {"state": STATE_NO_DATA, "value": None, "display": ""}
             continue
-        primary = sub.get(f"pct_outside_range_last_{PRIMARY_WINDOW_DAYS}_days")
+        primary = sub.get(f"pct_outside_range_last_{window}_days")
         row[var] = {
             "state": band_for_pct(primary) or STATE_NO_DATA,
             "value": primary,
             "display": _fmt_pct(primary),
             "pct_outside_range_last_1_days": sub.get("pct_outside_range_last_1_days"),
+            "pct_outside_range_last_7_days": sub.get("pct_outside_range_last_7_days"),
             "pct_outside_range_last_30_days": sub.get("pct_outside_range_last_30_days"),
         }
     return row
@@ -224,17 +243,23 @@ GROUPS = [
         "scoped": False,
     },
     {
-        "key": "variable_quality",
-        "label": "Variable quality",
-        "columns": VARIABLE_QUALITY_VARS,
-        "row_fn": lambda result: _nested_quality_row(result, VARIABLE_QUALITY_VARS),
-        "scoped": False,
-    },
-    {
-        "key": "threshold_quality",
-        "label": "Threshold quality",
-        "columns": THRESHOLD_QUALITY_VARS,
-        "row_fn": lambda result: _nested_quality_row(result, THRESHOLD_QUALITY_VARS),
+        "key": "data_quality",
+        "label": "Data quality",
+        "column_groups": [
+            {
+                "key": "variable_quality",
+                "label": "Variable quality",
+                "columns": VARIABLE_QUALITY_VARS,
+            },
+            {
+                "key": "threshold_quality",
+                "label": "Threshold quality",
+                "columns": THRESHOLD_QUALITY_VARS,
+            },
+        ],
+        "columns": VARIABLE_QUALITY_VARS + THRESHOLD_QUALITY_VARS,
+        "windows": [1, 7, 30],
+        "default_window": DEFAULT_WINDOW_DAYS,
         "scoped": False,
     },
     {
@@ -325,6 +350,65 @@ def build_group_matrix(
     return matrix, updated_at
 
 
+def build_data_quality_group(
+    group: dict,
+    state_dir: Path,
+    sites: list[str],
+    connectivity_eligible: set[str],
+) -> dict:
+    """Build the full report entry for the data_quality group: one matrix per window.
+
+    Unlike `build_group_matrix`, this returns the complete groups_out entry
+    (not a `(matrix, updated_at)` pair) since its shape genuinely differs from
+    every other group — multiple precomputed matrices, one per time-range
+    window, rather than one.
+    """
+    sub_sites_data: dict[str, dict] = {}
+    updated_parts: list[str] = []
+    for cg in group["column_groups"]:
+        state = load_state(state_dir, cg["key"])
+        sub_sites_data[cg["key"]] = state.get("sites", {}) if state else {}
+        source_updated = state.get("updated_at") if state else None
+        updated_parts.append(f"{cg['label']}: {source_updated or 'no state file'}")
+    updated_at = "; ".join(updated_parts)
+
+    matrices: dict[int, dict[str, dict[str, dict]]] = {}
+    for window in group["windows"]:
+        matrix: dict[str, dict[str, dict]] = {}
+        for site in sites:
+            eligible = site in connectivity_eligible if group["scoped"] else True
+            row: dict[str, dict] = {}
+            for cg in group["column_groups"]:
+                result = sub_sites_data[cg["key"]].get(site)
+                base = row_state(eligible, result)
+                if base is not None:
+                    row.update(
+                        uniform_row(
+                            cg["columns"],
+                            base,
+                            result.get("error") if result else None,
+                        )
+                    )
+                else:
+                    row.update(_nested_quality_row(result, cg["columns"], window))
+            matrix[site] = row
+        matrices[window] = matrix
+
+    return {
+        "key": group["key"],
+        "label": group["label"],
+        "columns": group["columns"],
+        "column_groups": [
+            {"label": cg["label"], "columns": cg["columns"]}
+            for cg in group["column_groups"]
+        ],
+        "windows": group["windows"],
+        "default_window": group["default_window"],
+        "updated_at": updated_at,
+        "matrices": matrices,
+    }
+
+
 def build_report_data(
     state_dir: Path,
     sites: list[str],
@@ -335,6 +419,11 @@ def build_report_data(
     now = now or datetime.now(UTC)
     groups_out = []
     for group in GROUPS:
+        if "column_groups" in group:
+            groups_out.append(
+                build_data_quality_group(group, state_dir, sites, connectivity_eligible)
+            )
+            continue
         matrix, updated_at = build_group_matrix(
             group, state_dir, sites, connectivity_eligible, now
         )
@@ -467,6 +556,14 @@ _HTML_TEMPLATE = """<!doctype html>
     white-space: nowrap; font-size: 12px; font-weight: 500; color: var(--text-secondary);
   }
   th.site-header { z-index: 3; top: 0; }
+  th.group-header {
+    position: sticky; top: 0; height: 28px; background: var(--surface-1);
+    text-align: center; font-size: 12px; font-weight: 600; z-index: 3;
+    color: var(--text-secondary); border-bottom: 1px solid var(--border);
+    border-left: 1px solid var(--border);
+  }
+  table.two-row-header th.col-header { top: 28px; }
+  .hidden { display: none; }
   td.cell {
     width: 46px; height: 28px; min-width: 46px; border-radius: 4px;
     text-align: center; vertical-align: middle; cursor: default;
@@ -502,6 +599,8 @@ _HTML_TEMPLATE = """<!doctype html>
   <div class="controls">
     <label for="group-select">Metric group</label>
     <select id="group-select"></select>
+    <label for="window-select" id="window-label" class="hidden">Time range</label>
+    <select id="window-select" class="hidden"></select>
   </div>
   <div class="legend" id="legend"></div>
   <div class="grid-wrap"><table id="grid"></table></div>
@@ -600,10 +699,39 @@ _HTML_TEMPLATE = """<!doctype html>
   });
 
   var table = document.getElementById("grid");
+  var windowLabel = document.getElementById("window-label");
+  var windowSelect = document.getElementById("window-select");
+  var currentWindow = null;
+
+  function populateWindowSelect(group) {
+    windowSelect.textContent = "";
+    group.windows.forEach(function (w) {
+      var opt = document.createElement("option");
+      opt.value = w;
+      opt.textContent = "Last " + w + (w === 1 ? " day" : " days");
+      windowSelect.appendChild(opt);
+    });
+    var selected = currentWindow !== null && group.windows.indexOf(currentWindow) !== -1
+      ? currentWindow : group.default_window;
+    windowSelect.value = selected;
+    currentWindow = selected;
+  }
 
   function renderGroup(key) {
     var group = data.groups.filter(function (g) { return g.key === key; })[0];
     table.textContent = "";
+    table.classList.toggle("two-row-header", !!group.column_groups);
+
+    var windowed = !!group.matrices;
+    windowLabel.classList.toggle("hidden", !windowed);
+    windowSelect.classList.toggle("hidden", !windowed);
+    var matrix;
+    if (windowed) {
+      populateWindowSelect(group);
+      matrix = group.matrices[windowSelect.value];
+    } else {
+      matrix = group.matrix;
+    }
 
     document.getElementById("meta").textContent =
       data.sites.length + " sites \\u00d7 " + group.columns.length + " metrics \\u2014 " +
@@ -611,10 +739,29 @@ _HTML_TEMPLATE = """<!doctype html>
       " \\u2014 report generated " + data.generated_at;
 
     var thead = document.createElement("thead");
+
+    if (group.column_groups) {
+      var groupHeadRow = document.createElement("tr");
+      var groupCorner = document.createElement("th");
+      groupCorner.className = "site-header";
+      groupCorner.rowSpan = 2;
+      groupHeadRow.appendChild(groupCorner);
+      group.column_groups.forEach(function (cg) {
+        var th = document.createElement("th");
+        th.className = "group-header";
+        th.colSpan = cg.columns.length;
+        th.textContent = cg.label;
+        groupHeadRow.appendChild(th);
+      });
+      thead.appendChild(groupHeadRow);
+    }
+
     var headRow = document.createElement("tr");
-    var corner = document.createElement("th");
-    corner.className = "site-header";
-    headRow.appendChild(corner);
+    if (!group.column_groups) {
+      var corner = document.createElement("th");
+      corner.className = "site-header";
+      headRow.appendChild(corner);
+    }
     group.columns.forEach(function (col) {
       var th = document.createElement("th");
       th.className = "col-header";
@@ -635,7 +782,7 @@ _HTML_TEMPLATE = """<!doctype html>
       row.appendChild(th);
 
       group.columns.forEach(function (col) {
-        var cellData = group.matrix[site][col];
+        var cellData = matrix[site][col];
         var td = document.createElement("td");
         td.className = "cell " + cellData.state;
         td.tabIndex = 0;
@@ -654,7 +801,14 @@ _HTML_TEMPLATE = """<!doctype html>
     table.appendChild(tbody);
   }
 
-  select.addEventListener("change", function () { renderGroup(select.value); });
+  select.addEventListener("change", function () {
+    currentWindow = null;
+    renderGroup(select.value);
+  });
+  windowSelect.addEventListener("change", function () {
+    currentWindow = Number(windowSelect.value);
+    renderGroup(select.value);
+  });
   renderGroup(data.groups[0].key);
 
   document.getElementById("footer").textContent =
@@ -716,12 +870,20 @@ def main() -> None:
     print(f"{len(sites)} sites  (state dir: {state_dir})")
     print(_SEP)
     for group in data["groups"]:
+        matrix = (
+            group["matrices"][group["default_window"]]
+            if "matrices" in group
+            else group["matrix"]
+        )
         counts: dict[str, int] = {}
-        for site_row in group["matrix"].values():
+        for site_row in matrix.values():
             for cell in site_row.values():
                 counts[cell["state"]] = counts.get(cell["state"], 0) + 1
         updated = group["updated_at"] or "no state file"
-        print(f"  {group['label']:<24} updated {updated}")
+        window_note = (
+            f" (default {group['default_window']}d)" if "matrices" in group else ""
+        )
+        print(f"  {group['label']:<24}{window_note} updated {updated}")
         print(f"    {counts}")
     print(f"\nWrote {args.output}")
 
