@@ -13,6 +13,8 @@ from pathlib import Path
 from tools.network_health_matrix import (
     GROUPS,
     MISSING_DATA_COLUMNS,
+    _build_site_markers,
+    _project_lonlat,
     band_for_count,
     band_for_pct,
     build_data_quality_group,
@@ -322,6 +324,43 @@ class TestBuildDataQualityGroup(unittest.TestCase):
             self.assertIn("Threshold quality: no state file", result["updated_at"])
 
 
+class TestProjectLonlat(unittest.TestCase):
+    def test_higher_longitude_projects_further_east(self):
+        # Perth (~115.9E) is west of Sydney (~151.2E) -> smaller x.
+        perth_x, _ = _project_lonlat(115.9, -31.9)
+        sydney_x, _ = _project_lonlat(151.2, -33.9)
+        self.assertLess(perth_x, sydney_x)
+
+    def test_higher_latitude_projects_further_north(self):
+        # Darwin (~-12.5) is north of Hobart (~-42.9) -> smaller y (SVG y
+        # increases downward, so "further north" means a smaller y value).
+        darwin_lat, hobart_lat = -12.5, -42.9
+        _, darwin_y = _project_lonlat(130.8, darwin_lat)
+        _, hobart_y = _project_lonlat(147.3, hobart_lat)
+        self.assertLess(darwin_y, hobart_y)
+
+    def test_nearby_sites_project_to_distinct_but_close_points(self):
+        # MyallValeA/B are ~17km apart -- distinct points, but close relative
+        # to the continental scale of the map (confirms zoom is needed to
+        # tell them apart, without requiring the exact pixel values).
+        ax, ay = _project_lonlat(150.019652, -30.54258001)
+        bx, by = _project_lonlat(150.090833, -30.697222)
+        self.assertNotEqual((ax, ay), (bx, by))
+        self.assertLess(abs(ax - bx), 5)
+        self.assertLess(abs(ay - by), 5)
+
+
+class TestBuildSiteMarkers(unittest.TestCase):
+    def test_only_includes_sites_present_in_coords(self):
+        markers = _build_site_markers({"Boyagin": (147.6, -37.0)})
+        self.assertEqual(set(markers), {"Boyagin"})
+        self.assertIn("x", markers["Boyagin"])
+        self.assertIn("y", markers["Boyagin"])
+
+    def test_empty_input_gives_empty_output(self):
+        self.assertEqual(_build_site_markers({}), {})
+
+
 class TestBuildReportData(unittest.TestCase):
     def test_assembles_all_groups(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -331,6 +370,29 @@ class TestBuildReportData(unittest.TestCase):
             self.assertEqual(len(data["groups"]), len(GROUPS))
             self.assertIn("grafana_url", data)
             self.assertIn("logger_status_url", data)
+
+    def test_missing_data_group_carries_map_payload(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp)
+            data = build_report_data(
+                state_dir,
+                ["Boyagin"],
+                set(),
+                site_coords={"Boyagin": (147.6, -37.0)},
+            )
+            missing_data = next(g for g in data["groups"] if g["key"] == "missing_data")
+            self.assertIn("Boyagin", missing_data["markers"])
+            self.assertEqual(
+                missing_data["default_map_metric"], "days_since_last_record"
+            )
+            self.assertEqual(
+                [opt["key"] for opt in missing_data["map_metric_options"]],
+                MISSING_DATA_COLUMNS,
+            )
+            other_group = next(
+                g for g in data["groups"] if g["key"] == "nc_last_record"
+            )
+            self.assertNotIn("markers", other_group)
 
 
 if __name__ == "__main__":

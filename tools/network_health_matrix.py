@@ -109,6 +109,12 @@ MISSING_DATA_COLUMNS = [
     "pct_missing_last_7_days",
     "pct_missing_last_30_days",
 ]
+MISSING_DATA_MAP_METRIC_LABELS = {
+    "days_since_last_record": "Days since last record",
+    "pct_missing_last_1_days": "% missing (last 1 day)",
+    "pct_missing_last_7_days": "% missing (last 7 days)",
+    "pct_missing_last_30_days": "% missing (last 30 days)",
+}
 NC_LAST_RECORD_COLUMNS = ["days_since_last_record"]
 
 NETWORK_CONNECTIVITY_COLUMNS = ["gateway", "EC logger"]
@@ -118,6 +124,92 @@ NETWORK_CONNECTIVITY_SOURCES = {
     "gateway": "gateway_connectivity",
     "EC logger": "ec_logger_connectivity",
 }
+
+# Australia's bounding box (mainland + Tasmania), from Natural Earth's
+# 110m-resolution admin-0 countries dataset (public domain, no attribution
+# required: naturalearthdata.com/about/terms-of-use). Both AUSTRALIA_OUTLINE_PATH
+# below and every report's site markers (_project_lonlat) are projected through
+# these same constants, so they always stay co-registered.
+_MAP_LON_MIN = 113.338953
+_MAP_LAT_MAX = -10.668186
+_MAP_COS_FACTOR = 0.8898038451619625  # cos(mean latitude): corrects the x-scale
+_MAP_SCALE = 20.0
+_MAP_PAD = 20.0
+MAP_VIEWBOX_WIDTH = 755.9
+MAP_VIEWBOX_HEIGHT = 699.3
+
+# Two subpaths (mainland, Tasmania) generated once from the dataset above via
+# the same projection as _project_lonlat — not regenerated at runtime.
+AUSTRALIA_OUTLINE_PATH = (
+    "M631.3,622.8 L642.0,624.1 L643.2,647.9 L637.1,654.8 L635.3,670.9 "
+    "L629.1,665.4 L616.7,679.3 L613.0,678.3 L602.1,677.6 L591.1,660.5 "
+    "L588.7,647.3 L578.4,629.9 L578.9,620.7 L590.5,622.5 L607.7,629.4 "
+    "L617.4,626.6 L631.3,622.8 Z M248.0,451.0 L229.1,461.2 L213.7,465.8 "
+    "L210.2,476.3 L203.7,484.4 L188.6,484.9 L177.4,486.7 L161.7,483.1 "
+    "L148.9,485.2 L136.6,486.2 L126.1,496.8 L120.9,495.9 L111.9,501.6 "
+    "L103.4,507.9 L90.4,507.1 L78.5,507.1 L59.6,494.4 L50.0,490.6 L50.4,479.1 "
+    "L59.3,476.4 L62.3,471.8 L61.7,464.6 L63.8,450.7 L61.8,438.9 L52.4,418.7 "
+    "L49.5,407.3 L50.3,395.9 L43.2,382.8 L42.7,377.0 L34.9,369.0 L32.6,353.3 "
+    "L22.5,337.5 L20.0,329.0 L27.8,337.6 L21.8,319.1 L30.6,324.9 L35.9,332.6 "
+    "L35.6,322.4 L26.8,306.6 L25.1,300.3 L21.0,294.3 L22.9,282.8 L26.5,277.8 "
+    "L29.0,267.8 L27.1,256.1 L34.4,241.8 L35.8,257.0 L43.3,243.2 L57.7,236.5 "
+    "L66.4,228.0 L80.0,220.7 L88.1,219.1 L93.0,221.6 L107.0,214.1 L117.8,211.9 "
+    "L120.5,207.5 L125.2,205.7 L135.1,206.2 L153.8,200.3 L163.5,191.4 "
+    "L168.0,180.7 L178.4,170.6 L179.2,162.6 L179.7,151.7 L192.2,134.7 "
+    "L199.6,152.0 L207.2,148.0 L200.9,138.6 L206.5,128.9 L214.3,133.2 "
+    "L216.5,118.0 L226.2,108.1 L230.5,100.2 L239.4,96.8 L239.7,91.2 L247.5,93.6 "
+    "L247.9,88.6 L255.7,85.7 L264.3,83.0 L277.4,92.2 L287.3,104.0 L298.4,104.2 "
+    "L309.8,106.0 L306.0,95.0 L314.5,79.0 L322.5,73.8 L319.8,68.8 L327.5,57.4 "
+    "L338.3,50.3 L347.4,52.7 L362.3,48.9 L362.0,38.7 L349.0,32.1 L358.5,29.2 "
+    "L370.2,34.2 L379.7,42.4 L394.7,47.5 L399.8,45.5 L410.8,51.6 L421.2,45.9 "
+    "L427.9,47.6 L432.0,43.8 L440.2,53.7 L435.5,64.4 L428.7,72.5 L422.6,73.1 "
+    "L424.7,81.1 L419.4,91.1 L413.1,100.9 L414.4,106.6 L428.5,117.6 "
+    "L442.2,124.1 L451.4,130.9 L464.3,142.8 L469.3,142.8 L478.6,147.9 "
+    "L481.3,154.1 L498.3,160.9 L510.0,154.0 L513.5,143.3 L517.1,134.4 "
+    "L519.3,123.4 L524.8,107.5 L522.3,97.9 L523.6,92.0 L521.5,80.6 L523.8,65.5 "
+    "L527.3,61.5 L524.5,54.8 L528.8,44.2 L532.2,33.2 L532.6,27.5 L539.2,20.0 "
+    "L544.2,29.8 L545.5,42.3 L549.9,44.7 L550.7,53.1 L557.1,63.3 L558.5,74.6 "
+    "L557.8,81.9 L564.3,97.6 L575.7,90.1 L581.6,98.5 L590.1,106.3 L588.3,115.2 "
+    "L592.1,132.3 L594.8,142.3 L599.3,144.8 L604.1,161.9 L602.4,172.2 "
+    "L608.1,185.8 L627.4,196.3 L640.0,205.8 L651.9,214.5 L649.6,219.3 "
+    "L659.8,231.8 L666.7,253.5 L673.8,249.1 L681.0,257.8 L685.4,254.7 "
+    "L688.4,275.9 L701.1,288.2 L709.3,295.8 L723.2,312.0 L728.2,328.1 "
+    "L728.7,339.5 L727.5,351.8 L735.9,368.8 L734.9,386.5 L731.8,395.8 "
+    "L727.0,413.6 L727.4,425.1 L723.9,439.4 L716.0,457.6 L702.8,467.5 "
+    "L696.3,483.0 L690.4,492.8 L685.1,510.1 L678.3,520.1 L673.8,535.0 "
+    "L671.5,548.8 L672.4,555.1 L662.2,562.1 L642.3,562.8 L625.8,571.0 "
+    "L617.6,578.8 L606.9,587.4 L592.2,578.5 L581.3,575.0 L584.0,564.6 "
+    "L574.3,568.3 L558.7,582.8 L543.3,577.4 L533.2,574.2 L523.1,572.8 "
+    "L505.8,567.0 L494.3,554.7 L491.0,539.5 L486.9,529.4 L478.1,521.3 "
+    "L461.0,518.9 L466.9,509.2 L462.6,494.3 L453.9,508.2 L438.0,511.8 "
+    "L447.3,500.8 L450.0,489.2 L456.9,479.4 L455.5,464.6 L441.0,481.7 "
+    "L429.9,488.5 L423.1,504.4 L409.2,496.2 L409.7,485.6 L398.6,471.1 "
+    "L389.2,463.6 L392.6,459.0 L369.7,446.9 L357.2,446.3 L340.1,436.6 "
+    "L308.2,438.4 L285.2,445.6 L264.9,452.3 L248.0,451.0 Z"
+)
+
+
+def _project_lonlat(lon: float, lat: float) -> tuple[float, float]:
+    """Project (lon, lat) into the Australia outline's SVG viewBox.
+
+    A simple equirectangular projection with a cos(mean-latitude) x-scale
+    correction — Australia's small extent makes this a reasonable schematic
+    approximation, not a claim of cartographic precision.
+    """
+    x = _MAP_PAD + (lon - _MAP_LON_MIN) * _MAP_COS_FACTOR * _MAP_SCALE
+    y = _MAP_PAD + (_MAP_LAT_MAX - lat) * _MAP_SCALE
+    return round(x, 1), round(y, 1)
+
+
+def _build_site_markers(
+    site_coords: dict[str, tuple[float, float]],
+) -> dict[str, dict[str, float]]:
+    """Project each site's (lon, lat) into the Australia outline's viewBox."""
+    markers: dict[str, dict[str, float]] = {}
+    for site, (lon, lat) in site_coords.items():
+        x, y = _project_lonlat(lon, lat)
+        markers[site] = {"x": x, "y": y}
+    return markers
 
 
 def _band_from_edges(value: float | None, edges: list[float]) -> str | None:
@@ -241,6 +333,7 @@ GROUPS = [
         "columns": MISSING_DATA_COLUMNS,
         "row_fn": _missing_data_row,
         "scoped": False,
+        "has_map": True,
     },
     {
         "key": "data_quality",
@@ -414,9 +507,11 @@ def build_report_data(
     sites: list[str],
     connectivity_eligible: set[str],
     now: datetime | None = None,
+    site_coords: dict[str, tuple[float, float]] | None = None,
 ) -> dict:
     """Assemble the full report payload: every group's matrix."""
     now = now or datetime.now(UTC)
+    site_coords = site_coords or {}
     groups_out = []
     for group in GROUPS:
         if "column_groups" in group:
@@ -427,15 +522,23 @@ def build_report_data(
         matrix, updated_at = build_group_matrix(
             group, state_dir, sites, connectivity_eligible, now
         )
-        groups_out.append(
-            {
-                "key": group["key"],
-                "label": group["label"],
-                "columns": group["columns"],
-                "updated_at": updated_at,
-                "matrix": matrix,
-            }
-        )
+        group_entry = {
+            "key": group["key"],
+            "label": group["label"],
+            "columns": group["columns"],
+            "updated_at": updated_at,
+            "matrix": matrix,
+        }
+        if group.get("has_map"):
+            group_entry["markers"] = _build_site_markers(site_coords)
+            group_entry["map_outline"] = AUSTRALIA_OUTLINE_PATH
+            group_entry["map_viewbox"] = f"0 0 {MAP_VIEWBOX_WIDTH} {MAP_VIEWBOX_HEIGHT}"
+            group_entry["map_metric_options"] = [
+                {"key": col, "label": MISSING_DATA_MAP_METRIC_LABELS[col]}
+                for col in group["columns"]
+            ]
+            group_entry["default_map_metric"] = "days_since_last_record"
+        groups_out.append(group_entry)
 
     return {
         "sites": sites,
@@ -469,6 +572,7 @@ _HTML_TEMPLATE = """<!doctype html>
     --state-na:       #e1e0d9;
     --state-no-data:  #f2f1ec;
     --state-error:    #9c0038;
+    --map-land:       #eceae3;
   }
   @media (prefers-color-scheme: dark) {
     :root:where(:not([data-theme="light"])) {
@@ -488,6 +592,7 @@ _HTML_TEMPLATE = """<!doctype html>
       --state-na:       #383835;
       --state-no-data:  #232322;
       --state-error:    #c2426f;
+      --map-land:       #26261f;
     }
   }
   :root[data-theme="dark"] {
@@ -507,6 +612,7 @@ _HTML_TEMPLATE = """<!doctype html>
     --state-na:       #383835;
     --state-no-data:  #232322;
     --state-error:    #c2426f;
+    --map-land:       #26261f;
   }
   * { box-sizing: border-box; }
   body {
@@ -535,7 +641,11 @@ _HTML_TEMPLATE = """<!doctype html>
     display: flex; align-items: center; justify-content: center;
     font-size: 10px; font-weight: 600; color: #ffffff;
   }
-  .grid-wrap { overflow: auto; max-width: 100%; border: 1px solid var(--border); border-radius: 6px; }
+  .content-row { display: flex; flex-wrap: wrap; align-items: stretch; gap: 20px; }
+  .grid-wrap {
+    overflow: auto; max-width: 100%; border: 1px solid var(--border);
+    border-radius: 6px; flex: 1 1 400px; min-width: 300px;
+  }
   table { border-collapse: separate; border-spacing: 2px; background: var(--surface-1); }
   th, td { padding: 0; }
   th.site-header, td.site-name {
@@ -548,11 +658,12 @@ _HTML_TEMPLATE = """<!doctype html>
   td.site-name a:hover { color: var(--band-blue); }
   th.col-header {
     position: sticky; top: 0; background: var(--surface-1);
-    height: 110px; vertical-align: bottom; z-index: 2;
-    border-bottom: 1px solid var(--border);
+    height: 110px; z-index: 2; border-bottom: 1px solid var(--border);
+    width: 140px; min-width: 140px; max-width: 140px;
   }
   th.col-header span {
-    display: inline-block; transform: rotate(-45deg); transform-origin: left bottom;
+    position: absolute; bottom: 6px; left: 8px;
+    transform: rotate(-45deg); transform-origin: left bottom;
     white-space: nowrap; font-size: 12px; font-weight: 500; color: var(--text-secondary);
   }
   th.site-header { z-index: 3; top: 0; }
@@ -563,9 +674,13 @@ _HTML_TEMPLATE = """<!doctype html>
     border-left: 1px solid var(--border);
   }
   table.two-row-header th.col-header { top: 28px; }
+  th.group-spacer, td.group-spacer { width: 14px; min-width: 14px; border: none; }
+  th.group-spacer {
+    position: sticky; top: 0; z-index: 3; background: var(--surface-1);
+  }
   .hidden { display: none; }
   td.cell {
-    width: 46px; height: 28px; min-width: 46px; border-radius: 4px;
+    width: 140px; height: 28px; min-width: 140px; border-radius: 4px;
     text-align: center; vertical-align: middle; cursor: default;
     font-size: 11px; font-weight: 700; outline-offset: 2px; color: #ffffff;
   }
@@ -589,6 +704,42 @@ _HTML_TEMPLATE = """<!doctype html>
     display: none; white-space: pre-line;
   }
   #tooltip .tt-value { font-weight: 700; }
+  td.cell.ghost, th.col-header.ghost span { opacity: 0.35; }
+  #map-wrap {
+    flex: 1.3 1 400px; min-width: 320px; max-width: 100%;
+    display: flex; flex-direction: column;
+  }
+  .map-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px; font-size: 13px; color: var(--text-secondary);
+  }
+  .map-toolbar button {
+    font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--surface-1);
+    color: var(--text-primary); cursor: pointer;
+  }
+  .map-toolbar button:hover { background: var(--page); }
+  .map-frame {
+    border: 1px solid var(--border); border-radius: 6px;
+    background: var(--surface-1); overflow: hidden;
+    flex: 1 1 auto; min-height: 300px;
+  }
+  #map-svg { width: 100%; height: 100%; touch-action: none; cursor: grab; }
+  #map-svg.dragging { cursor: grabbing; }
+  #map-outline { fill: var(--map-land); stroke: var(--border); stroke-width: 1; }
+  .marker {
+    stroke: var(--surface-1); stroke-width: 1.5; cursor: default;
+    outline-offset: 2px;
+  }
+  .marker.green  { fill: var(--band-green); }
+  .marker.blue   { fill: var(--band-blue); }
+  .marker.purple { fill: var(--band-purple); }
+  .marker.orange { fill: var(--band-orange); }
+  .marker.red    { fill: var(--band-red); }
+  .marker.na      { fill: var(--state-na); }
+  .marker.no_data { fill: var(--state-no-data); }
+  .marker.error   { fill: var(--state-error); }
+  .marker:hover, .marker:focus-visible { stroke: var(--text-primary); }
   footer { margin-top: 12px; color: var(--muted); font-size: 12px; }
 </style>
 </head>
@@ -601,9 +752,27 @@ _HTML_TEMPLATE = """<!doctype html>
     <select id="group-select"></select>
     <label for="window-select" id="window-label" class="hidden">Time range</label>
     <select id="window-select" class="hidden"></select>
+    <label for="map-metric-select" id="map-metric-label" class="hidden">
+      Map metric
+    </label>
+    <select id="map-metric-select" class="hidden"></select>
   </div>
   <div class="legend" id="legend"></div>
-  <div class="grid-wrap"><table id="grid"></table></div>
+  <div class="content-row">
+    <div class="grid-wrap"><table id="grid"></table></div>
+    <div id="map-wrap" class="hidden">
+      <div class="map-toolbar">
+        <span id="map-caption"></span>
+        <button type="button" id="map-reset">Reset view</button>
+      </div>
+      <div class="map-frame">
+        <svg id="map-svg" xmlns="http://www.w3.org/2000/svg">
+          <path id="map-outline"></path>
+          <g id="map-markers"></g>
+        </svg>
+      </div>
+    </div>
+  </div>
   <footer id="footer"></footer>
 
   <div id="tooltip"></div>
@@ -717,6 +886,141 @@ _HTML_TEMPLATE = """<!doctype html>
     currentWindow = selected;
   }
 
+  // ---- map (missing_data only) ----
+
+  var mapMetricLabel = document.getElementById("map-metric-label");
+  var mapMetricSelect = document.getElementById("map-metric-select");
+  var mapWrap = document.getElementById("map-wrap");
+  var mapCaption = document.getElementById("map-caption");
+  var mapResetBtn = document.getElementById("map-reset");
+  var mapSvg = document.getElementById("map-svg");
+  var mapOutline = document.getElementById("map-outline");
+  var mapMarkersGroup = document.getElementById("map-markers");
+  var currentMapMetric = null;
+  var mapInitializedForKey = null;
+  var mapViewBox = null;
+  var mapBaseViewBox = null;
+
+  function populateMapMetricSelect(group) {
+    mapMetricSelect.textContent = "";
+    group.map_metric_options.forEach(function (opt) {
+      var o = document.createElement("option");
+      o.value = opt.key;
+      o.textContent = opt.label;
+      mapMetricSelect.appendChild(o);
+    });
+    var known = group.map_metric_options.some(function (o) {
+      return o.key === currentMapMetric;
+    });
+    var selected = currentMapMetric !== null && known
+      ? currentMapMetric : group.default_map_metric;
+    mapMetricSelect.value = selected;
+    currentMapMetric = selected;
+  }
+
+  function setMapViewBoxAttr() {
+    mapSvg.setAttribute(
+      "viewBox",
+      mapViewBox.x + " " + mapViewBox.y + " " + mapViewBox.w + " " + mapViewBox.h
+    );
+  }
+
+  function resetMapView() {
+    if (!mapBaseViewBox) return;
+    mapViewBox = {
+      x: mapBaseViewBox.x, y: mapBaseViewBox.y,
+      w: mapBaseViewBox.w, h: mapBaseViewBox.h,
+    };
+    setMapViewBoxAttr();
+  }
+
+  function mapPointFromEvent(evt) {
+    var rect = mapSvg.getBoundingClientRect();
+    var px = (evt.clientX - rect.left) / rect.width;
+    var py = (evt.clientY - rect.top) / rect.height;
+    return { x: mapViewBox.x + px * mapViewBox.w, y: mapViewBox.y + py * mapViewBox.h };
+  }
+
+  mapSvg.addEventListener("wheel", function (evt) {
+    if (!mapViewBox) return;
+    evt.preventDefault();
+    var zoomFactor = evt.deltaY > 0 ? 1.15 : 1 / 1.15;
+    var pt = mapPointFromEvent(evt);
+    var newW = Math.min(
+      mapBaseViewBox.w, Math.max(mapBaseViewBox.w / 20, mapViewBox.w * zoomFactor)
+    );
+    var newH = Math.min(
+      mapBaseViewBox.h, Math.max(mapBaseViewBox.h / 20, mapViewBox.h * zoomFactor)
+    );
+    mapViewBox.x = pt.x - (pt.x - mapViewBox.x) * (newW / mapViewBox.w);
+    mapViewBox.y = pt.y - (pt.y - mapViewBox.y) * (newH / mapViewBox.h);
+    mapViewBox.w = newW;
+    mapViewBox.h = newH;
+    setMapViewBoxAttr();
+  }, { passive: false });
+
+  var mapDragging = false;
+  var mapDragLast = null;
+  mapSvg.addEventListener("pointerdown", function (evt) {
+    mapDragging = true;
+    mapDragLast = { x: evt.clientX, y: evt.clientY };
+    mapSvg.classList.add("dragging");
+    mapSvg.setPointerCapture(evt.pointerId);
+  });
+  mapSvg.addEventListener("pointermove", function (evt) {
+    if (!mapDragging || !mapViewBox) return;
+    var rect = mapSvg.getBoundingClientRect();
+    mapViewBox.x -= (evt.clientX - mapDragLast.x) / rect.width * mapViewBox.w;
+    mapViewBox.y -= (evt.clientY - mapDragLast.y) / rect.height * mapViewBox.h;
+    mapDragLast = { x: evt.clientX, y: evt.clientY };
+    setMapViewBoxAttr();
+  });
+  function endMapDrag() {
+    mapDragging = false;
+    mapSvg.classList.remove("dragging");
+  }
+  mapSvg.addEventListener("pointerup", endMapDrag);
+  mapSvg.addEventListener("pointercancel", endMapDrag);
+  mapResetBtn.addEventListener("click", resetMapView);
+
+  function renderMap(group) {
+    var metric = currentMapMetric;
+    var metricLabel = group.map_metric_options.filter(function (o) {
+      return o.key === metric;
+    })[0].label;
+
+    if (mapInitializedForKey !== group.key) {
+      mapOutline.setAttribute("d", group.map_outline);
+      var parts = group.map_viewbox.split(" ").map(Number);
+      mapBaseViewBox = { x: parts[0], y: parts[1], w: parts[2], h: parts[3] };
+      resetMapView();
+      mapInitializedForKey = group.key;
+    }
+
+    mapMarkersGroup.textContent = "";
+    data.sites.forEach(function (site) {
+      var pos = group.markers[site];
+      if (!pos) return;
+      var cellData = group.matrix[site][metric];
+      var circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      circle.setAttribute("cx", pos.x);
+      circle.setAttribute("cy", pos.y);
+      circle.setAttribute("r", 5);
+      circle.setAttribute("class", "marker " + cellData.state);
+      circle.setAttribute("tabindex", "0");
+      var describe = function () {
+        showTooltip(circle, site + " \\u2014 " + metricLabel, cellData.state, cellData);
+      };
+      circle.addEventListener("pointerenter", describe);
+      circle.addEventListener("focus", describe);
+      circle.addEventListener("pointerleave", hideTooltip);
+      circle.addEventListener("blur", hideTooltip);
+      mapMarkersGroup.appendChild(circle);
+    });
+
+    mapCaption.textContent = metricLabel + " \\u2014 " + data.sites.length + " sites";
+  }
+
   function renderGroup(key) {
     var group = data.groups.filter(function (g) { return g.key === key; })[0];
     table.textContent = "";
@@ -733,6 +1037,14 @@ _HTML_TEMPLATE = """<!doctype html>
       matrix = group.matrix;
     }
 
+    var hasMap = !!group.markers;
+    mapMetricLabel.classList.toggle("hidden", !hasMap);
+    mapMetricSelect.classList.toggle("hidden", !hasMap);
+    mapWrap.classList.toggle("hidden", !hasMap);
+    if (hasMap) {
+      populateMapMetricSelect(group);
+    }
+
     document.getElementById("meta").textContent =
       data.sites.length + " sites \\u00d7 " + group.columns.length + " metrics \\u2014 " +
       (group.updated_at ? "state updated " + group.updated_at : "no state file found") +
@@ -746,12 +1058,18 @@ _HTML_TEMPLATE = """<!doctype html>
       groupCorner.className = "site-header";
       groupCorner.rowSpan = 2;
       groupHeadRow.appendChild(groupCorner);
-      group.column_groups.forEach(function (cg) {
+      group.column_groups.forEach(function (cg, i) {
         var th = document.createElement("th");
         th.className = "group-header";
         th.colSpan = cg.columns.length;
         th.textContent = cg.label;
         groupHeadRow.appendChild(th);
+        if (i < group.column_groups.length - 1) {
+          var spacer = document.createElement("th");
+          spacer.className = "group-spacer";
+          spacer.rowSpan = 2;
+          groupHeadRow.appendChild(spacer);
+        }
       });
       thead.appendChild(groupHeadRow);
     }
@@ -764,7 +1082,8 @@ _HTML_TEMPLATE = """<!doctype html>
     }
     group.columns.forEach(function (col) {
       var th = document.createElement("th");
-      th.className = "col-header";
+      var ghostHeader = hasMap && col !== currentMapMetric ? " ghost" : "";
+      th.className = "col-header" + ghostHeader;
       var span = document.createElement("span");
       span.textContent = col;
       th.appendChild(span);
@@ -772,6 +1091,23 @@ _HTML_TEMPLATE = """<!doctype html>
     });
     thead.appendChild(headRow);
     table.appendChild(thead);
+
+    function buildCell(site, col) {
+      var cellData = matrix[site][col];
+      var td = document.createElement("td");
+      var ghostCell = hasMap && col !== currentMapMetric ? " ghost" : "";
+      td.className = "cell " + cellData.state + ghostCell;
+      td.tabIndex = 0;
+      td.textContent = BAND_SYMBOL[cellData.state] !== undefined ? BAND_SYMBOL[cellData.state] : (cellData.display || "");
+
+      var describe = function () { showTooltip(td, site + " \\u2014 " + col, cellData.state, cellData); };
+      td.addEventListener("pointerenter", describe);
+      td.addEventListener("focus", describe);
+      td.addEventListener("pointerleave", hideTooltip);
+      td.addEventListener("blur", hideTooltip);
+
+      return td;
+    }
 
     var tbody = document.createElement("tbody");
     data.sites.forEach(function (site) {
@@ -781,32 +1117,42 @@ _HTML_TEMPLATE = """<!doctype html>
       th.appendChild(siteLink(site));
       row.appendChild(th);
 
-      group.columns.forEach(function (col) {
-        var cellData = matrix[site][col];
-        var td = document.createElement("td");
-        td.className = "cell " + cellData.state;
-        td.tabIndex = 0;
-        td.textContent = BAND_SYMBOL[cellData.state] !== undefined ? BAND_SYMBOL[cellData.state] : (cellData.display || "");
-
-        var describe = function () { showTooltip(td, site + " \\u2014 " + col, cellData.state, cellData); };
-        td.addEventListener("pointerenter", describe);
-        td.addEventListener("focus", describe);
-        td.addEventListener("pointerleave", hideTooltip);
-        td.addEventListener("blur", hideTooltip);
-
-        row.appendChild(td);
-      });
+      if (group.column_groups) {
+        group.column_groups.forEach(function (cg, i) {
+          cg.columns.forEach(function (col) {
+            row.appendChild(buildCell(site, col));
+          });
+          if (i < group.column_groups.length - 1) {
+            var spacer = document.createElement("td");
+            spacer.className = "group-spacer";
+            row.appendChild(spacer);
+          }
+        });
+      } else {
+        group.columns.forEach(function (col) {
+          row.appendChild(buildCell(site, col));
+        });
+      }
       tbody.appendChild(row);
     });
     table.appendChild(tbody);
+
+    if (hasMap) {
+      renderMap(group);
+    }
   }
 
   select.addEventListener("change", function () {
     currentWindow = null;
+    currentMapMetric = null;
     renderGroup(select.value);
   });
   windowSelect.addEventListener("change", function () {
     currentWindow = Number(windowSelect.value);
+    renderGroup(select.value);
+  });
+  mapMetricSelect.addEventListener("change", function () {
+    currentMapMetric = mapMetricSelect.value;
     renderGroup(select.value);
   });
   renderGroup(data.groups[0].key);
@@ -861,8 +1207,21 @@ def main() -> None:
     sites = SITE_REGISTRY.names()
     eligible = set(connectivity_sites())
 
+    site_coords: dict[str, tuple[float, float]] = {}
+    for site in sites:
+        try:
+            metadata = SITE_REGISTRY.get_context(site=site).metadata
+            site_coords[site] = (
+                float(metadata["longitude"]),
+                float(metadata["latitude"]),
+            )
+        except Exception as exc:
+            print(f"  (skipping map marker for {site!r}: {exc})")
+
     now = datetime.now(UTC)
-    data = build_report_data(state_dir, sites, eligible, now=now)
+    data = build_report_data(
+        state_dir, sites, eligible, now=now, site_coords=site_coords
+    )
     html = render_html(data, generated_at=now)
     args.output.write_text(html, encoding="utf-8")
 
