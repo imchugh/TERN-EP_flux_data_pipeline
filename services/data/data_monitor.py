@@ -101,11 +101,16 @@ def get_missing_records(
     if any(period <= 0 for period in analysis_periods):
         raise ValueError("All analysis periods must be positive integers")
 
-    last = reference_date
+    # Align to the interval grid and shrink each window by one interval so
+    # pd.date_range's inclusive-both-ends behaviour (inside analyse_data_gaps)
+    # yields the true expected count for the window, not one extra phantom
+    # slot -- reference_date is a live "now" moment, not itself an expected
+    # timestamp, so treating it as an inclusive endpoint over-counts by one.
+    last = datetime_utils.floor_to_interval(reference_date, interval_minutes)
     results = {}
 
     for period in analysis_periods:
-        first = last - timedelta(days=period)
+        first = last - timedelta(days=period) + timedelta(minutes=interval_minutes)
         analysis_df = df.loc[first:last]
 
         missing = data_diagnostics.analyse_data_gaps(
