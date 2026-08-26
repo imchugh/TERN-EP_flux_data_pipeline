@@ -54,6 +54,20 @@ class TestGetMissingRecords(unittest.TestCase):
         result = get_missing_records(df=series, reference_date=end, interval_minutes=30)
         self.assertAlmostEqual(result["pct_missing_last_1_days"], 100 / 48, places=2)
 
+    def test_boundary_just_passed_with_no_data_yet_is_not_counted_missing(self):
+        # Data is complete up to 11:30. reference_date lands exactly on the
+        # next boundary (12:00), simulating a task run moments after a
+        # boundary ticks over -- before that boundary's record has had time
+        # to sync locally. This is normal collection/sync latency, not a
+        # real gap, and must not be scored as missing.
+        last_record = datetime(2026, 8, 25, 11, 30, 0)
+        reference_date = datetime(2026, 8, 25, 12, 0, 0)
+        series = _gapless_series(end=last_record, days=31)
+        result = get_missing_records(
+            df=series, reference_date=reference_date, interval_minutes=30
+        )
+        self.assertEqual(result["pct_missing_last_1_days"], 0.0)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

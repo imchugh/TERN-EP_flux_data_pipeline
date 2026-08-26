@@ -106,7 +106,19 @@ def get_missing_records(
     # yields the true expected count for the window, not one extra phantom
     # slot -- reference_date is a live "now" moment, not itself an expected
     # timestamp, so treating it as an inclusive endpoint over-counts by one.
-    last = datetime_utils.floor_to_interval(reference_date, interval_minutes)
+    #
+    # Then back off by one more interval: the boundary that has *just*
+    # occurred as of reference_date is not necessarily late -- there is
+    # always some normal collection/sync latency between a record's
+    # timestamp and its arrival in the local file, and reference_date is a
+    # live "now" with no awareness of that latency. Scoring that freshest
+    # boundary immediately would flag it as missing on every run that
+    # happens to land shortly after a boundary, even for a perfectly
+    # healthy site. Ending the window one interval earlier gives that
+    # latency room to resolve before the boundary is judged.
+    last = datetime_utils.floor_to_interval(
+        reference_date, interval_minutes
+    ) - timedelta(minutes=interval_minutes)
     results = {}
 
     for period in analysis_periods:
