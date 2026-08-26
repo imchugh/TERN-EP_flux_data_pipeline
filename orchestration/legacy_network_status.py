@@ -27,10 +27,10 @@ import xarray as xr
 
 from infrastructure import datetime_utils, file_io, paths
 from infrastructure.parallel_executor import run_concurrent
-from services.metadata.canonical_quantity_registry import (
+from services.metadata.core.canonical_quantity_registry import (
     build_canonical_quantity_registry,
 )
-from services.metadata.site_registry import SiteRegistry
+from services.metadata.tern.site_registry import SiteRegistry
 from services.network.nc_monitor import NETCDF_LOCK, get_latest_nc_file
 
 logger = logging.getLogger(__name__)

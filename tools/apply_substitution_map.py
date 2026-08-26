@@ -20,7 +20,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from infrastructure import file_io
-from services.metadata.site_registry import SITE_CONFIG_DIR
+from services.metadata.tern.site_registry import SITE_CONFIG_DIR
 
 MAP_PATH = (
     Path(__file__).resolve().parent.parent / "configs" / "instrument_substitutions.yml"

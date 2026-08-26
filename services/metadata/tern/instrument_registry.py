@@ -5,7 +5,7 @@ import functools
 import logging
 
 from services import config_loader
-from services.metadata.site_metadata_repository import get_instrument_vocab
+from services.metadata.tern.site_metadata_repository import get_instrument_vocab
 
 logger = logging.getLogger(__name__)
 

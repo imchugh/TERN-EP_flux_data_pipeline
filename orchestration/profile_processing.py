@@ -10,7 +10,7 @@ import xarray as xr
 
 from infrastructure import file_io, paths
 from services.data import profile_loader, profile_storage
-from services.metadata.canonical_quantity_registry import (
+from services.metadata.core.canonical_quantity_registry import (
     build_canonical_quantity_registry,
 )
 

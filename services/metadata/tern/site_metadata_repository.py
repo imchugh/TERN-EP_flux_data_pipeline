@@ -3,7 +3,7 @@
 from infrastructure import external_io, file_io, paths
 from infrastructure.datetime_utils import get_timezone, get_UTC_offset
 from services import config_loader
-from services.metadata import rdf_label_resolver
+from services.metadata.tern import rdf_label_resolver
 
 ALIAS_DICT = {
     "Aqueduct Snow Gum": "SnowGum",

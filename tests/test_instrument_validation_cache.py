@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
 
-from services.metadata import instrument_validation_cache as cache_mod
+from services.metadata.tern import instrument_validation_cache as cache_mod
 
 
 class CacheTestCase(unittest.TestCase):

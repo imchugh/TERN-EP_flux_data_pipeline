@@ -18,11 +18,11 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from services.metadata.instrument_registry import (
+from services.metadata.tern.instrument_registry import (
     is_valid_instrument,
     suggest_instruments,
 )
-from services.metadata.site_registry import SITE_CONFIG_DIR
+from services.metadata.tern.site_registry import SITE_CONFIG_DIR
 from tools.audit_instrument_names import _collect_all_instruments
 
 OUTPUT_PATH = (

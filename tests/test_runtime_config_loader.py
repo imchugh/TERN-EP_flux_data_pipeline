@@ -6,8 +6,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from services.metadata import instrument_validation_cache as cache_mod
-from services.metadata.runtime_config_loader import load_runtime_config
+from services.metadata.tern import instrument_validation_cache as cache_mod
+from services.metadata.tern.runtime_config_loader import load_runtime_config
 
 VALID_YAML = """\
 site: TestSite
@@ -47,11 +47,11 @@ class RuntimeConfigLoaderCacheTestCase(unittest.TestCase):
         self.config_path.write_text(VALID_YAML)
 
         is_valid_patch = patch(
-            "services.metadata.instrument_registry.is_valid_instrument",
+            "services.metadata.tern.instrument_registry.is_valid_instrument",
             Mock(return_value=True),
         )
         get_uri_patch = patch(
-            "services.metadata.instrument_registry.get_instrument_uri",
+            "services.metadata.tern.instrument_registry.get_instrument_uri",
             Mock(return_value="urn:example:hmp155a"),
         )
         self.mock_is_valid = is_valid_patch.start()

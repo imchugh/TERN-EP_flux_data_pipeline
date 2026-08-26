@@ -24,7 +24,7 @@ from infrastructure import data_diagnostics, datetime_utils, file_io, paths
 from infrastructure.parallel_executor import run_concurrent
 from infrastructure.safe_ops import safe_component
 from services.data import raw_data_loader, toa5_writer
-from services.metadata.site_registry import SiteContext, SiteRegistry
+from services.metadata.tern.site_registry import SiteContext, SiteRegistry
 
 logger = logging.getLogger(__name__)
 

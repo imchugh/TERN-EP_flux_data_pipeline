@@ -61,7 +61,7 @@ from services.data.data_monitor import (
     analyse_threshold_quality,
     analyse_variable_quality,
 )
-from services.metadata.site_registry import SiteRegistry
+from services.metadata.tern.site_registry import SiteRegistry
 from services.network.connectivity import (
     connectivity_sites,
     persist_connectivity_state,

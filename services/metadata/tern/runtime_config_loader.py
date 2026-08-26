@@ -2,7 +2,7 @@
 """TERN-adapter orchestration for loading a site's SiteRuntimeConfig.
 
 Responsibilities (TERN-specific only — generic assembly lives in
-services.metadata.runtime_config_builder):
+services.metadata.core.runtime_config_builder):
     - instrument name validation against the TERN instrument registry
       (via instrument_registry)
     - instrument URI resolution against the TERN RDF vocab
@@ -20,15 +20,15 @@ raw-data path resolution threaded through as enrichment.
 from pathlib import Path
 
 from infrastructure import paths
-from services.metadata import instrument_validation_cache
-from services.metadata.runtime_config_builder import (
+from services.metadata.core.runtime_config_builder import (
     SiteRuntimeConfig,
     build_runtime_config,
 )
-from services.metadata.site_config_schema import (
+from services.metadata.core.site_config_schema import (
     SiteConfig,
     validate_L1_config_structure,
 )
+from services.metadata.tern import instrument_validation_cache
 
 
 def _validate_instrument_names(
@@ -64,7 +64,7 @@ def _validate_instrument_names(
 
     # Deferred to avoid circular import:
     # instrument_registry → site_metadata_repository → site_registry → here
-    from services.metadata import instrument_registry
+    from services.metadata.tern import instrument_registry
 
     errors = []
     instrument_uris: dict[str, str | None] = {}

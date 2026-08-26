@@ -18,7 +18,7 @@ import tasks.transfer_tasks  # noqa: F401
 from infrastructure import paths
 from infrastructure.paths import CONFIG_PATH
 from services import config_loader
-from services.metadata.site_registry import SiteRegistry
+from services.metadata.tern.site_registry import SiteRegistry
 from tasks.logger_config import configure_logger_json
 from tasks.registry import GLOBAL_TASKS, SITE_TASKS
 

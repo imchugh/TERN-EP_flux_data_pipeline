@@ -8,7 +8,7 @@ from pathlib import Path
 from infrastructure import paths
 from infrastructure import tob_codec as tob
 from services.data.toa5_writer import write_toa5
-from services.metadata.site_registry import SiteRegistry
+from services.metadata.tern.site_registry import SiteRegistry
 
 logger = logging.getLogger(__name__)
 

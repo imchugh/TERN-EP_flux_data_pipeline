@@ -11,7 +11,7 @@ from domain.enums import StatisticType, VariableType
 from infrastructure import data_diagnostics, datetime_utils, paths
 from orchestration.dataframe_builder import build_dataframe_from_context
 from services.data import raw_data_loader
-from services.metadata.site_registry import SiteContext
+from services.metadata.tern.site_registry import SiteContext
 
 logger = logging.getLogger(__name__)
 

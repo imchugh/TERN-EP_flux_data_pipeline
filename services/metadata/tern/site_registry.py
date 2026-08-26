@@ -15,8 +15,8 @@ from pathlib import Path
 from domain.data_models.metadata_classes import SiteMetadata
 from infrastructure import paths
 from services import config_loader
-from services.metadata.runtime_config_builder import SiteRuntimeConfig
-from services.metadata.runtime_config_loader import load_runtime_config
+from services.metadata.core.runtime_config_builder import SiteRuntimeConfig
+from services.metadata.tern.runtime_config_loader import load_runtime_config
 
 
 class InvalidSiteError(KeyError):
@@ -184,7 +184,7 @@ def rdf_loader() -> dict[str, SiteMetadata]:
     ``metadata_loader`` when constructing a SiteRegistry if live RDF
     data is preferred over the local YML snapshot.
     """
-    from services.metadata.site_metadata_repository import (
+    from services.metadata.tern.site_metadata_repository import (
         get_flux_tower_fields_from_rdf,
     )
 

@@ -13,18 +13,18 @@ from domain.enums import FileType, FluxSystemType, StatisticType, VariableType
 from infrastructure import file_io, paths
 from infrastructure.file_io import read_yml
 from services import config_loader
-from services.metadata.canonical_quantity_registry import (
+from services.metadata.core.canonical_quantity_registry import (
     build_canonical_quantity_registry,
 )
-from services.metadata.file_group_builder import get_variables_from_file
-from services.metadata.instrument_registry import (
+from services.metadata.core.file_group_builder import get_variables_from_file
+from services.metadata.core.site_config_schema import validate_all
+from services.metadata.core.variable_name_parser import NameParser
+from services.metadata.tern.instrument_registry import (
     get_quantity_components,
     is_compound_quantity,
     list_instruments,
     list_instruments_for_quantity,
 )
-from services.metadata.site_config_schema import validate_all
-from services.metadata.variable_name_parser import NameParser
 from ui.components.component_config import (
     create_file_formats_editor,
     create_input_variable_table,

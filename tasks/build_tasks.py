@@ -101,7 +101,7 @@ def update_EddyPro_master(site: str) -> dict:
     """Append new SmartFlux daily EddyPro summary files to the site's master file."""
     from domain.enums import FluxSystemType
     from services.data import eddypro_concatenator as epc
-    from services.metadata.site_registry import SiteRegistry
+    from services.metadata.tern.site_registry import SiteRegistry
 
     runtime_cfg = SiteRegistry().get_runtime_config(site)
     if runtime_cfg.flux_system != FluxSystemType.SMARTFLUX:
