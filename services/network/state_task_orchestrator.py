@@ -67,7 +67,13 @@ from services.network.connectivity import (
     persist_connectivity_state,
     run_site_connectivity,
 )
-from services.network.logger_monitor import check_logger_status
+
+# Status is read from each site's locally mirrored status file rather than
+# hit over the network — some sites block the HTTP API this module's
+# check_logger_status hits, but all sites can deliver a status file.
+# logger_monitor.py (API-based) is sidelined, not removed: kept for
+# reference/fallback if file delivery ever breaks for a site.
+from services.network.logger_monitor_by_file import check_logger_status
 from services.network.nc_monitor import check_nc_last_record
 
 logger = logging.getLogger(__name__)
@@ -161,7 +167,7 @@ def logger_status_task(site: str) -> dict[str, Any]:
     """Adapter: check_logger_status -> site-name interface.
 
     Args:
-        site: Site name as registered in the VPN IP config.
+        site: Site name as registered in the pipeline site registry.
 
     Returns:
         Logger status result dict for the site.
@@ -271,7 +277,6 @@ STATE_TASK_SPECS: list[dict[str, Any]] = [
     dict(
         task=logger_status_task,
         task_name="logger_status",
-        sites=_CONNECTIVITY_SITES,
     ),
     dict(
         task=make_connectivity_task("gateway"),
