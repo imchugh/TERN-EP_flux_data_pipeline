@@ -31,7 +31,7 @@ from services.metadata.canonical_quantity_registry import (
     build_canonical_quantity_registry,
 )
 from services.metadata.site_registry import SiteRegistry
-from services.network.nc_monitor import get_latest_nc_file
+from services.network.nc_monitor import NETCDF_LOCK, get_latest_nc_file
 
 logger = logging.getLogger(__name__)
 
@@ -182,14 +182,18 @@ def _get_site_status(site: str) -> dict:
     Staleness/validity stats for the fixed subset of monitored variables.
     """
     file_path = get_latest_nc_file(site=site)
-    ds = _open_dataset_with_retry(file_path)
 
-    with ds:
-        tz_name = ds.attrs["time_zone"]
-        # squeeze drops the singleton latitude/longitude dims build_L1_nc
-        # attaches, so to_dataframe() indexes by time alone rather than a
-        # (time, latitude, longitude) MultiIndex.
-        df = ds[SUBSET].squeeze().to_dataframe()
+    # NETCDF_LOCK: see services.network.nc_monitor — libnetcdf's open-file
+    # registry is process-global and not thread-safe in this build, so all
+    # netCDF4 file access across the process must serialise on one lock.
+    with NETCDF_LOCK:
+        ds = _open_dataset_with_retry(file_path)
+        with ds:
+            tz_name = ds.attrs["time_zone"]
+            # squeeze drops the singleton latitude/longitude dims build_L1_nc
+            # attaches, so to_dataframe() indexes by time alone rather than a
+            # (time, latitude, longitude) MultiIndex.
+            df = ds[SUBSET].squeeze().to_dataframe()
 
     # NetCDF time values follow the local-time convention (naive timestamps),
     # matching services.network.nc_monitor / services.data.data_monitor.

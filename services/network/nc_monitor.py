@@ -3,6 +3,7 @@
 
 import logging
 import pathlib
+import threading
 import time
 from typing import Any
 
@@ -12,6 +13,20 @@ import xarray as xr
 from infrastructure import datetime_utils, paths
 
 logger = logging.getLogger(__name__)
+
+# netCDF4-python wraps the C libnetcdf/HDF5 libraries, which are not
+# thread-safe in the default (non-thread-safe-HDF5) Anaconda build used here.
+# state_task_orchestrator runs check_nc_last_record concurrently across sites
+# via a thread pool; without this lock, concurrent nc_open calls race on
+# libnetcdf's global open-file registry and have crashed the process with a
+# C-level assertion failure in nc4_nc4f_list_add (a hard abort, not a Python
+# exception). Serialising all netCDF4 file access to one thread at a time
+# avoids the race. Public (not module-private) because the C library's
+# open-file registry is process-global, not module-scoped: any other module
+# that opens netCDF4 files from a thread pool in the same process (e.g.
+# orchestration/legacy_network_status.py) must serialise against this same
+# lock, not just its own, or the two can still race against each other.
+NETCDF_LOCK = threading.Lock()
 
 NC_SUFFIX = "_L1.nc"
 # Files modified more recently than this are considered mid-write and skipped.
@@ -142,7 +157,7 @@ def check_nc_last_record(site: str) -> dict[str, Any]:
             extra={"site": site, "file": str(file_path)},
         )
 
-        with _open_dataset_with_retry(file_path) as ds:
+        with NETCDF_LOCK, _open_dataset_with_retry(file_path) as ds:
             tz_name: str = ds.attrs["time_zone"]
             # Timestamps are stored as naive local time; convert via pandas
             # Timestamp to match the convention used by data_monitor.py.
