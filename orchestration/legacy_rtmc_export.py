@@ -15,9 +15,12 @@ import pathlib
 
 import xarray as xr
 
+from orchestration import qc_pipeline
 from services import config_loader
 from services.data import toa5_writer
 from services.data.transform_service import get_calculation
+from services.metadata import qc_config_schema
+from services.metadata.core.variable_name_parser import NameParser
 
 logger = logging.getLogger(__name__)
 
@@ -87,11 +90,11 @@ def build_legacy_toa5(
     logger.info("Dropping extraneous variables...")
     ds = _drop_extraneous_variables(ds, site_name=site_name)
 
+    logger.info("Applying default range limits...")
+    ds = _apply_default_range_limits(ds, site_name=site_name)
+
     logger.info("Renaming variables to legacy convention...")
     ds = _rename_variables(ds)
-
-    logger.info("Applying valid_range limits...")
-    ds = _apply_valid_range(ds)
 
     logger.info("Adding derived variables...")
     ds = _add_missing_variables(ds)
@@ -308,15 +311,34 @@ def _convert_soil_var_name(variable: str) -> str:
     return "_".join([quantity, f"{depth_cm}cm{replicate}"] + other)
 
 
-def _apply_valid_range(ds: xr.Dataset) -> xr.Dataset:
-    """Mask values outside each variable's valid_range attr (where present)."""
-    for var in ds.variables:
-        if var in ds.dims or var == "crs":
+def _apply_default_range_limits(ds: xr.Dataset, site_name: str) -> xr.Dataset:
+    """Mask values outside each variable's effective range_check bound.
+
+    Effective bound: the site's own configs/qc/{site}.yml range_check if
+    configured there, else the shared default from _range_defaults.yml (see
+    qc_pipeline.lookup_default_range). Must run on canonical variable names
+    (i.e. before _rename_variables) since the default lookup parses
+    quantity/qualifier from the name itself.
+    """
+    qc_config = qc_config_schema.load_qc_config(site_name)
+    range_defaults = qc_config_schema.load_range_defaults()
+    name_parser = NameParser()
+
+    for var in ds.data_vars:
+        if var == "crs":
             continue
-        valid_range = ds[var].attrs.get("valid_range")
-        if valid_range is None:
+
+        spec = qc_config.variables.get(var)
+        if spec is not None and spec.range_check is not None:
+            bounds = (spec.range_check.lower, spec.range_check.upper)
+        else:
+            bounds = qc_pipeline.lookup_default_range(
+                ds, var, range_defaults, name_parser
+            )
+        if bounds is None:
             continue
-        vmin, vmax = valid_range
+
+        vmin, vmax = bounds
         ds[var] = ds[var].where((ds[var] >= vmin) & (ds[var] <= vmax))
 
     return ds
