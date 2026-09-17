@@ -20,19 +20,19 @@
 #     numbers would flag nearly every record. Left unconfigured, so the
 #     generic default ([0, 1000], from data_monitor.THRESHOLD_SPECS)
 #     applies.
-#   - CO2_IRGA_Av, CO2_IRGA_Sd: PyFluxPro's names imply CO2 mole fraction
-#     (umol/mol), but Calperum's actual canonical variable for this
-#     instrument channel is CO2c_IRGA_Av/Sd -- CO2 *mass concentration*
-#     (mg/m^3), a different quantity with a site/air-density-dependent
-#     conversion, not a fixed unit multiplier. Copying PyFluxPro's
-#     mole-fraction-scaled bounds (500-2000) onto the mass-concentration
-#     variable would be wrong. Left out entirely rather than guess a
-#     conversion -- add CO2c_IRGA_Av/Sd bounds here once real values are
-#     worked out, if wanted.
-#
 # RENAMED (PyFluxPro's daily/near-real-time naming vs this pipeline's
 # canonical names for the same quantity):
 #   - Fco2_DL -> Fco2, Fe_DL -> Fe, Fh_DL -> Fh
+#
+# CO2_IRGA_Av/Sd -> CO2c_IRGA_Av/Sd (resolved via real-PyFluxPro-output
+# benchmarking, 2026-09): PyFluxPro's "CO2_IRGA_Av" name implies mole
+# fraction, but its actual output values (~700-920) are CO2 mass
+# concentration, matching this pipeline's CO2c_IRGA_Av almost exactly --
+# _range_defaults.yml's CO2c entry now carries these numbers directly
+# (500,2000 / 0,50 / 0,2500), so CO2c_IRGA_Av needs no override here (it
+# already matches the default). Only CO2c_IRGA_Sd is a genuine delta --
+# Calperum's own (0,25) is tighter than the generic CO2c.Sd default (0,50),
+# and covers 95.4% of real CO2c_IRGA_Sd values here.
 
 AH_2m:                          # default (0,35) -- unqualified probe, tighter here
   range_check: {lower: 0, upper: 30}
@@ -47,6 +47,9 @@ Fe:                             # PyFluxPro: Fe_DL; default (-200,1000)
   range_check: {lower: -100, upper: 600}
 Fh:                             # PyFluxPro: Fh_DL; default (-200,1000)
   range_check: {lower: -100, upper: 600}
+
+CO2c_IRGA_Sd:                   # default (0,50); PyFluxPro: CO2_IRGA_Sd
+  range_check: {lower: 0, upper: 25}
 
 Fld:                            # default (250,700)
   range_check: {lower: 200, upper: 700}
