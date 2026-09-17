@@ -251,7 +251,7 @@ class TestBuildMatrix(unittest.TestCase):
                 ("Litchfield", "push_slow_flux"): False,
             }
 
-            matrix, skipped = build_matrix(log_dir, sites, tasks, enabled, days=7)
+            matrix, skipped = build_matrix(log_dir, sites, tasks, enabled, days=7, now=NOW)
 
             self.assertEqual(matrix["Boyagin"]["construct_L1_nc"]["state"], STATE_FAILURE)
             self.assertEqual(matrix["Boyagin"]["push_slow_flux"]["state"], STATE_NO_DATA)
@@ -304,7 +304,7 @@ class TestBuildMatrix(unittest.TestCase):
                 ("Litchfield", "construct_L1_nc"): True,
             }
 
-            matrix, _ = build_matrix(log_dir, sites, tasks, enabled, days=7)
+            matrix, _ = build_matrix(log_dir, sites, tasks, enabled, days=7, now=NOW)
 
             self.assertEqual(
                 matrix["Boyagin"]["construct_L1_nc"]["traceback"],

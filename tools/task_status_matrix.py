@@ -151,9 +151,15 @@ def build_matrix(
     tasks: list[str],
     enabled: dict[tuple[str, str], bool],
     days: int,
+    now: datetime | None = None,
 ) -> tuple[dict[str, dict[str, dict]], int]:
-    """Build {site: {task: cell}} for every site/task pair, plus skipped-line count."""
-    cutoff = datetime.now(UTC) - timedelta(days=days)
+    """Build {site: {task: cell}} for every site/task pair, plus skipped-line count.
+
+    now: reference time for the `days` lookback window. Defaults to the
+    real current time; tests pass a fixed value so fixtures don't go stale
+    as wall-clock time moves past them.
+    """
+    cutoff = (now or datetime.now(UTC)) - timedelta(days=days)
     matrix: dict[str, dict[str, dict]] = {site: {} for site in sites}
     total_skipped = 0
 
