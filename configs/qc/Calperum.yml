@@ -1,11 +1,15 @@
-# L2 QC config for Calperum.
+# L2 QC config for Calperum -- deltas from configs/qc/_range_defaults.yml
+# only. A variable with no entry here still gets range-checked: apply_qc's
+# default-fallback resolves quantity(+qualifier)/statistic from the L1
+# variable itself and looks the bound up in _range_defaults.yml. Only
+# variables whose PyFluxPro-sourced bound genuinely differs from that
+# default are listed below -- confirmed by diffing every variable in the
+# original port against the default lookup (same algorithm apply_qc uses),
+# not by eye.
 #
 # Source: /opt/TERN_EP/site_configs/templates/L2_autogen.txt (PyFluxPro
 # control file for this site's daily near-real-time L2 pass). Every entry
-# there is a plain RangeCheck -- no ExcludeDates/Hours, DependencyCheck, or
-# MADFilter -- so this file is range_check only. Cross-checked variable
-# names against site_configs/operational/Calperum.yml's actual canonical
-# names before porting; see exceptions below.
+# there is a plain RangeCheck.
 #
 # NOT PORTED, deliberately:
 #   - Diag_IRGA, Diag_SONIC: PyFluxPro's file gives its usual averaged-code
@@ -13,9 +17,9 @@
 #     Diag_SONIC are raw per-period counts of flagged scans (0-18000 at
 #     10 Hz/30 min), a different quantity entirely -- see
 #     configs/qc/_range_defaults.yml's own note on this. Porting these
-#     numbers would flag nearly every record. Left unconfigured here, so
-#     the generic default ([0, 1000], from data_monitor.THRESHOLD_SPECS)
-#     applies once the default-range-check precedence logic exists.
+#     numbers would flag nearly every record. Left unconfigured, so the
+#     generic default ([0, 1000], from data_monitor.THRESHOLD_SPECS)
+#     applies.
 #   - CO2_IRGA_Av, CO2_IRGA_Sd: PyFluxPro's names imply CO2 mole fraction
 #     (umol/mol), but Calperum's actual canonical variable for this
 #     instrument channel is CO2c_IRGA_Av/Sd -- CO2 *mass concentration*
@@ -30,179 +34,36 @@
 # canonical names for the same quantity):
 #   - Fco2_DL -> Fco2, Fe_DL -> Fe, Fh_DL -> Fh
 
-AH_2m:
+AH_2m:                          # default (0,35) -- unqualified probe, tighter here
   range_check: {lower: 0, upper: 30}
-AH_IRGA_Av:
+AH_IRGA_Av:                     # default (0,35)
   range_check: {lower: 0, upper: 30}
-AH_IRGA_Sd:
+AH_IRGA_Sd:                     # default (0,10)
   range_check: {lower: 0, upper: 2}
 
-Fco2:                          # PyFluxPro: Fco2_DL
+Fco2:                           # PyFluxPro: Fco2_DL; default (-50,30)
   range_check: {lower: -50, upper: 50}
-Fe:                            # PyFluxPro: Fe_DL
+Fe:                             # PyFluxPro: Fe_DL; default (-200,1000)
   range_check: {lower: -100, upper: 600}
-Fh:                            # PyFluxPro: Fh_DL
+Fh:                             # PyFluxPro: Fh_DL; default (-200,1000)
   range_check: {lower: -100, upper: 600}
 
-Fg_0.08ma:
-  range_check: {lower: -100, upper: 150}
-Fg_0.08mb:
-  range_check: {lower: -100, upper: 150}
-Fg_0.08mc:
-  range_check: {lower: -100, upper: 150}
-
-Fld:
+Fld:                            # default (250,700)
   range_check: {lower: 200, upper: 700}
-Flu:
+Flu:                            # default (300,700)
   range_check: {lower: 200, upper: 700}
-Fsd:
-  range_check: {lower: -10, upper: 1500}
-Fsd_b:
-  range_check: {lower: -10, upper: 1500}
-Fsu:
-  range_check: {lower: -10, upper: 500}
 
-Precip:
-  range_check: {lower: 0, upper: 50}
-RH_2m:
-  range_check: {lower: 0, upper: 110}
-Sig_IRGA:
+Sig_IRGA:                       # default (0,102.5) -- site wants signal >= 80
   range_check: {lower: 80, upper: 101}
 
-Sws_0.1ma:
-  range_check: {lower: 0.001, upper: 0.5}
-Sws_0.1mb:
-  range_check: {lower: 0.001, upper: 0.5}
-Sws_0.1mc:
-  range_check: {lower: 0.001, upper: 0.5}
-Sws_0.25ma:
-  range_check: {lower: 0.001, upper: 0.5}
-Sws_0.25mb:
-  range_check: {lower: 0.001, upper: 0.5}
-Sws_0.25mc:
-  range_check: {lower: 0.001, upper: 0.5}
-Sws_0.5ma:
-  range_check: {lower: 0.001, upper: 0.5}
-Sws_0.5mb:
-  range_check: {lower: 0.001, upper: 0.5}
-Sws_0.5mc:
-  range_check: {lower: 0.001, upper: 0.5}
-Sws_1.8ma:
-  range_check: {lower: 0.001, upper: 0.5}
-Sws_1.8mb:
-  range_check: {lower: 0.001, upper: 0.5}
-Sws_1.8mc:
-  range_check: {lower: 0.001, upper: 0.5}
-Sws_1ma:
-  range_check: {lower: 0.001, upper: 0.5}
-Sws_1mb:
-  range_check: {lower: 0.001, upper: 0.5}
-Sws_1mc:
-  range_check: {lower: 0.001, upper: 0.5}
-
-Ta_2m:
-  range_check: {lower: -10, upper: 50}
-Tpanel:
-  range_check: {lower: -20, upper: 60}
-
-Ts_0.08ma:
-  range_check: {lower: 0, upper: 60}
-Ts_0.08mb:
-  range_check: {lower: 0, upper: 60}
-Ts_0.08mc:
-  range_check: {lower: 0, upper: 60}
-Ts_0.1ma:
-  range_check: {lower: 0, upper: 60}
-Ts_0.1mb:
-  range_check: {lower: 0, upper: 60}
-Ts_0.1mc:
-  range_check: {lower: 0, upper: 60}
-Ts_0.25ma:
-  range_check: {lower: 0, upper: 60}
-Ts_0.25mb:
-  range_check: {lower: 0, upper: 60}
-Ts_0.25mc:
-  range_check: {lower: 0, upper: 60}
-Ts_0.5ma:
-  range_check: {lower: 0, upper: 60}
-Ts_0.5mb:
-  range_check: {lower: 0, upper: 60}
-Ts_0.5mc:
-  range_check: {lower: 0, upper: 60}
-Ts_1.8ma:
-  range_check: {lower: 0, upper: 60}
-Ts_1.8mb:
-  range_check: {lower: 0, upper: 60}
-Ts_1.8mc:
-  range_check: {lower: 0, upper: 60}
-Ts_1ma:
-  range_check: {lower: 0, upper: 60}
-Ts_1mb:
-  range_check: {lower: 0, upper: 60}
-Ts_1mc:
-  range_check: {lower: 0, upper: 60}
-
-Tv_SONIC_Av:
-  range_check: {lower: -10, upper: 50}
-Tv_SONIC_Sd:
+Tv_SONIC_Sd:                    # default (0,2.236) -- site's own Sd, not derived from Vr
   range_check: {lower: 0, upper: 3}
-
-UxA:
-  range_check: {lower: -1, upper: 1}
-UxC:
-  range_check: {lower: -4, upper: 4}
-UxT:
-  range_check: {lower: -2, upper: 2}
-UxUy:
-  range_check: {lower: -1, upper: 1}
-UxUz:
-  range_check: {lower: -10, upper: 10}
-Ux_SONIC_Av:
-  range_check: {lower: -20, upper: 20}
-Ux_SONIC_Sd:
+Ux_SONIC_Sd:                    # default (0,3.162)
   range_check: {lower: 0, upper: 3}
-
-UyA:
-  range_check: {lower: -1, upper: 1}
-UyC:
-  range_check: {lower: -4, upper: 4}
-UyT:
-  range_check: {lower: -2, upper: 2}
-UyUz:
-  range_check: {lower: -10, upper: 10}
-Uy_SONIC_Av:
-  range_check: {lower: -20, upper: 20}
-Uy_SONIC_Sd:
+Uy_SONIC_Sd:                    # default (0,3.162)
   range_check: {lower: 0, upper: 3}
-
-UzA:
-  range_check: {lower: -0.01, upper: 0.5}
-UzC:
-  range_check: {lower: -2, upper: 2}
-UzT:
-  range_check: {lower: -0.2, upper: 1}
-Uz_SONIC_Av:
-  range_check: {lower: -1, upper: 1}
-Uz_SONIC_Sd:
+Uz_SONIC_Sd:                    # default (0,1.414)
   range_check: {lower: 0, upper: 1.5}
 
-Vbat:
-  range_check: {lower: 0, upper: 15}
-Vbat_b:
-  range_check: {lower: 0, upper: 15}
-
-Wd_2m_Av:
-  range_check: {lower: 0, upper: 360}
-Wd_8m_Av:
-  range_check: {lower: 0, upper: 360}
-Wd_SONIC_Av:
-  range_check: {lower: 0, upper: 360}
-Ws_2m_Av:
-  range_check: {lower: 0, upper: 20}
-Ws_8m_Av:
-  range_check: {lower: 0, upper: 20}
-Ws_SONIC_Av:
-  range_check: {lower: 0, upper: 20}
-
-ps:
+ps:                             # default (95,105) -- site elevation/pressure differs
   range_check: {lower: 90.55, upper: 110.55}
