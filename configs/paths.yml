@@ -9,6 +9,8 @@ configs:
       local: site_configs/operational
     site_config_files_legacy:
       local: site_configs/legacy
+    site_config_files_L2:
+      local: site_configs/operational/L2
     instrument_validation_cache:
       local: site_configs/instrument_validation_cache.json
     secrets:

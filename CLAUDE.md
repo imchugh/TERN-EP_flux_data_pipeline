@@ -111,7 +111,11 @@ Within the four architectural layers above, modules further sort into three grou
 - `configs/site_metadata.yml` — TERN site metadata (location, commissioning, tower height)
 - `configs/canonical_quantities.yml` — master quantity registry
 - `configs/nc_metadata.yml` — NetCDF global attributes template
-- `configs/sites/{SiteName}.yml` — per-site variable specs, file mappings, instrument metadata
+- `/opt/TERN_EP/site_configs/operational/{SiteName}.yml` — **L1** per-site variable specs, file mappings, instrument metadata. Lives outside the repo in TERN's externally-managed tree (resolved via `configs/paths.yml`); `legacy/` holds earlier-generation snapshots, `templates/` holds PyFluxPro reference control files. (The older `configs/sites/` path no longer exists.)
+- `/opt/TERN_EP/site_configs/operational/L2/{SiteName}.yml` — **L2** per-site QC overrides (`range_check`/`exclude_dates`/`dependency_check`/`mad_filter`), the `site_config_files_L2` stream in `paths.yml`. Kept beside the L1 site configs, outside the repo, so site-specific configs stay separate from code. Only genuine deltas from the defaults belong here.
+- `configs/qc/_range_defaults.yml` — shared L2 default range bounds per quantity (keyed by quantity, then statistic; `Diag` by qualifier), applied to any variable with no explicit per-site entry. In-repo because it is site-independent and changes with the code. `configs/qc/_template.yml` documents every check type.
+
+L1 and L2 configs deliberately live in separate folders rather than one folder distinguished by `_L1`/`_L2` suffixes: `SiteRegistry.names()` and `ui/app.py` derive site names from `SITE_CONFIG_DIR.glob("*.yml")`, so an L2 file directly in the L1 folder would register as a bogus site and be parsed against the L1 schema. `L2/` is a subfolder, and the glob is non-recursive, so it is never picked up. Revisit naming when the generic core is split out and config locations become caller-supplied arguments.
 
 ### Site config: `instrument` field notation
 
