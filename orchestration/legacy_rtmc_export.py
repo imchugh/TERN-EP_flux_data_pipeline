@@ -15,7 +15,6 @@ import pathlib
 
 import xarray as xr
 
-from orchestration import qc_pipeline
 from services import config_loader
 from services.data import toa5_writer
 from services.data.transform_service import get_calculation
@@ -316,8 +315,8 @@ def _apply_default_range_limits(ds: xr.Dataset, site_name: str) -> xr.Dataset:
 
     Effective bound: the site's own configs/qc/{site}.yml range_check if
     configured there, else the shared default from _range_defaults.yml (see
-    qc_pipeline.lookup_default_range). Must run on canonical variable names
-    (i.e. before _rename_variables) since the default lookup parses
+    qc_config_schema.lookup_default_range). Must run on canonical variable
+    names (i.e. before _rename_variables) since the default lookup parses
     quantity/qualifier from the name itself.
     """
     qc_config = qc_config_schema.load_qc_config(site_name)
@@ -332,7 +331,7 @@ def _apply_default_range_limits(ds: xr.Dataset, site_name: str) -> xr.Dataset:
         if spec is not None and spec.range_check is not None:
             bounds = (spec.range_check.lower, spec.range_check.upper)
         else:
-            bounds = qc_pipeline.lookup_default_range(
+            bounds = qc_config_schema.lookup_default_range(
                 ds, var, range_defaults, name_parser
             )
         if bounds is None:
