@@ -57,7 +57,7 @@ def construct_toa5_from_nc(site: str) -> dict:
     nc_dir = (
         paths.get_local_stream_path(resource="homogenised_data", stream="nc") / site
     )
-    nc_files = sorted(nc_dir.glob("*.nc"))[-2:]
+    nc_files = sorted(nc_dir.glob("*_L1.nc"))[-2:]
 
     output_path = (
         paths.get_local_stream_path(resource="homogenised_data", stream="toa5")
