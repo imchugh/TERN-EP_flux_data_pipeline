@@ -42,7 +42,6 @@ irga:
   vocab_keys:
     - IRGA
   quantities:
-    - AGC
     - AH
     - CO2
     - CO2c
