@@ -3,6 +3,7 @@
 
 import logging
 from datetime import datetime, timedelta
+from functools import cache
 from typing import Any
 
 import pandas as pd
@@ -11,6 +12,8 @@ from domain.enums import StatisticType, VariableType
 from infrastructure import data_diagnostics, datetime_utils, paths
 from orchestration.dataframe_builder import build_dataframe_from_context
 from services.data import raw_data_loader
+from services.metadata import qc_config_schema
+from services.metadata.core.variable_name_parser import NameParser
 from services.metadata.tern.site_registry import SiteContext
 
 logger = logging.getLogger(__name__)
@@ -137,6 +140,12 @@ def get_missing_records(
     return results
 
 
+@cache
+def _range_defaults() -> dict:
+    """Shared plausible-value bounds (configs/qc/_range_defaults.yml), loaded once."""
+    return qc_config_schema.load_range_defaults()
+
+
 def _build_monitor_series(
     df: pd.DataFrame,
     quantity: str,
@@ -146,7 +155,7 @@ def _build_monitor_series(
 
     Walks the site variable registry to find canonical column name(s) for the
     quantity, restricts to continuous average-statistic variables, applies the
-    canonical plausible range (masking out-of-range values as NaN), then drops
+    shared default range from _range_defaults.yml (masking out-of-range values as NaN), then drops
     NaN so the resulting index contains only plausible records. Multiple columns
     for the same quantity (e.g. different heights) are merged with combine_first.
     Returns None if no matching column exists in df.
@@ -171,15 +180,17 @@ def _build_monitor_series(
         if canonical_name not in df.columns:
             continue
 
-        vmin = var_def.canonical.valid_min
-        vmax = var_def.canonical.valid_max
+        statistic_suffix = (
+            var_def.statistic_type.suffix if var_def.statistic_type else None
+        )
+        bounds = qc_config_schema.resolve_default_range(
+            canonical_name, statistic_suffix, _range_defaults(), NameParser()
+        )
 
         s = df[canonical_name].copy()
 
-        if vmin is not None:
-            s = s.where(s >= vmin)
-        if vmax is not None:
-            s = s.where(s <= vmax)
+        if bounds is not None:
+            s = s.where((s >= bounds[0]) & (s <= bounds[1]))
 
         series.append(s)
 

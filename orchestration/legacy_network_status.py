@@ -27,9 +27,8 @@ import xarray as xr
 
 from infrastructure import datetime_utils, file_io, paths
 from infrastructure.parallel_executor import run_concurrent
-from services.metadata.core.canonical_quantity_registry import (
-    build_canonical_quantity_registry,
-)
+from services.metadata import qc_config_schema
+from services.metadata.core.variable_name_parser import NameParser
 from services.metadata.tern.site_registry import SiteRegistry
 from services.network.nc_monitor import NETCDF_LOCK, get_latest_nc_file
 
@@ -202,15 +201,12 @@ def _get_site_status(site: str) -> dict:
         return_tz_aware=False,
     )
 
-    registry = build_canonical_quantity_registry()
+    range_defaults = qc_config_schema.load_range_defaults()
 
     return {
         variable: _parse_variable(
             series=df[variable],
-            valid_range=(
-                registry.get_base_metadata(variable).valid_min,
-                registry.get_base_metadata(variable).valid_max,
-            ),
+            valid_range=_plausible_range(variable, range_defaults),
             site_time=site_time,
         )
         for variable in SUBSET
@@ -226,6 +222,14 @@ def _filter_range(series, max_val, min_val):
     if isinstance(min_val, (int, float)):
         return series.where(series >= min_val, np.nan)
     return series
+
+
+def _plausible_range(variable: str, range_defaults: dict) -> tuple:
+    """(min, max) plausible-value bounds from _range_defaults.yml; (None, None) if absent."""
+    bounds = qc_config_schema.resolve_default_range(
+        variable, None, range_defaults, NameParser()
+    )
+    return bounds if bounds is not None else (None, None)
 
 
 def _parse_variable(
