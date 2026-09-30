@@ -13,8 +13,8 @@ from infrastructure import data_diagnostics, datetime_utils, paths
 from orchestration.dataframe_builder import build_dataframe_from_context
 from services.data import raw_data_loader
 from services.metadata import qc_config_schema
+from services.metadata.core.site_metadata_builder import SiteContext
 from services.metadata.core.variable_name_parser import NameParser
-from services.metadata.tern.site_registry import SiteContext
 
 logger = logging.getLogger(__name__)
 

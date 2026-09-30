@@ -18,7 +18,8 @@ from typing import Any
 import pandas as pd
 
 from infrastructure import datetime_utils, file_io, paths
-from services.metadata.tern.site_registry import SiteContext, SiteRegistry
+from services.metadata.core.site_metadata_builder import SiteContext
+from services.metadata.tern.site_registry import SiteRegistry
 from services.network.logger_monitor import STATUS_SUBSET, SUMMARY_SUBSET
 
 logger = logging.getLogger(__name__)

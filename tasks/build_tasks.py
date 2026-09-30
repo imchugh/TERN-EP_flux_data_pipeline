@@ -148,6 +148,6 @@ def parse_aux_fast_data(site: str) -> None:
 
 def _parse_fast_data(site: str, is_aux: bool) -> None:
     """Shared implementation for parse_main_fast_data/parse_aux_fast_data."""
-    import services.data.tob_file_processor as tfp
+    import services.network.tob_file_processor as tfp
 
     tfp.process_daily_tob_files(site=site, is_aux=is_aux)

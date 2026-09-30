@@ -9,13 +9,13 @@ that down to the pipeline population.
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass
 from pathlib import Path
 
 from domain.data_models.metadata_classes import SiteMetadata
 from infrastructure import paths
 from services import config_loader
 from services.metadata.core.runtime_config_builder import SiteRuntimeConfig
+from services.metadata.core.site_metadata_builder import SiteContext
 from services.metadata.tern.runtime_config_loader import load_runtime_config
 
 
@@ -39,14 +39,6 @@ LEGACY_SITE_CONFIG_DIR = paths.get_local_stream_path(
 # WombatStateForest keeps its legacy directory name until the directory is
 # renamed; remove this entry once that migration is done.
 SITE_ALIASES = {"WombatStateForest": "WombatForest"}
-
-
-@dataclass(frozen=True)
-class SiteContext:
-    """Combined runtime objects for a configured pipeline site."""
-
-    runtime_config: SiteRuntimeConfig
-    metadata: SiteMetadata
 
 
 class SiteRegistry:

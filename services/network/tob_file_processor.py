@@ -1,4 +1,13 @@
-"""Site-level TOB file processing: unpack and partition fast-flux data files."""
+"""Site-level TOB file processing: unpack and partition fast-flux data files.
+
+TERN-EP ops/data-movement (tier 3): site-name-driven, resolves a site's raw-
+data landing directory via infrastructure.paths and its metadata via
+SiteRegistry -- not portable to a non-TERN caller. Lives beside the other
+services/network/ ops modules rather than in services/data/ (generic core)
+for that reason, even though it processes the same TOB3/TOA5 file formats
+infrastructure/tob_codec.py (generic) and services/data/toa5_writer.py
+(generic) handle.
+"""
 
 import datetime as dt
 import hashlib
