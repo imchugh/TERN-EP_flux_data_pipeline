@@ -9,6 +9,7 @@ Public API
 build_dataframe_from_site_name(site_name, quantities, start_date) -> pd.DataFrame
 build_dataset_from_site_name(site_name, pad_humidity, pad_co2, start_date, legacy)
     -> xr.Dataset
+get_runtime_config(site_name, legacy) -> SiteRuntimeConfig
 """
 
 import pandas as pd
@@ -16,6 +17,7 @@ import xarray as xr
 
 from orchestration.dataframe_builder import build_dataframe_from_context
 from orchestration.dataset_builder import build_dataset_from_context
+from services.metadata.core.runtime_config_builder import SiteRuntimeConfig
 from services.metadata.tern.site_registry import SiteRegistry
 
 SITE_REGISTRY = SiteRegistry()
@@ -53,3 +55,8 @@ def build_dataset_from_site_name(
     return build_dataset_from_context(
         ctx=ctx, pad_humidity=pad_humidity, pad_co2=pad_co2, start_date=start_date
     )
+
+
+def get_runtime_config(site_name: str, legacy: bool = False) -> SiteRuntimeConfig:
+    """Resolve a site name to its assembled SiteRuntimeConfig via registry."""
+    return SITE_REGISTRY.get_context(site=site_name, legacy=legacy).runtime_config
