@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Subprocess wrapper around the rclone CLI for local/remote file transfer."""
 
+import json
 import logging
 import subprocess as spc
 from collections.abc import Iterable
 from pathlib import Path
 
 APP_PATH = "rclone"
-COPY_ARGS = ("copy", "--transfers", "10", "--checksum", "--timeout", "0")
+COPY_ARGS = ("--transfers", "10", "--checksum", "--timeout", "0")
 logger = logging.getLogger(__name__)
 
 
@@ -38,9 +39,14 @@ def transfer(
 ) -> spc.CompletedProcess:
     """Execute an rclone copy operation.
 
+    `rclone copy` semantics: `dst` is always a directory. A directory `src`
+    has its contents copied into it; a file `src` is copied into it under
+    its own name. To copy a single file to a specific path/name, use
+    `transfer_file`.
+
     Args:
         src: Source path (local or remote)
-        dst: Destination path (local or remote)
+        dst: Destination directory (local or remote)
         exclude_dirs: Optional directory patterns to exclude
         set_modtime: If False, disable rclone's SFTP modtime-setting
             (adds --sftp-set-modtime=false). If True (default), leave
@@ -58,17 +64,68 @@ def transfer(
         RcloneError (subclass of subprocess.CalledProcessError)
     """
     if validate:
-        _validate_local_if_applicable(src)
+        _validate_src(src)
         _validate_remote_if_applicable(dst)
 
     run_args = _build_copy_args(
+        "copy",
         exclude_dirs=exclude_dirs,
         set_modtime=set_modtime,
         dry_run=dry_run,
     )
 
-    cmd = [APP_PATH, *run_args, str(src), str(dst)]
+    return _run_transfer([APP_PATH, *run_args, str(src), str(dst)], timeout, dry_run)
 
+
+def transfer_file(
+    src: str,
+    dst: str,
+    *,
+    set_modtime: bool = True,
+    validate: bool = True,
+    timeout: int = 600,
+    dry_run: bool = False,
+) -> spc.CompletedProcess:
+    """Copy a single file to an exact destination path via `rclone copyto`.
+
+    Unlike `transfer`, `dst` is the full destination file path (so the file
+    can be renamed on the way); missing parent directories are created.
+
+    Args:
+        src: Source file path (local or remote)
+        dst: Destination file path (local or remote)
+        set_modtime: If False, add --sftp-set-modtime=false (see `transfer`)
+        validate: Whether to check `src` exists and is a file, and that a
+            remote `dst`'s parent directory is listable, before transfer
+        timeout: Subprocess timeout in seconds
+        dry_run: If True, pass --dry-run to rclone (no files are transferred)
+
+    Returns:
+        CompletedProcess
+
+    Raises:
+        FileNotFoundError
+        IsADirectoryError: `src` is a directory (use `transfer` instead)
+        subprocess.TimeoutExpired
+        RcloneError (subclass of subprocess.CalledProcessError)
+    """
+    if validate:
+        _validate_src(src, require_file=True)
+        if _is_remote(dst):
+            check_remote_available(_remote_parent(dst))
+
+    run_args = _build_copy_args(
+        "copyto",
+        exclude_dirs=None,
+        set_modtime=set_modtime,
+        dry_run=dry_run,
+    )
+
+    return _run_transfer([APP_PATH, *run_args, str(src), str(dst)], timeout, dry_run)
+
+
+def _run_transfer(cmd: list[str], timeout: int, dry_run: bool) -> spc.CompletedProcess:
+    """Run an assembled rclone copy/copyto command with standard logging."""
     logger.info("Starting rclone transfer%s...", " (dry run)" if dry_run else "")
     result = _run_subprocess(cmd, timeout=timeout)
 
@@ -77,6 +134,26 @@ def transfer(
     logger.info("Transfer succeeded")
 
     return result
+
+
+def stat_remote(remote_path: str, timeout: int = 60) -> dict:
+    """Return rclone's `lsjson --stat` entry for a remote file or directory.
+
+    Cheap (a single-entry lookup, no directory listing) and works for both
+    files and directories. Raises FileNotFoundError if the path does not
+    exist.
+    """
+    cmd = [APP_PATH, "lsjson", "--stat", remote_path]
+    try:
+        result = _run_subprocess(cmd, timeout=timeout)
+    except RcloneError as exc:
+        # rclone exit code 3 = directory not found, 4 = file not found
+        if exc.returncode in (3, 4):
+            raise FileNotFoundError(
+                f"Remote path does not exist: {remote_path}"
+            ) from exc
+        raise
+    return json.loads(result.stdout)
 
 
 def check_remote_available(remote_path: str, timeout: int = 60) -> None:
@@ -105,16 +182,30 @@ def check_local_exists(path: str) -> None:
         raise FileNotFoundError(f"Local path does not exist: {path}")
 
 
-def _validate_local_if_applicable(path: str) -> None:
-    """Run the local-existence check only if `path` looks local."""
-    if not _is_remote(path):
+def _validate_src(path: str, require_file: bool = False) -> None:
+    """Check that a local or remote source exists (and is a file, if required)."""
+    if _is_remote(path):
+        is_dir = stat_remote(str(path))["IsDir"]
+    else:
         check_local_exists(path)
+        is_dir = Path(path).is_dir()
+    if require_file and is_dir:
+        raise IsADirectoryError(
+            f"Source is a directory, not a file: {path} (use transfer() instead)"
+        )
 
 
 def _validate_remote_if_applicable(path: str) -> None:
     """Run the remote-availability check only if `path` looks remote."""
     if _is_remote(path):
         check_remote_available(path)
+
+
+def _remote_parent(remote_path: str) -> str:
+    """Parent of a remote path, e.g. 'remote:a/b/f.dat' -> 'remote:a/b'."""
+    remote, _, rel = str(remote_path).partition(":")
+    parent = rel.rstrip("/").rpartition("/")[0]
+    return f"{remote}:{parent}"
 
 
 def _is_remote(path: str) -> bool:
@@ -126,6 +217,7 @@ def _is_remote(path: str) -> bool:
 
 
 def _build_copy_args(
+    verb: str,
     *,
     exclude_dirs: Iterable[str] | None,
     set_modtime: bool,
@@ -134,6 +226,7 @@ def _build_copy_args(
     """Assemble the list of arguments to pass to rclone via spc.
 
     Args:
+        verb: rclone subcommand ("copy" or "copyto").
         exclude_dirs: directories to exclude.
         set_modtime: if False, append --sftp-set-modtime=false.
         dry_run: append --dry-run so no files are transferred.
@@ -141,7 +234,7 @@ def _build_copy_args(
     Returns:
         Valid rclone arg list.
     """
-    args = list(COPY_ARGS)
+    args = [verb, *COPY_ARGS]
 
     if exclude_dirs:
         for d in exclude_dirs:
