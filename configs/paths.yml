@@ -49,7 +49,7 @@ processed_data:
 
 homogenised_data:
   base_path:
-    local: /store/Homogenised_data
+    local: /mnt/Homogenised_data
   stream:
     nc:
       local: NetCDF
