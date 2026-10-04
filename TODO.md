@@ -45,7 +45,7 @@ Replacing the legacy `data_constructors.details_constructor` (old repo) with
       genuine health checks via `state_task_orchestrator`, whereas this is a
       data product for RTMC, same category as `construct_toa5_from_nc`.
 - [x] Diffed the new TOA5 output against the real production file
-      (`/store/Homogenised_data/TOA5/Calperum_details.dat`). Info-line
+      (`/mnt/Homogenised_data/TOA5/Calperum_details.dat`). Info-line
       content matched exactly (same dummy placeholders, station_name = site
       name); column set had two extras (`site`, `dsa_label`) not in the
       legacy file — dropped via `TOA5_EXCLUDED_FIELDS` in
@@ -76,7 +76,7 @@ Replacing the legacy `data_constructors.details_constructor` (old repo) with
 - [ ] Once both outputs are validated, cut over from parallel-run to
       production: this pipeline currently writes to test paths
       (`/opt/TERN_EP/network/info/site_info.json`,
-      `/store/Homogenised_data/TOA5_test/<site>_details.dat`) and pushes to
+      `/mnt/Homogenised_data/TOA5/<site>_details.dat`) and pushes to
       a test remote (`flux-status-test.tern.org.au`), not the real
       production paths/remote the old cron writes to, so the two coexist
       without colliding. Cutover means switching off whatever cron trigger
