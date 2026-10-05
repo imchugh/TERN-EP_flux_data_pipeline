@@ -50,6 +50,21 @@ def rebuild_L1_zarr(site: str) -> dict:
 
 
 @register
+def rebuild_L2_zarr(site: str) -> dict:
+    """Full rebuild of the site's whole-history L2 Zarr store from its L1 store.
+
+    Applies the site's resolved QC config to the entire L1 store and
+    overwrites the L2 store. Scheduled nightly, chained after
+    rebuild_L1_zarr so it reads freshly reconciled L1 data. No incremental
+    (build_L2_zarr.update()) cadence is scheduled yet.
+    """
+    import orchestration.build_L2_zarr as build_zarr
+
+    store_path = build_zarr.build(site_name=site)
+    return {"status": "success", "store_path": str(store_path)}
+
+
+@register
 def construct_toa5_from_nc(site: str) -> dict:
     """Rebuild the legacy-format merged TOA5 file from L1 NetCDF output."""
     import orchestration.legacy_rtmc_export as toa5con
