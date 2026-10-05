@@ -73,17 +73,23 @@ Replacing the legacy `data_constructors.details_constructor` (old repo) with
 
 ### To do
 
-- [ ] Once both outputs are validated, cut over from parallel-run to
-      production: this pipeline currently writes to test paths
-      (`/opt/TERN_EP/network/info/site_info.json`,
-      `/mnt/Homogenised_data/TOA5/<site>_details.dat`) and pushes to
-      a test remote (`flux-status-test.tern.org.au`), not the real
-      production paths/remote the old cron writes to, so the two coexist
-      without colliding. Cutover means switching off whatever cron trigger
-      still invokes the old repo's `details_constructor.write_site_info`/
-      `site_info_2_json`, and pointing this pipeline's output paths/remotes
-      at production. (No legacy import remains in this repo — both task
-      bodies were already fully replaced.)
+- [ ] Finish the cutover to production. The legacy side is already gone: the
+      old repo's cron jobs were all commented out (last
+      `details_constructor` run 2026-08-03, writing to `TOA5_old`), and its
+      cron file was retired 2026-10-05. Current state of the two outputs:
+      - `<site>_details.dat`: **not being produced.** The
+        `construct_site_details_toa5` task is registered and already writes
+        to the production folder (`/mnt/Homogenised_data/TOA5/`, pushed to
+        OneDrive by the half-hourly `push_rtmc_toa5`), but it has no
+        `tasks.csv` column and no cron line, so nothing runs it. The files
+        there were last written 2026-07-23. To do: add the `tasks.csv`
+        column, run it once by hand and diff against the 2026-07-23 file,
+        then add a daily cron line after midnight (e.g. `5 0 * * *`).
+      - `site_info.json`: produced nightly (00:00 cron,
+        `construct_site_details_json push_site_details_json`) to
+        `/store/Network/info/site_info.json`, but still pushed to the test
+        remote (`flux-status-test.tern.org.au`, `network.info` in
+        `paths.yml`). To do: repoint that remote at production.
 - [ ] Optional: pre-warm `instrument_registry`'s vocab cache (one `get_context()`
       call) before `build_site_details_json`'s thread pool dispatch — first run
       currently fires 8 concurrent SPARQL queries to `graphdb.tern.org.au`
