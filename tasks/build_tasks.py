@@ -10,10 +10,10 @@ from tasks.registry import register
 @register
 def construct_L1_nc(site: str) -> dict:
     """Build the current-year L1 NetCDF file from the site's Zarr store."""
-    import orchestration.build_L1_nc as build_nc
+    from orchestration.tern import build_runner
 
     this_year = dt.datetime.now().year
-    written = build_nc.build_from_zarr(site_name=site, year=this_year)
+    written = build_runner.build_L1_nc_from_zarr_for_site(site, year=this_year)
     return {"status": "success", "files_written": [str(p) for p in written]}
 
 
@@ -30,9 +30,9 @@ def construct_L1_zarr(site: str) -> dict:
     reconciliation pass this depends on to correct for backfills/config
     drift an incremental append can't see.
     """
-    import orchestration.build_L1_zarr as build_zarr
+    from orchestration.tern import build_runner
 
-    store_path = build_zarr.update(site_name=site)
+    store_path = build_runner.update_L1_zarr_for_site(site)
     return {"status": "success", "store_path": str(store_path)}
 
 
@@ -44,9 +44,9 @@ def rebuild_L1_zarr(site: str) -> dict:
     corrects for late-arriving/backfilled raw records and site-config
     changes an append can't see. Scheduled nightly, off-peak.
     """
-    import orchestration.build_L1_zarr as build_zarr
+    from orchestration.tern import build_runner
 
-    store_path = build_zarr.build(site_name=site)
+    store_path = build_runner.build_L1_zarr_for_site(site)
     return {"status": "success", "store_path": str(store_path)}
 
 
@@ -59,9 +59,9 @@ def rebuild_L2_zarr(site: str) -> dict:
     rebuild_L1_zarr so it reads freshly reconciled L1 data. No incremental
     (build_L2_zarr.update()) cadence is scheduled yet.
     """
-    import orchestration.build_L2_zarr as build_zarr
+    from orchestration.tern import build_runner
 
-    store_path = build_zarr.build(site_name=site)
+    store_path = build_runner.build_L2_zarr_for_site(site)
     return {"status": "success", "store_path": str(store_path)}
 
 

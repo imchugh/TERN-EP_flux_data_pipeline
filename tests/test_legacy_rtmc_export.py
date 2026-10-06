@@ -42,15 +42,13 @@ class ApplyDefaultRangeLimitsTestCase(unittest.TestCase):
         self.qc_config = SiteQCConfig(
             site_name="TestSite",
             variables={
-                "Ta_2m": VariableQCSpec(
-                    range_check=RangeCheckSpec(lower=-5, upper=45)
-                ),
+                "Ta_2m": VariableQCSpec(range_check=RangeCheckSpec(lower=-5, upper=45)),
             },
         )
         self.range_defaults = {"AH": {"Av": [0, 30]}}
 
         patcher_qc = mock.patch(
-            "orchestration.tern.legacy_rtmc_export.qc_config_schema.load_qc_config",
+            "orchestration.tern.legacy_rtmc_export.load_site_qc_config",
             return_value=self.qc_config,
         )
         patcher_defaults = mock.patch(
