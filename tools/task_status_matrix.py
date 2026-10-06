@@ -26,7 +26,7 @@ from pathlib import Path
 # Ensure project root is on path when run as a script
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from infrastructure import paths
+from infrastructure.tern import paths
 
 _SEP = "─" * 64
 _RESULT_MESSAGE = "task_site_result"

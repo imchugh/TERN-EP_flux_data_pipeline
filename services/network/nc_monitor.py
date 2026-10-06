@@ -10,7 +10,8 @@ from typing import Any
 import pandas as pd
 import xarray as xr
 
-from infrastructure import datetime_utils, paths
+from infrastructure import datetime_utils
+from infrastructure.tern import paths
 
 logger = logging.getLogger(__name__)
 

@@ -17,7 +17,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TypedDict
 
-from infrastructure import file_io, paths
+from infrastructure import file_io
+from infrastructure.tern import paths
 
 logger = logging.getLogger(__name__)
 

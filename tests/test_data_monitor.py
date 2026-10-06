@@ -1,4 +1,4 @@
-"""Regression tests for services.data.data_monitor.get_missing_records.
+"""Regression tests for services.network.data_monitor.get_missing_records.
 
 These guard against a real bug: a gapless file was reporting nonzero
 pct_missing because the rolling window handed to analyse_data_gaps was
@@ -15,7 +15,7 @@ from unittest import mock
 import pandas as pd
 
 from domain.enums import StatisticType, VariableType
-from services.data.data_monitor import _build_monitor_series, get_missing_records
+from services.network.data_monitor import _build_monitor_series, get_missing_records
 
 
 def _gapless_series(end: datetime, days: int, interval_minutes: int = 30) -> pd.Series:
@@ -96,7 +96,7 @@ class TestBuildMonitorSeries(unittest.TestCase):
         ctx = self._context()
         ctx.runtime_config.variables["Fco2"].quantity = "Fco2"
         with mock.patch(
-            "services.data.data_monitor._range_defaults", return_value={}
+            "services.network.data_monitor._range_defaults", return_value={}
         ):
             out = _build_monitor_series(df, "Fco2", ctx)
         self.assertEqual(out.tolist(), [1.0, 500.0])

@@ -4,7 +4,7 @@
 import logging
 from typing import Any
 
-from infrastructure import logger_functions
+from infrastructure.tern import logger_functions
 from services.network.connectivity import SITE_IP, resolve_endpoint
 
 logger = logging.getLogger(__name__)

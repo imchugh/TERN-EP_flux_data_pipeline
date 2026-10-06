@@ -12,7 +12,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from domain.data_models.metadata_classes import SiteMetadata
-from infrastructure import paths
+from infrastructure.tern import paths
 from services import config_loader
 from services.metadata.core.runtime_config_builder import SiteRuntimeConfig
 from services.metadata.core.site_metadata_builder import SiteContext

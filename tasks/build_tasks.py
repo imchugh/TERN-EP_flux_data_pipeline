@@ -2,7 +2,8 @@
 
 import datetime as dt
 
-from infrastructure import file_io, paths
+from infrastructure import file_io
+from infrastructure.tern import paths
 from tasks.registry import register
 
 
@@ -67,7 +68,7 @@ def rebuild_L2_zarr(site: str) -> dict:
 @register
 def construct_toa5_from_nc(site: str) -> dict:
     """Rebuild the legacy-format merged TOA5 file from L1 NetCDF output."""
-    import orchestration.legacy_rtmc_export as toa5con
+    import orchestration.tern.legacy_rtmc_export as toa5con
 
     nc_dir = (
         paths.get_local_stream_path(resource="homogenised_data", stream="nc") / site
@@ -97,7 +98,7 @@ def construct_toa5_from_nc(site: str) -> dict:
 @register
 def construct_site_details_toa5(site: str) -> None:
     """Construct the site details TOA5 file for RTMC plotting."""
-    from orchestration.site_details_construction import build_site_details_toa5
+    from orchestration.tern.site_details_construction import build_site_details_toa5
 
     build_site_details_toa5(site=site)
 
@@ -105,7 +106,7 @@ def construct_site_details_toa5(site: str) -> None:
 @register
 def construct_site_details_json() -> None:
     """Generate site_info.json for all sites (RTMC data source)."""
-    from orchestration.site_details_construction import build_site_details_json
+    from orchestration.tern.site_details_construction import build_site_details_json
     from tasks.tasks import mngr
 
     build_site_details_json(site_list=mngr.get_site_list())
@@ -144,7 +145,7 @@ def update_EddyPro_master(site: str) -> dict:
 @register
 def process_profile_data(site: str) -> dict:
     """Compute the CO2 storage term for legacy profile-instrumented sites."""
-    from orchestration import profile_processing
+    from orchestration.tern import profile_processing
 
     return profile_processing.build_profile_output(site=site)
 

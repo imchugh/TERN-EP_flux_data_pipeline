@@ -2,7 +2,7 @@
 
 import unittest
 
-from orchestration.legacy_network_status import _plausible_range
+from orchestration.tern.legacy_network_status import _plausible_range
 
 
 class PlausibleRangeTestCase(unittest.TestCase):

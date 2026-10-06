@@ -15,8 +15,8 @@ import pandas as pd
 import tasks.build_tasks  # noqa: F401
 import tasks.monitor_tasks  # noqa: F401
 import tasks.transfer_tasks  # noqa: F401
-from infrastructure import paths
-from infrastructure.paths import CONFIG_PATH
+from infrastructure.tern import paths
+from infrastructure.tern.paths import CONFIG_PATH
 from services import config_loader
 from services.metadata.tern.site_registry import SiteRegistry
 from tasks.logger_config import configure_logger_json

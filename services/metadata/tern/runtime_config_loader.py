@@ -7,7 +7,7 @@ services.metadata.core.runtime_config_builder):
       (via instrument_registry)
     - instrument URI resolution against the TERN RDF vocab
     - resolving where the site's raw input files live, via
-      infrastructure.paths / configs/paths.yml
+      infrastructure.tern.paths / configs/paths.yml
     - delegating structural validation and object assembly to
       runtime_config_builder
 
@@ -19,7 +19,7 @@ raw-data path resolution threaded through as enrichment.
 
 from pathlib import Path
 
-from infrastructure import paths
+from infrastructure.tern import paths
 from services.metadata.core.runtime_config_builder import (
     SiteRuntimeConfig,
     build_runtime_config,
@@ -107,7 +107,7 @@ def load_runtime_config(file_path: Path) -> SiteRuntimeConfig:
            (skipped, per content hash, when a prior clean pass is cached —
            see instrument_validation_cache)
         3. Path resolution        — site's raw-data directory, via
-           infrastructure.paths / configs/paths.yml
+           infrastructure.tern.paths / configs/paths.yml
         4. Build                  — delegated to runtime_config_builder
 
     Args:

@@ -18,7 +18,7 @@ import xarray as xr
 from services import config_loader
 from services.data import toa5_writer
 from services.data.calculations import get_calculation
-from services.metadata import qc_config_schema
+from services.metadata.core import qc_config_schema
 from services.metadata.core.variable_name_parser import NameParser
 
 logger = logging.getLogger(__name__)

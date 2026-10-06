@@ -25,9 +25,10 @@ import geojson
 import numpy as np
 import xarray as xr
 
-from infrastructure import datetime_utils, file_io, paths
-from infrastructure.parallel_executor import run_concurrent
-from services.metadata import qc_config_schema
+from infrastructure import datetime_utils, file_io
+from infrastructure.tern import paths
+from infrastructure.tern.parallel_executor import run_concurrent
+from services.metadata.core import qc_config_schema
 from services.metadata.core.variable_name_parser import NameParser
 from services.metadata.tern.site_registry import SiteRegistry
 from services.network.nc_monitor import NETCDF_LOCK, get_latest_nc_file
@@ -195,7 +196,7 @@ def _get_site_status(site: str) -> dict:
             df = ds[SUBSET].squeeze().to_dataframe()
 
     # NetCDF time values follow the local-time convention (naive timestamps),
-    # matching services.network.nc_monitor / services.data.data_monitor.
+    # matching services.network.nc_monitor / services.network.data_monitor.
     site_time = datetime_utils.get_local_datetime_now(
         tz_name=tz_name,
         return_tz_aware=False,

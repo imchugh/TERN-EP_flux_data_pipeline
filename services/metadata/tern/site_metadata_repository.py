@@ -1,7 +1,8 @@
 """Fetch flux station details from TERN's SPARQL endpoint."""
 
-from infrastructure import external_io, file_io, paths
+from infrastructure import file_io
 from infrastructure.datetime_utils import get_timezone, get_UTC_offset
+from infrastructure.tern import external_io, paths
 from services import config_loader
 from services.metadata.tern import rdf_label_resolver
 

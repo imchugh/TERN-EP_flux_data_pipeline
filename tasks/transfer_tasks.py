@@ -1,6 +1,6 @@
 """Transfer tasks: rclone and SFTP data movement."""
 
-from infrastructure import paths, rclone_transfer
+from infrastructure.tern import paths, rclone_transfer
 from tasks.registry import register
 
 # Sites where the flux_slow logger data is collected by the site operator and

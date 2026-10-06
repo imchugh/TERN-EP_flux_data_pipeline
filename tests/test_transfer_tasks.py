@@ -1,6 +1,6 @@
 """Tests for transfer_tasks path resolution.
 
-Patches infrastructure.rclone_transfer.transfer so no data is moved;
+Patches infrastructure.tern.rclone_transfer.transfer so no data is moved;
 asserts that each task resolves the correct src and dst before handing
 off to rclone.
 """
@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import tasks.transfer_tasks as tt
 
-PATCH = "infrastructure.rclone_transfer.transfer"
+PATCH = "infrastructure.tern.rclone_transfer.transfer"
 SITE = "HowardSprings"
 
 

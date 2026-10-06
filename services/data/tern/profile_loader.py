@@ -15,7 +15,8 @@ from pathlib import Path
 import pandas as pd
 import xarray as xr
 
-from infrastructure import file_io, paths
+from infrastructure import file_io
+from infrastructure.tern import paths
 from services.data import profile_storage, raw_data_loader
 
 

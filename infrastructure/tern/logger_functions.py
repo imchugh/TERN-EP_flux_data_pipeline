@@ -13,7 +13,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from domain.constants import DATA_TIME_FORMAT as TIME_FORMAT
-from infrastructure.external_io import get
+from infrastructure.tern.external_io import get
 
 logger = logging.getLogger(__name__)
 

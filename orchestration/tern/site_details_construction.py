@@ -20,9 +20,10 @@ import logging
 
 import pandas as pd
 
-from infrastructure import data_diagnostics, datetime_utils, file_io, paths
-from infrastructure.parallel_executor import run_concurrent
-from infrastructure.safe_ops import safe_component
+from infrastructure import data_diagnostics, datetime_utils, file_io
+from infrastructure.tern import paths
+from infrastructure.tern.parallel_executor import run_concurrent
+from infrastructure.tern.safe_ops import safe_component
 from services.data import raw_data_loader, toa5_writer
 from services.metadata.core.site_metadata_builder import SiteContext
 from services.metadata.tern.site_registry import SiteRegistry

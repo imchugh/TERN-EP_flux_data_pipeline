@@ -7,8 +7,8 @@ from unittest import mock
 import numpy as np
 import xarray as xr
 
-from orchestration.legacy_rtmc_export import _apply_default_range_limits
-from services.metadata.qc_config_schema import (
+from orchestration.tern.legacy_rtmc_export import _apply_default_range_limits
+from services.metadata.core.qc_config_schema import (
     RangeCheckSpec,
     SiteQCConfig,
     VariableQCSpec,
@@ -50,11 +50,11 @@ class ApplyDefaultRangeLimitsTestCase(unittest.TestCase):
         self.range_defaults = {"AH": {"Av": [0, 30]}}
 
         patcher_qc = mock.patch(
-            "orchestration.legacy_rtmc_export.qc_config_schema.load_qc_config",
+            "orchestration.tern.legacy_rtmc_export.qc_config_schema.load_qc_config",
             return_value=self.qc_config,
         )
         patcher_defaults = mock.patch(
-            "orchestration.legacy_rtmc_export.qc_config_schema.load_range_defaults",
+            "orchestration.tern.legacy_rtmc_export.qc_config_schema.load_range_defaults",
             return_value=self.range_defaults,
         )
         patcher_qc.start()

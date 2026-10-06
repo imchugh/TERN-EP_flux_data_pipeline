@@ -17,10 +17,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from infrastructure import paths
-from infrastructure.connections import PortScanError, scan_tcp_port
 from infrastructure.datetime_utils import get_utc_now
 from infrastructure.file_io import read_json, write_json
+from infrastructure.tern import paths
+from infrastructure.tern.connections import PortScanError, scan_tcp_port
 from services import config_loader
 
 logger = logging.getLogger(__name__)

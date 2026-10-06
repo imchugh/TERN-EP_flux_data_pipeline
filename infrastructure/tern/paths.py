@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from domain.constants import SITE_PLACEHOLDER
 from infrastructure import file_io
 
-CONFIG_PATH = pathlib.Path(__file__).parents[1] / "configs"
+CONFIG_PATH = pathlib.Path(__file__).parents[2] / "configs"
 CONFIG_FILE = "paths.yml"
 
 _PLACEHOLDER = SITE_PLACEHOLDER

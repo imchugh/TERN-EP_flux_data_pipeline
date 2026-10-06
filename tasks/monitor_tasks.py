@@ -19,7 +19,7 @@ def construct_legacy_status_geojson() -> dict:
     old flat per-site {Fco2, Fh, Fe, Fsd} schema. See
     orchestration/legacy_network_status.py for removal notes.
     """
-    from orchestration.legacy_network_status import build
+    from orchestration.tern.legacy_network_status import build
     from tasks.tasks import mngr
 
     return build(site_list=mngr.get_site_list())

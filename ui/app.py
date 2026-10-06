@@ -10,8 +10,9 @@ import yaml
 from nicegui import ui
 
 from domain.enums import FileType, FluxSystemType, StatisticType, VariableType
-from infrastructure import file_io, paths
+from infrastructure import file_io
 from infrastructure.file_io import read_yml
+from infrastructure.tern import paths
 from services import config_loader
 from services.metadata.core.canonical_quantity_registry import (
     build_canonical_quantity_registry,
