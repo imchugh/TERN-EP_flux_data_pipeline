@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate a YAML substitution map for instrument name cleanup.
 
-Runs the instrument audit and writes configs/instrument_substitutions.yml
+Runs the instrument audit and writes configs/tern/instrument_substitutions.yml
 with the best fuzzy suggestion for each missing instrument name.
 
 Review and edit that file (remove or correct entries), then run:
@@ -18,6 +18,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from infrastructure.tern import paths
 from services.metadata.tern.instrument_registry import (
     is_valid_instrument,
     suggest_instruments,
@@ -25,9 +26,7 @@ from services.metadata.tern.instrument_registry import (
 from services.metadata.tern.site_registry import SITE_CONFIG_DIR
 from tools.audit_instrument_names import _collect_all_instruments
 
-OUTPUT_PATH = (
-    Path(__file__).resolve().parent.parent / "configs" / "instrument_substitutions.yml"
-)
+OUTPUT_PATH = paths.CONFIG_PATH / "instrument_substitutions.yml"
 CUTOFF = 60.0
 
 

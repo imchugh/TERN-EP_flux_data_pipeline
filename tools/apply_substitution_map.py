@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Apply instrument name substitutions, writing corrected files to a new directory.
 
-Reads configs/instrument_substitutions.yml (produced by generate_substitution_map.py),
+Reads configs/tern/instrument_substitutions.yml (produced by
+generate_substitution_map.py),
 walks every site YAML in the source directory, applies substitutions, and writes
 the result to the output directory. Original files are never touched.
 
@@ -20,11 +21,10 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from infrastructure import file_io
+from infrastructure.tern import paths
 from services.metadata.tern.site_registry import SITE_CONFIG_DIR
 
-MAP_PATH = (
-    Path(__file__).resolve().parent.parent / "configs" / "instrument_substitutions.yml"
-)
+MAP_PATH = paths.CONFIG_PATH / "instrument_substitutions.yml"
 
 
 # Substitution logic

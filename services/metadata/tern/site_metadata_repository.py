@@ -52,7 +52,7 @@ def load_sparql_configs() -> dict:
     global _SPARQL_CACHE
     if _SPARQL_CACHE is None:
         _SPARQL_CACHE = config_loader.load_config_file_from_name(
-            name="sparql_query_configs"
+            name="sparql_query_configs", config_dir=paths.CONFIG_PATH
         )
     return _SPARQL_CACHE
 
@@ -239,7 +239,7 @@ def write_flux_tower_fields_config(overwrite: bool = False) -> None:
 
     """
     rslt = get_flux_tower_fields_from_rdf(query="operational")
-    file_path = config_loader.CONFIG_PATH / "site_metadata.yml"
+    file_path = paths.CONFIG_PATH / "site_metadata.yml"
     if not overwrite:
         if file_path.exists():
             raise FileExistsError("File already exists!")

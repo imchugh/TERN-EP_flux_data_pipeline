@@ -54,7 +54,9 @@ class SiteTaskManager:
     def __init__(self) -> None:
         """Load tasks.csv into a validated, boolean-typed site/task matrix."""
         self.tasks_df = (
-            config_loader.load_config_file_from_name("tasks")
+            config_loader.load_config_file_from_name(
+                "tasks", config_dir=paths.CONFIG_PATH
+            )
             .set_index(keys="Site")
             .pipe(_parse_bool_matrix)
         )

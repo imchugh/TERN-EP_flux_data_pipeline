@@ -4,6 +4,7 @@
 import functools
 import logging
 
+from infrastructure.tern import paths
 from services import config_loader
 from services.metadata.tern.site_metadata_repository import get_instrument_vocab
 
@@ -53,7 +54,9 @@ def _get_vocab_registry() -> dict[str, list[str]]:
 @functools.lru_cache(maxsize=1)
 def _get_alias_map() -> dict[str, dict]:
     """Load alias entries from config (excludes flux_quantities section)."""
-    raw = config_loader.load_config_file_from_name("instrument_quantity_map")
+    raw = config_loader.load_config_file_from_name(
+        "instrument_quantity_map", config_dir=paths.CONFIG_PATH
+    )
     return {k: v for k, v in raw.items() if k != "flux_quantities"}
 
 
@@ -61,7 +64,9 @@ def _get_alias_map() -> dict[str, dict]:
 def _get_name_corrections() -> dict[str, str]:
     """Load preferred→vocab-label corrections for incorrectly named vocab entries."""
     try:
-        raw = config_loader.load_config_file_from_name("instrument_name_corrections")
+        raw = config_loader.load_config_file_from_name(
+            "instrument_name_corrections", config_dir=paths.CONFIG_PATH
+        )
         return raw.get("corrections", {}) or {}
     except FileNotFoundError:
         logger.debug(
@@ -74,7 +79,9 @@ def _get_name_corrections() -> dict[str, str]:
 def _get_pending_instruments() -> dict[str, str]:
     """Load pending instrument names (no vocab entry yet), mapped to alias category."""
     try:
-        raw = config_loader.load_config_file_from_name("instrument_name_corrections")
+        raw = config_loader.load_config_file_from_name(
+            "instrument_name_corrections", config_dir=paths.CONFIG_PATH
+        )
         return raw.get("pending", {}) or {}
     except FileNotFoundError:
         logger.debug(
@@ -86,7 +93,9 @@ def _get_pending_instruments() -> dict[str, str]:
 @functools.lru_cache(maxsize=1)
 def _get_flux_quantities() -> dict[str, list[str]]:
     """Load compound flux quantity definitions from config."""
-    raw = config_loader.load_config_file_from_name("instrument_quantity_map")
+    raw = config_loader.load_config_file_from_name(
+        "instrument_quantity_map", config_dir=paths.CONFIG_PATH
+    )
     return raw.get("flux_quantities", {})
 
 

@@ -1,6 +1,6 @@
 """Path resolver for local and remote data streams.
 
-Driven by configs/paths.yml. Each resource groups related streams under an
+Driven by configs/tern/paths.yml. Each resource groups related streams under an
 optional shared base path; each stream carries a local suffix, a remote
 designator, or both. Local paths resolve to pathlib.Path objects; remote
 paths resolve to rclone designator strings (e.g. 'uqrdm:...').
@@ -13,7 +13,8 @@ from pydantic import BaseModel
 from domain.constants import SITE_PLACEHOLDER
 from infrastructure import file_io
 
-CONFIG_PATH = pathlib.Path(__file__).parents[2] / "configs"
+# TERN config directory (core configs live one level up, in configs/).
+CONFIG_PATH = pathlib.Path(__file__).parents[2] / "configs" / "tern"
 CONFIG_FILE = "paths.yml"
 
 _PLACEHOLDER = SITE_PLACEHOLDER

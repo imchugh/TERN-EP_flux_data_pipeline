@@ -3,7 +3,7 @@
 
 Reads the `task_site_result` records that `tasks.tasks` writes to the
 per-task JSONL logs under the `logs`/`network_logs` stream, cross-references
-`configs/tasks.csv` (via `tasks.tasks.mngr`) to distinguish "not enabled for
+`configs/tern/tasks.csv` (via `tasks.tasks.mngr`) to distinguish "not enabled for
 this site" from "enabled but no recent run", and renders a self-contained
 HTML heatmap: one row per site, one column per task, colour-coded by the
 most recent run's status. Failure cells are enriched with the matching

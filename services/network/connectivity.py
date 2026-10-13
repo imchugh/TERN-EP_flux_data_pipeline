@@ -25,7 +25,9 @@ from services import config_loader
 
 logger = logging.getLogger(__name__)
 
-SITE_IP = config_loader.load_config_file_from_name("vpn_ip")
+SITE_IP = config_loader.load_config_file_from_name(
+    "vpn_ip", config_dir=paths.CONFIG_PATH
+)
 STATE_DIR = paths.get_local_stream_path(resource="network", stream="state")
 
 DEFAULT_STATE = {"updated_at": None, "sites": {}}

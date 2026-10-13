@@ -15,6 +15,7 @@ import pathlib
 
 import xarray as xr
 
+from infrastructure.tern import paths
 from services import config_loader
 from services.data import toa5_writer
 from services.data.calculations import get_calculation
@@ -139,9 +140,9 @@ def _drop_extraneous_variables(ds: xr.Dataset, site_name: str) -> xr.Dataset:
 def _get_extraneous_soil(ds: xr.Dataset, site_name: str) -> list[str]:
     """Return soil variables not in the site's configured keep-list."""
     try:
-        vars_to_keep = config_loader.load_config_file_from_name(name="soil_variables")[
-            site_name
-        ]
+        vars_to_keep = config_loader.load_config_file_from_name(
+            name="soil_variables", config_dir=paths.CONFIG_PATH
+        )[site_name]
     except KeyError:
         vars_to_keep = {}
 

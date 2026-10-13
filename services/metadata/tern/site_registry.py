@@ -165,7 +165,9 @@ def yml_loader() -> dict[str, SiteMetadata]:
     This is the standard loader for production use. Pass it as
     ``metadata_loader`` when constructing a SiteRegistry.
     """
-    loaded = config_loader.load_config_file_from_name("site_metadata")
+    loaded = config_loader.load_config_file_from_name(
+        "site_metadata", config_dir=paths.CONFIG_PATH
+    )
     return {key: SiteMetadata(data=value) for key, value in loaded.items()}
 
 
