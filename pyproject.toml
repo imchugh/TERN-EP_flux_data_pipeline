@@ -1,7 +1,7 @@
 [tool.ruff]
 line-length = 88
 target-version = "py312"
-extend-exclude = ["infrastructure/read_cs_files.py"]
+extend-exclude = ["infrastructure/tern/read_cs_files.py"]
 force-exclude = true
 
 [tool.ruff.lint]
@@ -14,4 +14,4 @@ convention = "google"
 # Test names are self-documenting (test_raises_on_missing_variable, etc.);
 # a module-level docstring covers shared setup. Requiring a docstring on
 # every test class/method would be pure redundancy, not documentation.
-"tests/*" = ["D"]
+"tests/**" = ["D"]
