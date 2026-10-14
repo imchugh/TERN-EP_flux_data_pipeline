@@ -7,7 +7,7 @@ fluxcore.services.metadata.core.runtime_config_builder):
       (via instrument_registry)
     - instrument URI resolution against the TERN RDF vocab
     - resolving where the site's raw input files live, via
-      infrastructure.tern.paths / configs/tern/paths.yml
+      infrastructure.paths / configs/paths.yml
     - delegating structural validation and object assembly to
       runtime_config_builder
 
@@ -28,8 +28,8 @@ from fluxcore.services.metadata.core.site_config_schema import (
     validate_L1_config_structure,
 )
 
-from infrastructure.tern import paths
-from services.metadata.tern import instrument_validation_cache
+from infrastructure import paths
+from services.metadata import instrument_validation_cache
 
 
 def _validate_instrument_names(
@@ -65,7 +65,7 @@ def _validate_instrument_names(
 
     # Deferred to avoid circular import:
     # instrument_registry → site_metadata_repository → site_registry → here
-    from services.metadata.tern import instrument_registry
+    from services.metadata import instrument_registry
 
     errors = []
     instrument_uris: dict[str, str | None] = {}
@@ -108,7 +108,7 @@ def load_runtime_config(file_path: Path) -> SiteRuntimeConfig:
            (skipped, per content hash, when a prior clean pass is cached —
            see instrument_validation_cache)
         3. Path resolution        — site's raw-data directory, via
-           infrastructure.tern.paths / configs/tern/paths.yml
+           infrastructure.paths / configs/paths.yml
         4. Build                  — delegated to runtime_config_builder
 
     Args:

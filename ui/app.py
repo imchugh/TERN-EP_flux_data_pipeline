@@ -19,8 +19,8 @@ from fluxcore.services.metadata.core.site_config_schema import validate_all
 from fluxcore.services.metadata.core.variable_name_parser import NameParser
 from nicegui import ui
 
-from infrastructure.tern import paths
-from services.metadata.tern.instrument_registry import (
+from infrastructure import paths
+from services.metadata.instrument_registry import (
     get_quantity_components,
     is_compound_quantity,
     list_instruments,

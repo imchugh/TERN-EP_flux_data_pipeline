@@ -16,7 +16,7 @@ import xarray as xr
 from fluxcore.orchestration.dataframe_builder import build_dataframe_from_context
 from fluxcore.orchestration.dataset_builder import build_dataset_from_context
 
-from services.metadata.tern.site_registry import SiteRegistry
+from services.metadata.site_registry import SiteRegistry
 
 SITE_REGISTRY = SiteRegistry()
 

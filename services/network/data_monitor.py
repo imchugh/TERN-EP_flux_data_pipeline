@@ -15,7 +15,7 @@ from fluxcore.services.metadata.core import qc_config_schema
 from fluxcore.services.metadata.core.site_metadata_builder import SiteContext
 from fluxcore.services.metadata.core.variable_name_parser import NameParser
 
-from infrastructure.tern import paths
+from infrastructure import paths
 
 logger = logging.getLogger(__name__)
 

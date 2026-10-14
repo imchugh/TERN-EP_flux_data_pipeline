@@ -5,17 +5,17 @@ The generic-core builders (orchestration/build_L1_zarr.py, build_L1_nc.py,
 build_L2_zarr.py, build_L2_nc.py) take a SiteContext / SiteQCConfig and
 explicit directories. These wrappers resolve a bare TERN site name to those:
 the context via SiteRegistry, the QC config via qc_config_loader, the
-directories via the homogenised_data streams in configs/tern/paths.yml, and the
-network global attributes from configs/tern/nc_metadata.yml.
+directories via the homogenised_data streams in configs/paths.yml, and the
+network global attributes from configs/nc_metadata.yml.
 
 Usage (from project root, with ep_cntl activated):
-    python -m orchestration.tern.build_runner L1-zarr SITE [--update] \
+    python -m orchestration.build_runner L1-zarr SITE [--update] \
         [--year YEAR] [--output-dir DIR] [--legacy]
-    python -m orchestration.tern.build_runner L1-nc SITE [--from-zarr] \
+    python -m orchestration.build_runner L1-nc SITE [--from-zarr] \
         [--year YEAR] [--output-dir DIR] [--legacy]
-    python -m orchestration.tern.build_runner L2-zarr SITE [--update] \
+    python -m orchestration.build_runner L2-zarr SITE [--update] \
         [--output-dir DIR]
-    python -m orchestration.tern.build_runner L2-nc SITE [--year YEAR] \
+    python -m orchestration.build_runner L2-nc SITE [--year YEAR] \
         [--output-dir DIR]
 """
 
@@ -30,9 +30,9 @@ from fluxcore.orchestration import (
 )
 from fluxcore.services import config_loader
 
-from infrastructure.tern import paths
-from orchestration.tern.site_runner import SITE_REGISTRY
-from services.metadata.tern.qc_config_loader import load_site_qc_config
+from infrastructure import paths
+from orchestration.site_runner import SITE_REGISTRY
+from services.metadata.qc_config_loader import load_site_qc_config
 
 NC_GLOBAL_ATTRS = config_loader.load_config_file_from_name(
     name="nc_metadata", config_dir=paths.CONFIG_PATH

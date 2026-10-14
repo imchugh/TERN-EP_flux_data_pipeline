@@ -21,8 +21,8 @@ from fluxcore.infrastructure.datetime_utils import get_utc_now
 from fluxcore.infrastructure.file_io import read_json, write_json
 from fluxcore.services import config_loader
 
-from infrastructure.tern import paths
-from infrastructure.tern.connections import PortScanError, scan_tcp_port
+from infrastructure import paths
+from infrastructure.connections import PortScanError, scan_tcp_port
 
 logger = logging.getLogger(__name__)
 

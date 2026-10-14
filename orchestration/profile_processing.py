@@ -13,8 +13,8 @@ from fluxcore.services.metadata.core.canonical_quantity_registry import (
     build_canonical_quantity_registry,
 )
 
-from infrastructure.tern import paths
-from services.data.tern import profile_loader
+from infrastructure import paths
+from services.data import profile_loader
 
 
 def build_profile_output(site: str) -> dict:

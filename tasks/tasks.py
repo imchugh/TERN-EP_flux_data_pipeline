@@ -16,9 +16,9 @@ from fluxcore.services import config_loader
 import tasks.build_tasks  # noqa: F401
 import tasks.monitor_tasks  # noqa: F401
 import tasks.transfer_tasks  # noqa: F401
-from infrastructure.tern import paths
-from infrastructure.tern.paths import CONFIG_PATH
-from services.metadata.tern.site_registry import SiteRegistry
+from infrastructure import paths
+from infrastructure.paths import CONFIG_PATH
+from services.metadata.site_registry import SiteRegistry
 from tasks.logger_config import configure_logger_json
 from tasks.registry import GLOBAL_TASKS, SITE_TASKS
 

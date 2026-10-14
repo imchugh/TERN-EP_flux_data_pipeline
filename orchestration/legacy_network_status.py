@@ -28,9 +28,9 @@ from fluxcore.infrastructure import datetime_utils, file_io
 from fluxcore.services.metadata.core import qc_config_schema
 from fluxcore.services.metadata.core.variable_name_parser import NameParser
 
-from infrastructure.tern import paths
-from infrastructure.tern.parallel_executor import run_concurrent
-from services.metadata.tern.site_registry import SiteRegistry
+from infrastructure import paths
+from infrastructure.parallel_executor import run_concurrent
+from services.metadata.site_registry import SiteRegistry
 from services.network.nc_monitor import NETCDF_LOCK, get_latest_nc_file
 
 logger = logging.getLogger(__name__)

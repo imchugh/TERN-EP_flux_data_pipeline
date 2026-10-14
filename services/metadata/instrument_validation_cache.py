@@ -19,7 +19,7 @@ from typing import TypedDict
 
 from fluxcore.infrastructure import file_io
 
-from infrastructure.tern import paths
+from infrastructure import paths
 
 logger = logging.getLogger(__name__)
 

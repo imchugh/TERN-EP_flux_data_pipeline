@@ -12,7 +12,7 @@ from fluxcore.services.metadata.core.qc_config_schema import (
     VariableQCSpec,
 )
 
-from orchestration.tern.legacy_rtmc_export import _apply_default_range_limits
+from orchestration.legacy_rtmc_export import _apply_default_range_limits
 
 
 def _build_dataset():
@@ -48,11 +48,11 @@ class ApplyDefaultRangeLimitsTestCase(unittest.TestCase):
         self.range_defaults = {"AH": {"Av": [0, 30]}}
 
         patcher_qc = mock.patch(
-            "orchestration.tern.legacy_rtmc_export.load_site_qc_config",
+            "orchestration.legacy_rtmc_export.load_site_qc_config",
             return_value=self.qc_config,
         )
         patcher_defaults = mock.patch(
-            "orchestration.tern.legacy_rtmc_export.qc_config_schema.load_range_defaults",
+            "orchestration.legacy_rtmc_export.qc_config_schema.load_range_defaults",
             return_value=self.range_defaults,
         )
         patcher_qc.start()

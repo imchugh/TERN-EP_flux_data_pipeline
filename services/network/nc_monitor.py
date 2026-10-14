@@ -11,7 +11,7 @@ import pandas as pd
 import xarray as xr
 from fluxcore.infrastructure import datetime_utils
 
-from infrastructure.tern import paths
+from infrastructure import paths
 
 logger = logging.getLogger(__name__)
 

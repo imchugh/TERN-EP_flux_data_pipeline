@@ -50,9 +50,9 @@ from typing import Any, Literal
 from fluxcore.infrastructure.datetime_utils import get_utc_now
 from fluxcore.infrastructure.file_io import read_json, write_json
 
-from infrastructure.tern import paths
-from infrastructure.tern.parallel_executor import run_concurrent
-from services.metadata.tern.site_registry import SiteRegistry
+from infrastructure import paths
+from infrastructure.parallel_executor import run_concurrent
+from services.metadata.site_registry import SiteRegistry
 from services.network.connectivity import (
     connectivity_sites,
     persist_connectivity_state,

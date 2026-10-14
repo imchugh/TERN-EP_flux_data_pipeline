@@ -4,8 +4,8 @@ from fluxcore.infrastructure import file_io
 from fluxcore.infrastructure.datetime_utils import get_timezone, get_UTC_offset
 from fluxcore.services import config_loader
 
-from infrastructure.tern import external_io, paths
-from services.metadata.tern import rdf_label_resolver
+from infrastructure import external_io, paths
+from services.metadata import rdf_label_resolver
 
 ALIAS_DICT = {
     "Aqueduct Snow Gum": "SnowGum",

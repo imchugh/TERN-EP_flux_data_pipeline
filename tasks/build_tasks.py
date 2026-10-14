@@ -4,14 +4,14 @@ import datetime as dt
 
 from fluxcore.infrastructure import file_io
 
-from infrastructure.tern import paths
+from infrastructure import paths
 from tasks.registry import register
 
 
 @register
 def construct_L1_nc(site: str) -> dict:
     """Build the current-year L1 NetCDF file from the site's Zarr store."""
-    from orchestration.tern import build_runner
+    from orchestration import build_runner
 
     this_year = dt.datetime.now().year
     written = build_runner.build_L1_nc_from_zarr_for_site(site, year=this_year)
@@ -31,7 +31,7 @@ def construct_L1_zarr(site: str) -> dict:
     reconciliation pass this depends on to correct for backfills/config
     drift an incremental append can't see.
     """
-    from orchestration.tern import build_runner
+    from orchestration import build_runner
 
     store_path = build_runner.update_L1_zarr_for_site(site)
     return {"status": "success", "store_path": str(store_path)}
@@ -45,7 +45,7 @@ def rebuild_L1_zarr(site: str) -> dict:
     corrects for late-arriving/backfilled raw records and site-config
     changes an append can't see. Scheduled nightly, off-peak.
     """
-    from orchestration.tern import build_runner
+    from orchestration import build_runner
 
     store_path = build_runner.build_L1_zarr_for_site(site)
     return {"status": "success", "store_path": str(store_path)}
@@ -60,7 +60,7 @@ def rebuild_L2_zarr(site: str) -> dict:
     rebuild_L1_zarr so it reads freshly reconciled L1 data. No incremental
     (build_L2_zarr.update()) cadence is scheduled yet.
     """
-    from orchestration.tern import build_runner
+    from orchestration import build_runner
 
     store_path = build_runner.build_L2_zarr_for_site(site)
     return {"status": "success", "store_path": str(store_path)}
@@ -69,7 +69,7 @@ def rebuild_L2_zarr(site: str) -> dict:
 @register
 def construct_toa5_from_nc(site: str) -> dict:
     """Rebuild the legacy-format merged TOA5 file from L1 NetCDF output."""
-    import orchestration.tern.legacy_rtmc_export as toa5con
+    import orchestration.legacy_rtmc_export as toa5con
 
     nc_dir = (
         paths.get_local_stream_path(resource="homogenised_data", stream="nc") / site
@@ -99,7 +99,7 @@ def construct_toa5_from_nc(site: str) -> dict:
 @register
 def construct_site_details_toa5(site: str) -> None:
     """Construct the site details TOA5 file for RTMC plotting."""
-    from orchestration.tern.site_details_construction import build_site_details_toa5
+    from orchestration.site_details_construction import build_site_details_toa5
 
     build_site_details_toa5(site=site)
 
@@ -107,7 +107,7 @@ def construct_site_details_toa5(site: str) -> None:
 @register
 def construct_site_details_json() -> None:
     """Generate site_info.json for all sites (RTMC data source)."""
-    from orchestration.tern.site_details_construction import build_site_details_json
+    from orchestration.site_details_construction import build_site_details_json
     from tasks.tasks import mngr
 
     build_site_details_json(site_list=mngr.get_site_list())
@@ -119,7 +119,7 @@ def update_EddyPro_master(site: str) -> dict:
     from fluxcore.domain.enums import FluxSystemType
     from fluxcore.services.data import eddypro_concatenator as epc
 
-    from services.metadata.tern.site_registry import SiteRegistry
+    from services.metadata.site_registry import SiteRegistry
 
     runtime_cfg = SiteRegistry().get_runtime_config(site)
     if runtime_cfg.flux_system != FluxSystemType.SMARTFLUX:
@@ -147,7 +147,7 @@ def update_EddyPro_master(site: str) -> dict:
 @register
 def process_profile_data(site: str) -> dict:
     """Compute the CO2 storage term for legacy profile-instrumented sites."""
-    from orchestration.tern import profile_processing
+    from orchestration import profile_processing
 
     return profile_processing.build_profile_output(site=site)
 

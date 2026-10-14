@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from infrastructure.tern import read_cs_files as rcf
+from infrastructure import read_cs_files as rcf
 
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 

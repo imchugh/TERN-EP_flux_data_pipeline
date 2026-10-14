@@ -1,7 +1,7 @@
 [tool.ruff]
 line-length = 88
 target-version = "py312"
-extend-exclude = ["infrastructure/tern/read_cs_files.py"]
+extend-exclude = ["infrastructure/read_cs_files.py"]
 force-exclude = true
 
 [tool.ruff.lint]

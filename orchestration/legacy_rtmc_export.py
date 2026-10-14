@@ -20,8 +20,8 @@ from fluxcore.services.data.calculations import get_calculation
 from fluxcore.services.metadata.core import qc_config_schema
 from fluxcore.services.metadata.core.variable_name_parser import NameParser
 
-from infrastructure.tern import paths
-from services.metadata.tern.qc_config_loader import load_site_qc_config
+from infrastructure import paths
+from services.metadata.qc_config_loader import load_site_qc_config
 
 logger = logging.getLogger(__name__)
 

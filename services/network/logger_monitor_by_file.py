@@ -19,8 +19,8 @@ import pandas as pd
 from fluxcore.infrastructure import datetime_utils, file_io
 from fluxcore.services.metadata.core.site_metadata_builder import SiteContext
 
-from infrastructure.tern import paths
-from services.metadata.tern.site_registry import SiteRegistry
+from infrastructure import paths
+from services.metadata.site_registry import SiteRegistry
 from services.network.logger_monitor import STATUS_SUBSET, SUMMARY_SUBSET
 
 logger = logging.getLogger(__name__)

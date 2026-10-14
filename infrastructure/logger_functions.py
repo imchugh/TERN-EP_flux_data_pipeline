@@ -13,7 +13,7 @@ from dataclasses import dataclass
 import pandas as pd
 from fluxcore.domain.constants import DATA_TIME_FORMAT as TIME_FORMAT
 
-from infrastructure.tern.external_io import get
+from infrastructure.external_io import get
 
 logger = logging.getLogger(__name__)
 

@@ -16,8 +16,8 @@ from fluxcore.services import config_loader
 from fluxcore.services.metadata.core.runtime_config_builder import SiteRuntimeConfig
 from fluxcore.services.metadata.core.site_metadata_builder import SiteContext
 
-from infrastructure.tern import paths
-from services.metadata.tern.runtime_config_loader import load_runtime_config
+from infrastructure import paths
+from services.metadata.runtime_config_loader import load_runtime_config
 
 
 class InvalidSiteError(KeyError):
@@ -179,7 +179,7 @@ def rdf_loader() -> dict[str, SiteMetadata]:
     ``metadata_loader`` when constructing a SiteRegistry if live RDF
     data is preferred over the local YML snapshot.
     """
-    from services.metadata.tern.site_metadata_repository import (
+    from services.metadata.site_metadata_repository import (
         get_flux_tower_fields_from_rdf,
     )
 

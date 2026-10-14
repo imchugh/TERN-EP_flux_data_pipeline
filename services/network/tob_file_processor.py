@@ -1,7 +1,7 @@
 """Site-level TOB file processing: unpack and partition fast-flux data files.
 
 TERN-EP ops/data-movement (tier 3): site-name-driven, resolves a site's raw-
-data landing directory via infrastructure.tern.paths and its metadata via
+data landing directory via infrastructure.paths and its metadata via
 SiteRegistry -- not portable to a non-TERN caller. Lives beside the other
 services/network/ ops modules rather than in services/data/ (generic core)
 for that reason, even though it processes the same TOB3/TOA5 file formats
@@ -16,9 +16,9 @@ from pathlib import Path
 
 from fluxcore.services.data.toa5_writer import write_toa5
 
-from infrastructure.tern import paths
-from infrastructure.tern import tob_codec as tob
-from services.metadata.tern.site_registry import SiteRegistry
+from infrastructure import paths
+from infrastructure import tob_codec as tob
+from services.metadata.site_registry import SiteRegistry
 
 logger = logging.getLogger(__name__)
 

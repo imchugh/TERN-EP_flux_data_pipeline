@@ -23,10 +23,10 @@ from fluxcore.infrastructure import data_diagnostics, datetime_utils, file_io
 from fluxcore.services.data import raw_data_loader, toa5_writer
 from fluxcore.services.metadata.core.site_metadata_builder import SiteContext
 
-from infrastructure.tern import paths
-from infrastructure.tern.parallel_executor import run_concurrent
-from infrastructure.tern.safe_ops import safe_component
-from services.metadata.tern.site_registry import SiteRegistry
+from infrastructure import paths
+from infrastructure.parallel_executor import run_concurrent
+from infrastructure.safe_ops import safe_component
+from services.metadata.site_registry import SiteRegistry
 
 logger = logging.getLogger(__name__)
 

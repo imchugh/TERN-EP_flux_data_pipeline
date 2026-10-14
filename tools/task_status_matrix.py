@@ -3,7 +3,7 @@
 
 Reads the `task_site_result` records that `tasks.tasks` writes to the
 per-task JSONL logs under the `logs`/`network_logs` stream, cross-references
-`configs/tern/tasks.csv` (via `tasks.tasks.mngr`) to distinguish "not enabled for
+`configs/tasks.csv` (via `tasks.tasks.mngr`) to distinguish "not enabled for
 this site" from "enabled but no recent run", and renders a self-contained
 HTML heatmap: one row per site, one column per task, colour-coded by the
 most recent run's status. Failure cells are enriched with the matching
@@ -26,7 +26,7 @@ from pathlib import Path
 # Ensure project root is on path when run as a script
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from infrastructure.tern import paths
+from infrastructure import paths
 
 _SEP = "─" * 64
 _RESULT_MESSAGE = "task_site_result"
