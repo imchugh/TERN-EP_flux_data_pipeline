@@ -37,4 +37,5 @@ dependencies:
   - pip
   - pip:
       - ruff
+      - git-filter-repo
       - zarr<3
