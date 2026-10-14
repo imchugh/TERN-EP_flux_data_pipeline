@@ -45,11 +45,11 @@ The generic core was extracted **2026-10-14** into `fluxcore` with its git histo
 ```
 fluxcore dataframe_builder → derived_quantities → dataset_builder   (L1 dataset)
 fluxcore build_L1_zarr   → {site}_L1.zarr  (30-min update: construct_L1_zarr; nightly full rebuild: rebuild_L1_zarr)
-fluxcore build_L1_nc     → annual L1 NetCDF (construct_L1_nc, from the Zarr store) → push_L1_nc
+fluxcore build_L1_nc     → annual L1 NetCDF from the Zarr store (30-min current year: construct_L1_nc; nightly all years: rebuild_L1_nc) → push_L1_nc
 fluxcore build_L2_zarr   → {site}_L2.zarr  (nightly full rebuild: rebuild_L2_zarr, chained after rebuild_L1_zarr)
 ```
 
-All four are called through `orchestration/build_runner.py` (`tasks/build_tasks.py`), which supplies the `SiteContext` / `SiteQCConfig`, the `homogenised_data` directories and `configs/nc_metadata.yml` as `global_attrs`. L2 `update()` is unscheduled — whether L2 needs a 30-min cadence at all is undecided (L1 is 30-min only for Grafana; L2 has no consumer).
+All four are called through `orchestration/build_runner.py` (`tasks/build_tasks.py`), which supplies the `SiteContext` / `SiteQCConfig`, the `homogenised_data` directories and `configs/nc_metadata.yml` as `global_attrs`. The nightly line is `rebuild_L1_zarr rebuild_L1_nc rebuild_L2_zarr`: `rebuild_L1_nc` exists because `construct_L1_nc` only rewrites the current year, so without it a site-config rename/removal never reaches earlier years' files (and `construct_toa5_from_nc`, which merges the last two years, fails on the mismatched names — AlpinePeatland/Calperum, 2026-10-01 to 2026-10-15). L2 `update()` is unscheduled — whether L2 needs a 30-min cadence at all is undecided (L1 is 30-min only for Grafana; L2 has no consumer).
 
 Monitoring (`services/network/data_monitor.py`) calls fluxcore's `dataframe_builder.build_dataframe(quantities=...)` directly for a unit-converted variable subset; `analyse_missing_data` loads the raw flux file directly. Ad-hoc analysis: `orchestration/site_runner.py`'s `build_dataframe_from_site_name(site_name, ...)`.
 

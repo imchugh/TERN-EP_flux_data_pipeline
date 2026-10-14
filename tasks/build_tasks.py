@@ -52,6 +52,22 @@ def rebuild_L1_zarr(site: str) -> dict:
 
 
 @register
+def rebuild_L1_nc(site: str) -> dict:
+    """Rebuild every year's L1 NetCDF file from the site's Zarr store.
+
+    construct_L1_nc only rewrites the current year, so without this pass a
+    site-config rename or removal never reaches earlier years' files, and
+    the years then disagree on variable names (which also breaks
+    construct_toa5_from_nc, which merges the last two years). Scheduled
+    nightly, chained after rebuild_L1_zarr; cheap (seconds per site).
+    """
+    from orchestration import build_runner
+
+    written = build_runner.build_L1_nc_from_zarr_for_site(site)
+    return {"status": "success", "files_written": [str(p) for p in written]}
+
+
+@register
 def rebuild_L2_zarr(site: str) -> dict:
     """Full rebuild of the site's whole-history L2 Zarr store from its L1 store.
 
