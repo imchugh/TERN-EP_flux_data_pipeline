@@ -6,13 +6,13 @@ from unittest import mock
 
 import numpy as np
 import xarray as xr
-
-from orchestration.tern.legacy_rtmc_export import _apply_default_range_limits
-from services.metadata.core.qc_config_schema import (
+from fluxcore.services.metadata.core.qc_config_schema import (
     RangeCheckSpec,
     SiteQCConfig,
     VariableQCSpec,
 )
+
+from orchestration.tern.legacy_rtmc_export import _apply_default_range_limits
 
 
 def _build_dataset():

@@ -7,19 +7,19 @@ Run from the repo root: conda run -n ep_cntl python -m ui.app
 from pathlib import Path
 
 import yaml
-from nicegui import ui
-
-from domain.enums import FileType, FluxSystemType, StatisticType, VariableType
-from infrastructure import file_io
-from infrastructure.file_io import read_yml
-from infrastructure.tern import paths
-from services import config_loader
-from services.metadata.core.canonical_quantity_registry import (
+from fluxcore.domain.enums import FileType, FluxSystemType, StatisticType, VariableType
+from fluxcore.infrastructure import file_io
+from fluxcore.infrastructure.file_io import read_yml
+from fluxcore.services import config_loader
+from fluxcore.services.metadata.core.canonical_quantity_registry import (
     build_canonical_quantity_registry,
 )
-from services.metadata.core.file_group_builder import get_variables_from_file
-from services.metadata.core.site_config_schema import validate_all
-from services.metadata.core.variable_name_parser import NameParser
+from fluxcore.services.metadata.core.file_group_builder import get_variables_from_file
+from fluxcore.services.metadata.core.site_config_schema import validate_all
+from fluxcore.services.metadata.core.variable_name_parser import NameParser
+from nicegui import ui
+
+from infrastructure.tern import paths
 from services.metadata.tern.instrument_registry import (
     get_quantity_components,
     is_compound_quantity,

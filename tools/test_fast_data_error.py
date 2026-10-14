@@ -4,7 +4,7 @@
 import datetime as dt
 from pathlib import Path
 
-from infrastructure.file_io import read_lines
+from fluxcore.infrastructure.file_io import read_lines
 
 path = "/store/Raw_data/Calperum/Flux/Fast/TOA5"
 

@@ -2,7 +2,8 @@
 
 import datetime as dt
 
-from infrastructure import file_io
+from fluxcore.infrastructure import file_io
+
 from infrastructure.tern import paths
 from tasks.registry import register
 
@@ -115,8 +116,9 @@ def construct_site_details_json() -> None:
 @register
 def update_EddyPro_master(site: str) -> dict:
     """Append new SmartFlux daily EddyPro summary files to the site's master file."""
-    from domain.enums import FluxSystemType
-    from services.data import eddypro_concatenator as epc
+    from fluxcore.domain.enums import FluxSystemType
+    from fluxcore.services.data import eddypro_concatenator as epc
+
     from services.metadata.tern.site_registry import SiteRegistry
 
     runtime_cfg = SiteRegistry().get_runtime_config(site)

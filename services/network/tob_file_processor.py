@@ -14,9 +14,10 @@ import hashlib
 import logging
 from pathlib import Path
 
+from fluxcore.services.data.toa5_writer import write_toa5
+
 from infrastructure.tern import paths
 from infrastructure.tern import tob_codec as tob
-from services.data.toa5_writer import write_toa5
 from services.metadata.tern.site_registry import SiteRegistry
 
 logger = logging.getLogger(__name__)

@@ -10,6 +10,7 @@ import logging
 from collections.abc import Callable
 
 import pandas as pd
+from fluxcore.services import config_loader
 
 # Trigger @register decorators
 import tasks.build_tasks  # noqa: F401
@@ -17,7 +18,6 @@ import tasks.monitor_tasks  # noqa: F401
 import tasks.transfer_tasks  # noqa: F401
 from infrastructure.tern import paths
 from infrastructure.tern.paths import CONFIG_PATH
-from services import config_loader
 from services.metadata.tern.site_registry import SiteRegistry
 from tasks.logger_config import configure_logger_json
 from tasks.registry import GLOBAL_TASKS, SITE_TASKS

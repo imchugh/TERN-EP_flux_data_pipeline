@@ -19,7 +19,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from infrastructure import file_io
+from fluxcore.infrastructure import file_io
+
 from services.metadata.tern.instrument_registry import is_valid_instrument
 from services.metadata.tern.site_registry import SITE_CONFIG_DIR
 from tools.audit_instrument_names import _extract_instrument_names

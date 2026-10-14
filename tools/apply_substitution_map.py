@@ -20,7 +20,8 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from infrastructure import file_io
+from fluxcore.infrastructure import file_io
+
 from infrastructure.tern import paths
 from services.metadata.tern.site_registry import SITE_CONFIG_DIR
 

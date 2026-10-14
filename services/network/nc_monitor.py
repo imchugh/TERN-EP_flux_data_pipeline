@@ -9,8 +9,8 @@ from typing import Any
 
 import pandas as pd
 import xarray as xr
+from fluxcore.infrastructure import datetime_utils
 
-from infrastructure import datetime_utils
 from infrastructure.tern import paths
 
 logger = logging.getLogger(__name__)

@@ -7,9 +7,10 @@ via infrastructure.tern.paths, then delegates to the generic-core
 qc_config_schema.load_qc_config.
 """
 
+from fluxcore.services.metadata.core import qc_config_schema
+from fluxcore.services.metadata.core.qc_config_schema import SiteQCConfig
+
 from infrastructure.tern import paths
-from services.metadata.core import qc_config_schema
-from services.metadata.core.qc_config_schema import SiteQCConfig
 
 
 def load_site_qc_config(site_name: str) -> SiteQCConfig:

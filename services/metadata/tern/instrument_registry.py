@@ -4,8 +4,9 @@
 import functools
 import logging
 
+from fluxcore.services import config_loader
+
 from infrastructure.tern import paths
-from services import config_loader
 from services.metadata.tern.site_metadata_repository import get_instrument_vocab
 
 logger = logging.getLogger(__name__)

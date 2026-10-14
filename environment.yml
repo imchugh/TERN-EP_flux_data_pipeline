@@ -39,3 +39,6 @@ dependencies:
       - ruff
       - git-filter-repo
       - zarr<3
+      # Generic processing core (https://github.com/imchugh/fluxcore), editable
+      # from a local clone so core edits take effect immediately.
+      - -e /opt/TERN_EP/fluxcore

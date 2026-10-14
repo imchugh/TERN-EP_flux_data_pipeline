@@ -22,10 +22,16 @@ Usage (from project root, with ep_cntl activated):
 import argparse
 import pathlib
 
+from fluxcore.orchestration import (
+    build_L1_nc,
+    build_L1_zarr,
+    build_L2_nc,
+    build_L2_zarr,
+)
+from fluxcore.services import config_loader
+
 from infrastructure.tern import paths
-from orchestration import build_L1_nc, build_L1_zarr, build_L2_nc, build_L2_zarr
 from orchestration.tern.site_runner import SITE_REGISTRY
-from services import config_loader
 from services.metadata.tern.qc_config_loader import load_site_qc_config
 
 NC_GLOBAL_ATTRS = config_loader.load_config_file_from_name(

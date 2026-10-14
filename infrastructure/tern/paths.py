@@ -8,10 +8,9 @@ paths resolve to rclone designator strings (e.g. 'uqrdm:...').
 
 import pathlib
 
+from fluxcore.domain.constants import SITE_PLACEHOLDER
+from fluxcore.infrastructure import file_io
 from pydantic import BaseModel
-
-from domain.constants import SITE_PLACEHOLDER
-from infrastructure import file_io
 
 # TERN config directory (core configs live one level up, in configs/).
 CONFIG_PATH = pathlib.Path(__file__).parents[2] / "configs" / "tern"
