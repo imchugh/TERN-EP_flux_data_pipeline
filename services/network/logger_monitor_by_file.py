@@ -12,7 +12,6 @@ breaks for a site and a direct API check is needed to diagnose it.
 
 import csv
 import logging
-import pathlib
 from typing import Any
 
 import pandas as pd
@@ -20,7 +19,6 @@ from fluxcore import SiteContext
 from fluxcore.infrastructure import file_io
 
 from fluxtools.datetime_utils import get_local_datetime_now, get_tz_aware_datetime
-from infrastructure import paths
 from services.metadata.site_registry import SiteRegistry
 from services.network.logger_monitor import STATUS_SUBSET, SUMMARY_SUBSET
 
@@ -53,14 +51,6 @@ NULL_RESULT: dict[str, Any] = {
 SITE_REGISTRY = SiteRegistry()
 
 
-def get_status_file_path(site: str) -> pathlib.Path:
-    """Return the expected local path of a site's logger status file."""
-    return (
-        paths.get_local_stream_path(resource="raw_data", stream="flux_slow", site=site)
-        / f"{site}_EC_{FILE_SUFFIX}"
-    )
-
-
 def get_logger_status(context: SiteContext) -> dict[str, Any]:
     """Parse the latest row of a site's locally mirrored logger status file.
 
@@ -78,7 +68,7 @@ def get_logger_status(context: SiteContext) -> dict[str, Any]:
         ValueError: If the status file has no data rows.
     """
     site = context.runtime_config.site_name
-    file_path = get_status_file_path(site=site)
+    file_path = context.runtime_config.input_data_path / f"{site}_EC_{FILE_SUFFIX}"
 
     if not file_path.exists():
         raise FileNotFoundError(

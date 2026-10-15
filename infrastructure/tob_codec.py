@@ -7,19 +7,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from fluxtools.toa5_writer import TOA5_INFO_FIELDS
 from infrastructure import read_cs_files as rcf
 
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
-_INFO_NAMES = [
-    "format",
-    "station_name",
-    "logger_type",
-    "serial_num",
-    "OS_version",
-    "program_name",
-    "program_sig",
-]
+# The first seven info-line fields; the eighth differs between TOB1 and TOB3.
+_INFO_NAMES = TOA5_INFO_FIELDS[:-1]
 
 
 def read_tob(files: Path | list[Path]) -> tuple[pd.DataFrame, dict]:
@@ -143,8 +137,7 @@ def _build_metadata(raw_meta: list, fmt: str) -> dict:
     if fmt == "TOB3":
         meta.pop(1)  # remove the TOB3-specific frame-descriptor line
 
-    last_key = "creation_date" if fmt == "TOB3" else "table_name"
-    info = list(dict(zip(_INFO_NAMES + [last_key], meta[0])).values())
+    info = list(meta[0][: len(_INFO_NAMES) + 1])
 
     # Strip TIMESTAMP (first entry) from each header list — the writer
     # adds it back, matching the convention in raw_data_loader / toa5_writer.

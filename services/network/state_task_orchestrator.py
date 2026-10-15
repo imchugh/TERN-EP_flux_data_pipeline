@@ -85,9 +85,6 @@ SITE_SUMMARY_PATH = STATE_DIR / "site_summary.json"
 # Shared type alias for the two-argument persist-callback contract.
 type PersistFn = Callable[[dict[str, Any], str], None]
 
-# Shared registry — built once at import time, metadata cache pre-warmed
-# before each concurrent run.
-
 SITE_REGISTRY = SiteRegistry()
 
 # Task adapters
@@ -311,8 +308,7 @@ def run_task_for_all_sites(
         task_name: Label used as the top-level key in the returned payload and
             passed as the second argument to ``persist``.
         sites: Explicit list of site names to iterate. When ``None`` (default),
-            the shared pipeline registry supplies the list and its metadata
-            cache is pre-warmed before launching threads.
+            the pipeline registry supplies the list.
         max_workers: Thread pool size passed to the executor (default 8).
         persist: Callable invoked as ``persist(results, task_name)`` after all
             sites complete. Defaults to ``write_state``, which writes a fresh
@@ -325,10 +321,6 @@ def run_task_for_all_sites(
         Dict of the form ``{task_name: {site: result_or_error, ...}}``.
     """
     if sites is None:
-        # Pre-warm the shared metadata cache before launching threads so that
-        # all threads see a populated cache rather than racing to load the same
-        # YAML file.
-        SITE_REGISTRY.get_all_metadata()
         sites = SITE_REGISTRY.names()
 
     logger.info(

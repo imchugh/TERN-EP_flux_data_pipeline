@@ -24,8 +24,9 @@ from fluxcore.infrastructure import datetime_utils
 
 from fluxtools import data_diagnostics, toa5_writer
 from fluxtools.file_io import get_most_recent_file, write_json
+from fluxtools.toa5_writer import TOA5_INFO_FIELDS
 from infrastructure import paths
-from infrastructure.parallel_executor import run_concurrent
+from infrastructure.parallel_executor import run_concurrent_ordered
 from infrastructure.safe_ops import safe_component
 from services.metadata.site_registry import SiteRegistry
 
@@ -38,18 +39,6 @@ LOGGER_SUBSET = [
     "serial_num",
     "OS_version",
     "program_name",
-]
-
-# Standard TOA5 info-line field order (fixed 8-element header row).
-TOA5_INFO_FIELDS = [
-    "format",
-    "station_name",
-    "logger_type",
-    "serial_num",
-    "OS_version",
-    "program_name",
-    "program_sig",
-    "table_name",
 ]
 
 SUN_TIMES_FALLBACK = {"sunrise": "", "sunset": ""}
@@ -138,14 +127,7 @@ def collate_site_info(
     # Flux logger metadata + missing-data %
 
     file_format = runtime_cfg.get_file_format(runtime_cfg.flux_file)
-    flux_file_path = (
-        paths.get_local_stream_path(
-            resource="raw_data",
-            stream="flux_slow",
-            site=site_name,
-        )
-        / runtime_cfg.flux_filename
-    )
+    flux_file_path = runtime_cfg.input_data_path / runtime_cfg.flux_filename
 
     if runtime_cfg.get_logger_type(runtime_cfg.flux_file) == LoggerType.LICOR:
         # No TOA5-style info line exists to read — nothing to attempt.
@@ -281,27 +263,9 @@ def _get_flux_data_gaps(file_path, file_format: str, interval_minutes: int) -> d
 
 
 def _build_site_entry(site: str) -> dict:
-    """Collate one site's info for `build_site_details_json`.
-
-    Never raises — a failure is returned as a result, not thrown, so one bad
-    site can't take down the concurrent run_concurrent dispatch for the rest.
-    """
-    try:
-        context = SITE_REGISTRY.get_context(site=site)
-        site_info = collate_site_info(context=context)
-        return {"status": "success", "data": {"site": site} | site_info}
-
-    except Exception as e:
-        logger.error(
-            "site_info_site_failed",
-            extra={"site": site},
-            exc_info=True,
-        )
-        return {
-            "status": "failure",
-            "error_type": type(e).__name__,
-            "error": str(e),
-        }
+    """Collate one site's info for `build_site_details_json`."""
+    context = SITE_REGISTRY.get_context(site=site)
+    return {"site": site} | collate_site_info(context=context)
 
 
 def build_site_details_json(site_list: list[str] | None = None) -> dict:
@@ -321,31 +285,11 @@ def build_site_details_json(site_list: list[str] | None = None) -> dict:
         `{site: {"status": "failure", "error_type": ..., "error": ...}}`.
     """
     if site_list is None:
-        # Pre-warm the shared metadata cache before launching threads so all
-        # threads see a populated cache rather than racing to load the same
-        # YAML file.
-        SITE_REGISTRY.get_all_metadata()
         site_list = SITE_REGISTRY.names()
 
     logger.info("site_info_generation_start", extra={"site_count": len(site_list)})
 
-    entries = run_concurrent(task=_build_site_entry, items=site_list)
-
-    # Iterate site_list (not `entries`) so JSON output order stays
-    # deterministic — run_concurrent's dict is in thread-completion order.
-    data_list = [
-        entries[site]["data"]
-        for site in site_list
-        if entries[site].get("status") == "success"
-    ]
-    results = {
-        site: (
-            {"status": "success"}
-            if entries[site].get("status") == "success"
-            else {k: v for k, v in entries[site].items() if k != "data"}
-        )
-        for site in site_list
-    }
+    data_list, results = run_concurrent_ordered(task=_build_site_entry, items=site_list)
 
     output_path = (
         paths.get_local_stream_path(resource="network", stream="info")

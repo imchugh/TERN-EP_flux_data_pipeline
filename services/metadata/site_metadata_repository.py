@@ -52,9 +52,7 @@ def load_sparql_configs() -> dict:
     """
     global _SPARQL_CACHE
     if _SPARQL_CACHE is None:
-        _SPARQL_CACHE = config_loader.load_config_file_from_name(
-            name="sparql_query_configs", config_dir=paths.CONFIG_PATH
-        )
+        _SPARQL_CACHE = config_loader.load_config_file_from_name("sparql_query_configs")
     return _SPARQL_CACHE
 
 

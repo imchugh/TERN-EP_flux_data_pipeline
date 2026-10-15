@@ -29,13 +29,14 @@ from services.metadata.instrument_registry import (
     list_instruments,
     list_instruments_for_quantity,
 )
+from services.metadata.site_registry import SITE_CONFIG_DIR
 from ui.components.component_config import (
     create_file_formats_editor,
     create_input_variable_table,
 )
 
 # Constants
-SITES_DIR = Path("/opt/TERN_EP/site_configs/operational")
+SITES_DIR = SITE_CONFIG_DIR
 SAVE_DIR = Path("/tmp/site_config_edits")
 EXCLUDE_VARS = ["TIMESTAMP", "date", "time"]
 

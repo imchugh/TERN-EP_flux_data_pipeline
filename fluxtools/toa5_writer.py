@@ -30,6 +30,20 @@ _TIMESTAMP_COL = "TIMESTAMP"
 _TIMESTAMP_UNITS = "TS"
 _TIMESTAMP_SAMPLING = ""
 
+# Field names of the TOA5 info line (line 1), in order. TOB1/TOB3 files share
+# the first seven; their eighth is the table name (TOB1) or the file's
+# creation date (TOB3).
+TOA5_INFO_FIELDS: list[str] = [
+    "format",
+    "station_name",
+    "logger_type",
+    "serial_num",
+    "OS_version",
+    "program_name",
+    "program_sig",
+    "table_name",
+]
+
 # Default TOA5 info line (line 1) used when no `info` argument is supplied.
 DEFAULT_TOA5_INFO: list[str] = [
     "TOA5",

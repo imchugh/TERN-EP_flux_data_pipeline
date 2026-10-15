@@ -34,10 +34,10 @@ NC_SUFFIX = "_L1.nc"
 # Half-hourly updates mean a 60-second window is conservative enough to avoid
 # false positives once the monitor is scheduled away from the ingest window.
 _WRITE_QUIET_SECS: int = 60
-# Under host memory pressure, the netCDF4/HDF5 backend can fail to parse a
-# perfectly valid file and raise a generic "Unknown file format" OSError
-# instead of an out-of-memory error. A short retry rides out that transient
-# failure; genuine file corruption fails the same way on retry.
+# The netCDF4/HDF5 backend can fail to parse a perfectly valid file with a
+# generic "Unknown file format" OSError: under host memory pressure, or when
+# a reader's open races construct_L1_nc's atomic rename on shared network
+# storage. A short retry rides out either; genuine corruption fails again.
 _OPEN_RETRY_ATTEMPTS: int = 2
 _OPEN_RETRY_DELAY_SECS: float = 2.0
 NULL_RESULT: dict[str, Any] = {
@@ -95,7 +95,7 @@ def get_latest_nc_file(site: str) -> pathlib.Path:
     return stable[-1]
 
 
-def _open_dataset_with_retry(file_path: pathlib.Path) -> xr.Dataset:
+def open_dataset_with_retry(file_path: pathlib.Path) -> xr.Dataset:
     """Open file_path as an xarray Dataset, retrying once on a transient OSError.
 
     Args:
@@ -158,7 +158,7 @@ def check_nc_last_record(site: str) -> dict[str, Any]:
             extra={"site": site, "file": str(file_path)},
         )
 
-        with NETCDF_LOCK, _open_dataset_with_retry(file_path) as ds:
+        with NETCDF_LOCK, open_dataset_with_retry(file_path) as ds:
             tz_name: str = ds.attrs["time_zone"]
             # Timestamps are stored as naive local time; convert via pandas
             # Timestamp to match the convention used by data_monitor.py.
@@ -166,8 +166,7 @@ def check_nc_last_record(site: str) -> dict[str, Any]:
                 pd.Timestamp(ds.time.values[-1]).to_pydatetime().replace(tzinfo=None)
             )
 
-        local_now = get_local_datetime_now(tz_name=tz_name)
-        local_now_naive = local_now.replace(tzinfo=None)
+        local_now_naive = get_local_datetime_now(tz_name=tz_name, return_tz_aware=False)
 
         last_record_tzaware = get_tz_aware_datetime(
             naive_dt=last_record_naive,

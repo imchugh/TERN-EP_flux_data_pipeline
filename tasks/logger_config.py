@@ -1,12 +1,40 @@
 #!/usr/bin/env python3
 """JSON rotating-file + console logger setup, with run-id tagging."""
 
+import json
 import logging
+import time
 import uuid
 from datetime import UTC, datetime
 from logging.handlers import RotatingFileHandler
 
-from tasks.network_logger import JsonFormatter
+# Attributes every LogRecord carries; anything else on a record came from a
+# caller's `extra=` and is written out as a field.
+_STANDARD_RECORD_ATTRS = set(vars(logging.makeLogRecord({}))) | {"message", "asctime"}
+
+
+class JsonFormatter(logging.Formatter):
+    """Formats logs as one JSON object per line, including all extra fields."""
+
+    def format(self, record):
+        """Return one JSON-encoded log line for `record`, including extra fields."""
+        log_record = {
+            "timestamp": time.strftime(
+                "%Y-%m-%dT%H:%M:%SZ", time.gmtime(record.created)
+            ),
+            "level": record.levelname,
+            "name": record.name,
+            "message": record.getMessage(),
+        }
+        log_record.update(
+            (key, value)
+            for key, value in record.__dict__.items()
+            if key not in _STANDARD_RECORD_ATTRS
+        )
+        if record.exc_info:
+            log_record["exception"] = self.formatException(record.exc_info)
+
+        return json.dumps(log_record)
 
 
 def generate_run_id() -> str:

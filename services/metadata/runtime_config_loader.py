@@ -27,7 +27,7 @@ from fluxcore import (
 )
 
 from infrastructure import paths
-from services.metadata import instrument_validation_cache
+from services.metadata import instrument_registry, instrument_validation_cache
 
 
 def _validate_instrument_names(
@@ -60,10 +60,6 @@ def _validate_instrument_names(
     cached = instrument_validation_cache.lookup(content_hash)
     if cached is not None:
         return cached["instrument_uris"]
-
-    # Deferred to avoid circular import:
-    # instrument_registry → site_metadata_repository → site_registry → here
-    from services.metadata import instrument_registry
 
     errors = []
     instrument_uris: dict[str, str | None] = {}

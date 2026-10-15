@@ -118,6 +118,6 @@ Validated by `HorizontalLocationConfig` (single-letter keys), carried onto `Site
 
 - **Registry pattern**: `SiteRegistry`, conversion registry in `unit_conversions`, calculation registry in `calculations`
 - **Decorator-based registration**: `@register_conversion()` (`unit_conversions`), `@register_calculation()` (`calculations`)
-- **Module-level singleton**: use `SITE_REGISTRY = SiteRegistry()` at module level (same pattern as `state_task_orchestrator.py`, `dataset_builder.py`)
+- **Module-level singleton**: use `SITE_REGISTRY = SiteRegistry()` at module level (same pattern as `state_task_orchestrator.py`, `build_runner.py`). An instance is thread-safe (the metadata load is locked), so it can be used directly from `run_concurrent` workers without pre-warming.
 - **Pydantic dataclasses** for all metadata/config objects — immutable, type-checked
 - **Threshold variable matching**: `THRESHOLD_SPECS` keys may include instrument qualifiers (e.g. `'Diag_IRGA'`, `'Diag_SONIC'`); `var_def.quantity` is always the base quantity (e.g. `'Diag'`). Derive base quantities with `quantity.startswith(var_def.quantity)`; match canonical DataFrame columns with `col.startswith(quantity)`.

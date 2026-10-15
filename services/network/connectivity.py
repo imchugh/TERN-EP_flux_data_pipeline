@@ -24,9 +24,7 @@ from infrastructure.connections import PortScanError, scan_tcp_port
 
 logger = logging.getLogger(__name__)
 
-SITE_IP = config_loader.load_config_file_from_name(
-    "vpn_ip", config_dir=paths.CONFIG_PATH
-)
+SITE_IP = config_loader.load_config_file_from_name("vpn_ip")
 STATE_DIR = paths.get_local_stream_path(resource="network", stream="state")
 
 DEFAULT_STATE = {"updated_at": None, "sites": {}}

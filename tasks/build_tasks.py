@@ -148,11 +148,8 @@ def update_EddyPro_master(site: str) -> dict:
             "only applies to SmartFlux sites."
         )
 
-    data_path = paths.get_local_stream_path(
-        resource="raw_data", stream="flux_slow", site=site
-    )
-    master = data_path / runtime_cfg.flux_filename
-    candidates = list_available_files(data_path, "*EP-Summary.txt")
+    master = runtime_cfg.input_data_path / runtime_cfg.flux_filename
+    candidates = list_available_files(runtime_cfg.input_data_path, "*EP-Summary.txt")
     slaves = epc.select_new_slaves(master=master, candidates=candidates)
 
     report = epc.concatenate_eddypro(master=master, slaves=slaves, output=master)

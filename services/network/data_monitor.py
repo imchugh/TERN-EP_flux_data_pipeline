@@ -23,7 +23,6 @@ from fluxtools.datetime_utils import (
     get_local_datetime_now,
     get_tz_aware_datetime,
 )
-from infrastructure import paths
 
 logger = logging.getLogger(__name__)
 
@@ -155,6 +154,30 @@ def _range_defaults() -> dict:
     return load_range_defaults()
 
 
+def mask_to_default_range(
+    series: pd.Series, name: str, statistic_suffix: str | None = None
+) -> pd.Series:
+    """Mask values outside the shared default range for `name` as NaN.
+
+    Bounds come from fluxcore's _range_defaults.yml (resolve_default_range);
+    a variable with no default is returned unchanged.
+    """
+    bounds = resolve_default_range(name, statistic_suffix, _range_defaults())
+    if bounds is None:
+        return series
+    return series.where(series.between(*bounds))
+
+
+def _combine_columns(series: list[pd.Series]) -> pd.Series | None:
+    """Merge same-quantity columns (first non-NaN wins), dropping NaN; None if empty."""
+    if not series:
+        return None
+    combined = series[0]
+    for s in series[1:]:
+        combined = combined.combine_first(s)
+    return combined.dropna()
+
+
 def _build_monitor_series(
     df: pd.DataFrame,
     quantity: str,
@@ -163,9 +186,9 @@ def _build_monitor_series(
     """Extract a plausibility-filtered sparse Series for a single quantity.
 
     Walks the site variable registry to find canonical column name(s) for the
-    quantity, restricts to continuous average-statistic variables, applies the
-    shared default range from _range_defaults.yml (masking out-of-range values as NaN), then drops
-    NaN so the resulting index contains only plausible records. Multiple columns
+    quantity, restricts to continuous average-statistic variables, masks values
+    outside the shared default range (mask_to_default_range), then drops NaN
+    so the resulting index contains only plausible records. Multiple columns
     for the same quantity (e.g. different heights) are merged with combine_first.
     Returns None if no matching column exists in df.
 
@@ -192,25 +215,11 @@ def _build_monitor_series(
         statistic_suffix = (
             var_def.statistic_type.suffix if var_def.statistic_type else None
         )
-        bounds = resolve_default_range(
-            canonical_name, statistic_suffix, _range_defaults()
+        series.append(
+            mask_to_default_range(df[canonical_name], canonical_name, statistic_suffix)
         )
 
-        s = df[canonical_name].copy()
-
-        if bounds is not None:
-            s = s.where((s >= bounds[0]) & (s <= bounds[1]))
-
-        series.append(s)
-
-    if not series:
-        return None
-
-    combined = series[0]
-    for s in series[1:]:
-        combined = combined.combine_first(s)
-
-    return combined.dropna()
+    return _combine_columns(series)
 
 
 def get_variable_quality(
@@ -301,14 +310,7 @@ def _build_threshold_series(
 
         series.append(s)
 
-    if not series:
-        return None
-
-    combined = series[0]
-    for s in series[1:]:
-        combined = combined.combine_first(s)
-
-    return combined.dropna()
+    return _combine_columns(series)
 
 
 def get_threshold_quality(
@@ -386,19 +388,12 @@ def analyse_missing_data(context: SiteContext) -> dict[str, Any]:
     data_cfg = context.runtime_config
     site_cfg = context.metadata
 
-    file_path = (
-        paths.get_local_stream_path(
-            resource="raw_data",
-            stream="flux_slow",
-            site=data_cfg.site_name,
-        )
-        / data_cfg.flux_filename
-    )
-
+    file_path = data_cfg.input_data_path / data_cfg.flux_filename
     df = load_raw_data(file_path, data_cfg.get_file_format(data_cfg.flux_file))
 
-    local_now = get_local_datetime_now(tz_name=site_cfg.time_zone)
-    local_now_naive = local_now.replace(tzinfo=None)
+    local_now_naive = get_local_datetime_now(
+        tz_name=site_cfg.time_zone, return_tz_aware=False
+    )
     last_data_record_naive = df.index[-1].to_pydatetime()
     last_data_record_tzaware = get_tz_aware_datetime(
         naive_dt=last_data_record_naive, tz_name=site_cfg.time_zone, as_iso=True
@@ -438,8 +433,9 @@ def analyse_variable_quality(context: SiteContext) -> dict[str, Any]:
     """
     df = build_dataframe_from_context(ctx=context, quantities=set(MONITOR_VARS))
 
-    local_now = get_local_datetime_now(tz_name=context.metadata.time_zone)
-    local_now_naive = local_now.replace(tzinfo=None)
+    local_now_naive = get_local_datetime_now(
+        tz_name=context.metadata.time_zone, return_tz_aware=False
+    )
 
     return get_variable_quality(
         df=df,
@@ -476,8 +472,9 @@ def analyse_threshold_quality(context: SiteContext) -> dict[str, Any]:
 
     df = build_dataframe_from_context(ctx=context, quantities=base_quantities)
 
-    local_now = get_local_datetime_now(tz_name=context.metadata.time_zone)
-    local_now_naive = local_now.replace(tzinfo=None)
+    local_now_naive = get_local_datetime_now(
+        tz_name=context.metadata.time_zone, return_tz_aware=False
+    )
 
     return get_threshold_quality(
         df=df,

@@ -8,6 +8,7 @@ including decommissioned and non-pipeline sites. The registry filters
 that down to the pipeline population.
 """
 
+import threading
 from collections.abc import Callable
 from pathlib import Path
 
@@ -46,7 +47,8 @@ class SiteRegistry:
     configuration YML file exists in SITE_CONFIG_DIR.
 
     Metadata is loaded lazily on first access and cached for the lifetime
-    of the registry instance.
+    of the registry instance. Safe to share across threads: the first load
+    is serialised, so concurrent callers never race to load it.
     """
 
     def __init__(
@@ -63,6 +65,7 @@ class SiteRegistry:
             metadata_loader if metadata_loader is not None else yml_loader
         )
         self._metadata_cache: dict[str, SiteMetadata] | None = None
+        self._metadata_lock = threading.Lock()
         self._runtime_config_cache: dict[tuple[str, bool], SiteRuntimeConfig] = {}
 
     def names(self) -> list[str]:
@@ -103,13 +106,14 @@ class SiteRegistry:
         Results are loaded once from the metadata loader and cached for
         the lifetime of this registry instance.
         """
-        if self._metadata_cache is None:
-            all_tern = self._metadata_loader()
-            self._metadata_cache = {
-                site: all_tern[SITE_ALIASES.get(site, site)]
-                for site in self.names()
-                if SITE_ALIASES.get(site, site) in all_tern
-            }
+        with self._metadata_lock:
+            if self._metadata_cache is None:
+                all_tern = self._metadata_loader()
+                self._metadata_cache = {
+                    site: all_tern[SITE_ALIASES.get(site, site)]
+                    for site in self.names()
+                    if SITE_ALIASES.get(site, site) in all_tern
+                }
 
         return self._metadata_cache
 
@@ -163,9 +167,7 @@ def yml_loader() -> dict[str, SiteMetadata]:
     This is the standard loader for production use. Pass it as
     ``metadata_loader`` when constructing a SiteRegistry.
     """
-    loaded = config_loader.load_config_file_from_name(
-        "site_metadata", config_dir=paths.CONFIG_PATH
-    )
+    loaded = config_loader.load_config_file_from_name("site_metadata")
     return {key: SiteMetadata(data=value) for key, value in loaded.items()}
 
 

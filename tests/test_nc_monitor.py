@@ -64,7 +64,7 @@ class TestOpenDatasetWithRetry(unittest.TestCase):
     def test_succeeds_first_try_without_sleeping(self):
         with patch.object(nc_monitor.xr, "open_dataset", return_value="ds") as m_open:
             with patch.object(nc_monitor.time, "sleep") as m_sleep:
-                result = nc_monitor._open_dataset_with_retry(Path("f.nc"))
+                result = nc_monitor.open_dataset_with_retry(Path("f.nc"))
 
         self.assertEqual(result, "ds")
         self.assertEqual(m_open.call_count, 1)
@@ -77,7 +77,7 @@ class TestOpenDatasetWithRetry(unittest.TestCase):
             side_effect=[OSError("unknown file format"), "ds"],
         ) as m_open:
             with patch.object(nc_monitor.time, "sleep") as m_sleep:
-                result = nc_monitor._open_dataset_with_retry(Path("f.nc"))
+                result = nc_monitor.open_dataset_with_retry(Path("f.nc"))
 
         self.assertEqual(result, "ds")
         self.assertEqual(m_open.call_count, 2)
@@ -88,7 +88,7 @@ class TestOpenDatasetWithRetry(unittest.TestCase):
         with patch.object(nc_monitor.xr, "open_dataset", side_effect=[exc, exc]):
             with patch.object(nc_monitor.time, "sleep"):
                 with self.assertRaises(OSError):
-                    nc_monitor._open_dataset_with_retry(Path("f.nc"))
+                    nc_monitor.open_dataset_with_retry(Path("f.nc"))
 
 
 if __name__ == "__main__":

@@ -58,3 +58,38 @@ def run_concurrent(
                 results[item] = {"error": str(exc)}
 
     return results
+
+
+def run_concurrent_ordered(
+    task: Callable[[str], Any],
+    items: list[str],
+    max_workers: int = 8,
+) -> tuple[list[Any], dict[str, dict]]:
+    """Run task(item) concurrently, collecting outputs in input order.
+
+    For per-site builders whose successful outputs are assembled into one
+    file: a failing item is logged with its traceback and left out of the
+    outputs, so one bad site can't stop the rest.
+
+    Returns:
+        (outputs of the successful items, in `items` order;
+        per-item status: {"status": "success"} or
+        {"status": "failure", "error_type": ..., "error": ...}).
+    """
+
+    def guarded(item: str) -> dict:
+        try:
+            return {"status": "success", "output": task(item)}
+        except Exception as exc:
+            logger.error("parallel_task_failed", extra={"item": item}, exc_info=True)
+            return {
+                "status": "failure",
+                "error_type": type(exc).__name__,
+                "error": str(exc),
+            }
+
+    # run_concurrent's dict is in completion order; iterate `items` instead.
+    entries = run_concurrent(task=guarded, items=items, max_workers=max_workers)
+    outputs = [entries[i]["output"] for i in items if entries[i]["status"] == "success"]
+    status = {i: {k: v for k, v in entries[i].items() if k != "output"} for i in items}
+    return outputs, status

@@ -30,12 +30,11 @@ import pathlib
 from fluxcore import build_L1_nc, build_L1_zarr, build_L2_nc, build_L2_zarr
 
 from infrastructure import config_loader, paths
-from orchestration.site_runner import SITE_REGISTRY
 from services.metadata.qc_config_loader import load_site_qc_config
+from services.metadata.site_registry import SiteRegistry
 
-NC_GLOBAL_ATTRS = config_loader.load_config_file_from_name(
-    name="nc_metadata", config_dir=paths.CONFIG_PATH
-)
+SITE_REGISTRY = SiteRegistry()
+NC_GLOBAL_ATTRS = config_loader.load_config_file_from_name("nc_metadata")
 
 
 def _zarr_dir(level: str) -> pathlib.Path:

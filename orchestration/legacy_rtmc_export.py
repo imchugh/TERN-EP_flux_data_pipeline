@@ -17,7 +17,7 @@ import xarray as xr
 from fluxcore import get_calculation, load_range_defaults, lookup_default_range
 
 from fluxtools import toa5_writer
-from infrastructure import config_loader, paths
+from infrastructure import config_loader
 from services.metadata.qc_config_loader import load_site_qc_config
 
 logger = logging.getLogger(__name__)
@@ -136,12 +136,8 @@ def _drop_extraneous_variables(ds: xr.Dataset, site_name: str) -> xr.Dataset:
 
 def _get_extraneous_soil(ds: xr.Dataset, site_name: str) -> list[str]:
     """Return soil variables not in the site's configured keep-list."""
-    try:
-        vars_to_keep = config_loader.load_config_file_from_name(
-            name="soil_variables", config_dir=paths.CONFIG_PATH
-        )[site_name]
-    except KeyError:
-        vars_to_keep = {}
+    soil_config = config_loader.load_config_file_from_name("soil_variables")
+    vars_to_keep = soil_config.get(site_name, {})
 
     drop = []
     for quantity, config_key in SOIL_QUANTITIES.items():
@@ -272,7 +268,7 @@ def _rename_variables(ds: xr.Dataset) -> xr.Dataset:
     wind_rename = {}
     for var in ["Wd", "Ws"]:
         if var in ds:
-            ds = ds.drop(var)
+            ds = ds.drop_vars(var)
         sonic_var = f"{var}_SONIC"
         if sonic_var in ds.variables:
             wind_rename[sonic_var] = var
