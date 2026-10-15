@@ -12,7 +12,6 @@ from fluxcore.orchestration.dataframe_builder import build_dataframe_from_contex
 from fluxcore.services.data import raw_data_loader
 from fluxcore.services.metadata.core import qc_config_schema
 from fluxcore.services.metadata.core.site_metadata_builder import SiteContext
-from fluxcore.services.metadata.core.variable_name_parser import NameParser
 
 from fluxtools import data_diagnostics
 from fluxtools.datetime_utils import (
@@ -190,7 +189,7 @@ def _build_monitor_series(
             var_def.statistic_type.suffix if var_def.statistic_type else None
         )
         bounds = qc_config_schema.resolve_default_range(
-            canonical_name, statistic_suffix, _range_defaults(), NameParser()
+            canonical_name, statistic_suffix, _range_defaults()
         )
 
         s = df[canonical_name].copy()

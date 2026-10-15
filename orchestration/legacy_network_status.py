@@ -25,7 +25,6 @@ import geojson
 import numpy as np
 import xarray as xr
 from fluxcore.services.metadata.core import qc_config_schema
-from fluxcore.services.metadata.core.variable_name_parser import NameParser
 
 from fluxtools.datetime_utils import get_local_datetime_now
 from fluxtools.file_io import write_json
@@ -228,9 +227,7 @@ def _filter_range(series, max_val, min_val):
 
 def _plausible_range(variable: str, range_defaults: dict) -> tuple:
     """(min, max) plausible-value bounds from _range_defaults.yml; (None, None) if absent."""
-    bounds = qc_config_schema.resolve_default_range(
-        variable, None, range_defaults, NameParser()
-    )
+    bounds = qc_config_schema.resolve_default_range(variable, None, range_defaults)
     return bounds if bounds is not None else (None, None)
 
 

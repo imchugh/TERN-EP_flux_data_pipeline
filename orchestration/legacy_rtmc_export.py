@@ -16,7 +16,6 @@ import pathlib
 import xarray as xr
 from fluxcore.services.data.calculations import get_calculation
 from fluxcore.services.metadata.core import qc_config_schema
-from fluxcore.services.metadata.core.variable_name_parser import NameParser
 
 from fluxtools import toa5_writer
 from infrastructure import config_loader, paths
@@ -322,7 +321,6 @@ def _apply_default_range_limits(ds: xr.Dataset, site_name: str) -> xr.Dataset:
     """
     qc_config = load_site_qc_config(site_name)
     range_defaults = qc_config_schema.load_range_defaults()
-    name_parser = NameParser()
 
     for var in ds.data_vars:
         if var == "crs":
@@ -332,9 +330,7 @@ def _apply_default_range_limits(ds: xr.Dataset, site_name: str) -> xr.Dataset:
         if spec is not None and spec.range_check is not None:
             bounds = (spec.range_check.lower, spec.range_check.upper)
         else:
-            bounds = qc_config_schema.lookup_default_range(
-                ds, var, range_defaults, name_parser
-            )
+            bounds = qc_config_schema.lookup_default_range(ds, var, range_defaults)
         if bounds is None:
             continue
 

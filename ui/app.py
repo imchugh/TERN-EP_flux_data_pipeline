@@ -14,7 +14,7 @@ from fluxcore.services.metadata.core.canonical_quantity_registry import (
 )
 from fluxcore.services.metadata.core.file_group_builder import get_variables_from_file
 from fluxcore.services.metadata.core.site_config_schema import validate_all
-from fluxcore.services.metadata.core.variable_name_parser import NameParser
+from fluxcore.services.metadata.core.variable_name_parser import parse_variable_name
 from nicegui import ui
 
 from fluxtools.file_io import list_available_files
@@ -41,7 +41,6 @@ FLUX_SYSTEM_OPTIONS = [e.value for e in FluxSystemType]
 STATISTIC_TYPE_OPTIONS = [e.value for e in StatisticType]
 VARIABLE_TYPE_OPTIONS = [e.value for e in VariableType]
 
-name_parser = NameParser()
 
 # App state
 state = {
@@ -107,7 +106,7 @@ def _extract_quantity(var_name: str | None) -> str | None:
     if not var_name:
         return None
     try:
-        return name_parser.parse_variable_name(var_name).quantity
+        return parse_variable_name(var_name).quantity
     except Exception:
         return var_name.split("_")[0] if "_" in var_name else var_name
 
@@ -390,7 +389,7 @@ def render_variable(var_name: str, container) -> None:
             )
 
             try:
-                parsed = name_parser.parse_variable_name(var_name)
+                parsed = parse_variable_name(var_name)
                 hl = parsed.horizontal_location or "—"
                 rep = parsed.replicate or "—"
             except Exception:
