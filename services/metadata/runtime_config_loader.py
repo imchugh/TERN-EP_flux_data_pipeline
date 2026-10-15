@@ -2,7 +2,7 @@
 """TERN-adapter orchestration for loading a site's SiteRuntimeConfig.
 
 Responsibilities (TERN-specific only — generic assembly lives in
-fluxcore.services.metadata.core.runtime_config_builder):
+fluxcore.services.metadata.runtime_config_builder):
     - instrument name validation against the TERN instrument registry
       (via instrument_registry)
     - instrument URI resolution against the TERN RDF vocab
