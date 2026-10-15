@@ -6,11 +6,7 @@ from unittest import mock
 
 import numpy as np
 import xarray as xr
-from fluxcore.services.metadata.core.qc_config_schema import (
-    RangeCheckSpec,
-    SiteQCConfig,
-    VariableQCSpec,
-)
+from fluxcore import RangeCheckSpec, SiteQCConfig, VariableQCSpec
 
 from orchestration.legacy_rtmc_export import _apply_default_range_limits
 
@@ -52,7 +48,7 @@ class ApplyDefaultRangeLimitsTestCase(unittest.TestCase):
             return_value=self.qc_config,
         )
         patcher_defaults = mock.patch(
-            "orchestration.legacy_rtmc_export.qc_config_schema.load_range_defaults",
+            "orchestration.legacy_rtmc_export.load_range_defaults",
             return_value=self.range_defaults,
         )
         patcher_qc.start()

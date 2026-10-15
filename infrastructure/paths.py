@@ -8,7 +8,7 @@ paths resolve to rclone designator strings (e.g. 'uqrdm:...').
 
 import pathlib
 
-from fluxcore.domain.constants import SITE_PLACEHOLDER
+from fluxcore import SITE_PLACEHOLDER
 from fluxcore.infrastructure import file_io
 from pydantic import BaseModel
 

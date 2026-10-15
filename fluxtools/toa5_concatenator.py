@@ -17,8 +17,8 @@ that no file covers.
 import pathlib
 
 import pandas as pd
+from fluxcore import load_raw_data, load_raw_header
 from fluxcore.infrastructure.data_conditioning import infer_interval
-from fluxcore.services.data import raw_data_loader
 
 from fluxtools import data_diagnostics, toa5_writer
 from fluxtools.concat_common import validate_headers, validate_interval
@@ -28,7 +28,7 @@ _HEADER_LABELS = ("variable", "units", "sampling")
 
 def _load_header(file_path: pathlib.Path) -> tuple[list, list[list]]:
     """Return (info, [variable, units, sampling]) for a TOA5 file."""
-    raw = raw_data_loader.load_raw_header(file_path=file_path, file_format="TOA5")
+    raw = load_raw_header(file_path=file_path, file_format="TOA5")
     info = raw.pop("info")
     return info, list(raw.values())
 
@@ -71,7 +71,7 @@ def analyse_gap_fill(
     slaves = [pathlib.Path(s) for s in slaves]
 
     master_headers = _load_header(master)[1]
-    master_df = raw_data_loader.load_raw_data(file_path=master, file_format="TOA5")
+    master_df = load_raw_data(file_path=master, file_format="TOA5")
     master_df = master_df.sort_index(kind="stable")
     master_df = master_df[~master_df.index.duplicated(keep="first")]
 
@@ -90,9 +90,7 @@ def analyse_gap_fill(
         slave_headers = _load_header(slave_path)[1]
         validate_headers(master_headers, slave_path, slave_headers, _HEADER_LABELS)
 
-        slave_df = raw_data_loader.load_raw_data(
-            file_path=slave_path, file_format="TOA5"
-        )
+        slave_df = load_raw_data(file_path=slave_path, file_format="TOA5")
         validate_interval(master_df, slave_df, slave_path)
 
         filled = remaining_gaps.intersection(slave_df.index)
@@ -168,7 +166,7 @@ def concatenate_toa5(
     # Load master
 
     master_info, master_headers = _load_header(master)
-    combined = raw_data_loader.load_raw_data(file_path=master, file_format="TOA5")
+    combined = load_raw_data(file_path=master, file_format="TOA5")
     combined = combined.sort_index(kind="stable")
     combined = combined[~combined.index.duplicated(keep="first")]
 
@@ -180,9 +178,7 @@ def concatenate_toa5(
         _, slave_headers = _load_header(slave_path)
         validate_headers(master_headers, slave_path, slave_headers, _HEADER_LABELS)
 
-        slave_df = raw_data_loader.load_raw_data(
-            file_path=slave_path, file_format="TOA5"
-        )
+        slave_df = load_raw_data(file_path=slave_path, file_format="TOA5")
         validate_interval(combined, slave_df, slave_path)
 
         before = len(combined)

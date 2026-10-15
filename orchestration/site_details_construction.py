@@ -19,10 +19,8 @@ import datetime as dt
 import logging
 
 import pandas as pd
-from fluxcore.domain.enums import LoggerType
+from fluxcore import LoggerType, SiteContext, load_raw_data, load_raw_header
 from fluxcore.infrastructure import datetime_utils
-from fluxcore.services.data import raw_data_loader
-from fluxcore.services.metadata.core.site_metadata_builder import SiteContext
 
 from fluxtools import data_diagnostics, toa5_writer
 from fluxtools.file_io import get_most_recent_file, write_json
@@ -270,14 +268,14 @@ def _get_last_fast_file(site: str) -> str:
 
 def _get_flux_logger_info(file_path, file_format: str) -> dict:
     """Read the fixed subset of TOA5 info-line fields from the flux file header."""
-    header = raw_data_loader.load_raw_header(file_path, file_format)
+    header = load_raw_header(file_path, file_format)
     info = dict(zip(TOA5_INFO_FIELDS, header["info"]))
     return {key: info.get(key) for key in LOGGER_SUBSET}
 
 
 def _get_flux_data_gaps(file_path, file_format: str, interval_minutes: int) -> dict:
     """Compute the percentage of missing records in the flux file."""
-    df = raw_data_loader.load_raw_data(file_path, file_format)
+    df = load_raw_data(file_path, file_format)
     gaps = data_diagnostics.analyse_data_gaps(df=df, interval_minutes=interval_minutes)
     return {"pct_missing": gaps["pct_missing"]}
 

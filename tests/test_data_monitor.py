@@ -13,7 +13,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 import pandas as pd
-from fluxcore.domain.enums import StatisticType, VariableType
+from fluxcore import StatisticType, VariableType
 
 from services.network.data_monitor import _build_monitor_series, get_missing_records
 

@@ -16,8 +16,8 @@ import pathlib
 from typing import Any
 
 import pandas as pd
+from fluxcore import SiteContext
 from fluxcore.infrastructure import file_io
-from fluxcore.services.metadata.core.site_metadata_builder import SiteContext
 
 from fluxtools.datetime_utils import get_local_datetime_now, get_tz_aware_datetime
 from infrastructure import paths

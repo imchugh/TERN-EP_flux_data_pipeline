@@ -7,11 +7,8 @@ profile` stream. Not part of the main L1 canonical dataset/NetCDF pipeline.
 
 import pandas as pd
 import xarray as xr
+from fluxcore import build_canonical_quantity_registry, profile_storage
 from fluxcore.infrastructure import file_io
-from fluxcore.services.data import profile_storage
-from fluxcore.services.metadata.core.canonical_quantity_registry import (
-    build_canonical_quantity_registry,
-)
 
 from infrastructure import paths
 from services.data import profile_loader

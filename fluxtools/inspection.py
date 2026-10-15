@@ -3,7 +3,7 @@
 
 from pathlib import Path
 
-from fluxcore.services.metadata.core.file_group_builder import FileGroup
+from fluxcore import FileGroup
 
 
 def files_for_variable(file_group: FileGroup, variable: str) -> list[Path]:

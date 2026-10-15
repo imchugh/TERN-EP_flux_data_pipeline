@@ -11,7 +11,7 @@ import logging
 from dataclasses import dataclass
 
 import pandas as pd
-from fluxcore.domain.constants import DATA_TIME_FORMAT as TIME_FORMAT
+from fluxcore import DATA_TIME_FORMAT as TIME_FORMAT
 
 from infrastructure.external_io import get
 

@@ -14,8 +14,8 @@ from pathlib import Path
 
 import pandas as pd
 import xarray as xr
+from fluxcore import load_raw_data, profile_storage
 from fluxcore.infrastructure import file_io
-from fluxcore.services.data import profile_storage, raw_data_loader
 
 from infrastructure import paths
 
@@ -41,7 +41,7 @@ def _load_toa5_with_backups(
     """
     files = [file_path, *file_io.get_backup_files(file_path=file_path)]
     dfs = [
-        raw_data_loader.load_raw_data(f, file_format="TOA5", usecols=usecols)
+        load_raw_data(f, file_format="TOA5", usecols=usecols)
         for f in files
         if f.exists()
     ]
@@ -223,7 +223,7 @@ def load_cumberland_plain_profile() -> xr.Dataset:
     )
     ta_series = _stack_to_series(_interpolate_CUP_temperature(climate_df), "Tair")
 
-    ep_master_df = raw_data_loader.load_raw_data(
+    ep_master_df = load_raw_data(
         met_dir / _CUP_EP_MASTER_FILE,
         file_format="EddyPro",
         usecols=["date", "time", "air_pressure"],

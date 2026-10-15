@@ -20,7 +20,7 @@ import pathlib
 from collections.abc import Callable
 
 import pandas as pd
-from fluxcore.domain.constants import DATA_TIME_FORMAT
+from fluxcore import DATA_TIME_FORMAT
 from fluxcore.infrastructure import data_conditioning
 
 from fluxtools import file_io

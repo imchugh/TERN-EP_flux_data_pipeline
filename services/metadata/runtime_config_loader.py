@@ -19,12 +19,10 @@ raw-data path resolution threaded through as enrichment.
 
 from pathlib import Path
 
-from fluxcore.services.metadata.core.runtime_config_builder import (
+from fluxcore import (
+    SiteConfig,
     SiteRuntimeConfig,
     build_runtime_config,
-)
-from fluxcore.services.metadata.core.site_config_schema import (
-    SiteConfig,
     validate_L1_config_structure,
 )
 

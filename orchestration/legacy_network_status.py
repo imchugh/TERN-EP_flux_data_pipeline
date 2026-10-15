@@ -24,7 +24,7 @@ import time
 import geojson
 import numpy as np
 import xarray as xr
-from fluxcore.services.metadata.core import qc_config_schema
+from fluxcore import load_range_defaults, resolve_default_range
 
 from fluxtools.datetime_utils import get_local_datetime_now
 from fluxtools.file_io import write_json
@@ -202,7 +202,7 @@ def _get_site_status(site: str) -> dict:
         return_tz_aware=False,
     )
 
-    range_defaults = qc_config_schema.load_range_defaults()
+    range_defaults = load_range_defaults()
 
     return {
         variable: _parse_variable(
@@ -227,7 +227,7 @@ def _filter_range(series, max_val, min_val):
 
 def _plausible_range(variable: str, range_defaults: dict) -> tuple:
     """(min, max) plausible-value bounds from _range_defaults.yml; (None, None) if absent."""
-    bounds = qc_config_schema.resolve_default_range(variable, None, range_defaults)
+    bounds = resolve_default_range(variable, None, range_defaults)
     return bounds if bounds is not None else (None, None)
 
 

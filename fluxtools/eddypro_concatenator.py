@@ -23,7 +23,7 @@ that no file covers.
 import pathlib
 
 import pandas as pd
-from fluxcore.services.data import raw_data_loader
+from fluxcore import load_raw_data, load_raw_header, peek_last_timestamp
 
 from fluxtools import eddypro_writer
 from fluxtools.concat_common import validate_headers, validate_interval
@@ -33,7 +33,7 @@ _HEADER_LABELS = ("variable", "units")
 
 def _load_header(file_path: pathlib.Path) -> list[list]:
     """Return [variable, units] for an EddyPro file."""
-    raw = raw_data_loader.load_raw_header(file_path=file_path, file_format="EddyPro")
+    raw = load_raw_header(file_path=file_path, file_format="EddyPro")
     return [raw["variable"], raw["units"]]
 
 
@@ -47,7 +47,7 @@ def select_new_slaves(
     slave files (e.g. SmartFlux summary files: `YYYY-MM-DD_*.txt`) accumulating
     against a master that already covers most of them. Reads only the
     master's last timestamp (a tail-read, not a full parse — see
-    ``raw_data_loader.peek_last_timestamp``) and keeps any candidate whose
+    ``peek_last_timestamp``) and keeps any candidate whose
     filename-encoded date is on or after that day.
 
     This is purely a performance optimisation, not a correctness
@@ -69,7 +69,7 @@ def select_new_slaves(
         newer than the master's last one.
     """
     master = pathlib.Path(master)
-    master_ts = raw_data_loader.peek_last_timestamp(master, "EddyPro")
+    master_ts = peek_last_timestamp(master, "EddyPro")
     if master_ts is None:
         return [pathlib.Path(c) for c in candidates]
     master_date = master_ts.normalize()
@@ -125,7 +125,7 @@ def concatenate_eddypro(
     # Load master
 
     master_headers = _load_header(master)
-    combined = raw_data_loader.load_raw_data(file_path=master, file_format="EddyPro")
+    combined = load_raw_data(file_path=master, file_format="EddyPro")
     combined = combined.sort_index(kind="stable")
     combined = combined[~combined.index.duplicated(keep="first")]
 
@@ -137,9 +137,7 @@ def concatenate_eddypro(
         slave_headers = _load_header(slave_path)
         validate_headers(master_headers, slave_path, slave_headers, _HEADER_LABELS)
 
-        slave_df = raw_data_loader.load_raw_data(
-            file_path=slave_path, file_format="EddyPro"
-        )
+        slave_df = load_raw_data(file_path=slave_path, file_format="EddyPro")
         validate_interval(combined, slave_df, slave_path)
 
         before = len(combined)

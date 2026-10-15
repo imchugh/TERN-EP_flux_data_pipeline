@@ -131,7 +131,7 @@ def construct_site_details_json() -> None:
 @register
 def update_EddyPro_master(site: str) -> dict:
     """Append new SmartFlux daily EddyPro summary files to the site's master file."""
-    from fluxcore.domain.enums import FluxSystemType
+    from fluxcore import FluxSystemType
 
     from fluxtools import eddypro_concatenator as epc
     from services.metadata.site_registry import SiteRegistry
