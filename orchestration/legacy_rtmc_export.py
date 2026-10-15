@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rebuild a legacy-format TOA5 file from L1 NetCDF output.
+"""Rebuild a legacy-format TOA5 file from a site's L1 Zarr store.
 
 This is a temporary bridge for the Campbell Scientific RTMC visualisation,
 which reads a merged TOA5 file (``<site>_merged_std.dat``) and cannot consume
@@ -10,6 +10,7 @@ which this module tries to avoid.
 """
 
 import csv
+import datetime as dt
 import logging
 import pathlib
 
@@ -60,17 +61,22 @@ STATISTIC_LABELS = {
 }
 
 
+# Calendar years of data written: the year of the latest record and the one
+# before it.
+N_YEARS = 2
+
+
 def build_legacy_toa5(
     site_name: str,
-    nc_files: list[pathlib.Path],
+    store_path: pathlib.Path | str,
     output_path: pathlib.Path | str,
     legacy_reference: pathlib.Path | str | None = None,
 ) -> None:
-    """Build a legacy-format TOA5 file from a set of L1 NetCDF files.
+    """Build a legacy-format TOA5 file from a site's L1 Zarr store.
 
     Args:
         site_name: registered site name (used to look up soil_variables.yml).
-        nc_files: L1 NetCDF files to merge (e.g. current + previous year).
+        store_path: the site's L1 Zarr store.
         output_path: destination TOA5 file path.
         legacy_reference: path to an existing legacy TOA5 file for this site
             (e.g. the current production ``<site>_merged_std.dat``). If
@@ -82,8 +88,8 @@ def build_legacy_toa5(
     Returns:
         None.
     """
-    logger.info("Reading .nc files for %s...", site_name)
-    ds = xr.open_mfdataset(paths=sorted(nc_files), chunks={"time": 1000})
+    logger.info("Reading the L1 store for %s...", site_name)
+    ds = _load_recent_years(store_path)
 
     logger.info("Dropping extraneous variables...")
     ds = _drop_extraneous_variables(ds, site_name=site_name)
@@ -121,6 +127,21 @@ def build_legacy_toa5(
         info=info,
     )
     logger.info("Done!")
+
+
+def _load_recent_years(store_path: pathlib.Path | str) -> xr.Dataset:
+    """Open the store, keeping the last N_YEARS calendar years of records.
+
+    Years are bounded the way the annual L1 NetCDF files are: a year's
+    records run from the first period ending after midnight on 1 January
+    to midnight on the following 1 January.
+    """
+    ds = xr.open_zarr(store_path)
+    last_year = int(ds.time.dt.year.values[-1])
+    first = dt.datetime(last_year - N_YEARS + 1, 1, 1) + dt.timedelta(
+        minutes=int(ds.attrs["time_step"])
+    )
+    return ds.sel(time=slice(first, None))
 
 
 def _drop_extraneous_variables(ds: xr.Dataset, site_name: str) -> xr.Dataset:

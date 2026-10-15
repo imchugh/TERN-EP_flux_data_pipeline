@@ -83,14 +83,18 @@ def rebuild_L2_zarr(site: str) -> dict:
 
 @register
 def construct_toa5_from_nc(site: str) -> dict:
-    """Rebuild the legacy-format merged TOA5 file from L1 NetCDF output."""
+    """Rebuild the legacy-format merged TOA5 file (RTMC) from the L1 Zarr store.
+
+    The name predates the switch from reading the annual L1 NetCDF files;
+    it's kept because tasks.csv, cron and the task logs key on it.
+    """
     import orchestration.legacy_rtmc_export as toa5con
 
-    nc_dir = (
-        paths.get_local_stream_path(resource="homogenised_data", stream="nc") / site
+    store_path = (
+        paths.get_local_stream_path(resource="homogenised_data", stream="zarr")
+        / "L1"
+        / f"{site}_L1.zarr"
     )
-    nc_files = sorted(nc_dir.glob("*_L1.nc"))[-2:]
-
     output_path = (
         paths.get_local_stream_path(resource="homogenised_data", stream="toa5")
         / f"{site}_merged_std.dat"
@@ -104,7 +108,7 @@ def construct_toa5_from_nc(site: str) -> dict:
 
     toa5con.build_legacy_toa5(
         site_name=site,
-        nc_files=nc_files,
+        store_path=store_path,
         output_path=output_path,
         legacy_reference=legacy_reference,
     )
