@@ -329,7 +329,7 @@ def _convert_soil_var_name(variable: str) -> str:
 def _apply_default_range_limits(ds: xr.Dataset, site_name: str) -> xr.Dataset:
     """Mask values outside each variable's effective range_check bound.
 
-    Effective bound: the site's own configs/qc/{site}.yml range_check if
+    Effective bound: the site's own L2 QC config range_check if
     configured there, else the shared default from _range_defaults.yml (see
     lookup_default_range). Must run on canonical variable
     names (i.e. before _rename_variables) since the default lookup parses

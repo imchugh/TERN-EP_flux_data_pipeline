@@ -138,16 +138,16 @@ def load_boyagin_profile() -> xr.Dataset:
     return ds
 
 
-_CUP_INTAKE_HEIGHTS = [0.5, 1, 2, 3.5, 7, 12, 20, 29]
-_CUP_CO2_LIMITS = (300, 1000)
-_CUP_PROFILE_FILE = "CUP_AUTO_co2profile.dat"
-_CUP_CLIMATE_FILE = "CUP_AUTO_climate.dat"
-_CUP_EP_MASTER_FILE = "CumberlandPlain_EP_MASTER.txt"
-_CUP_TAIR_LOWER = ("Ta_HMP_01_Avg", 7)
-_CUP_TAIR_UPPER = ("Ta_HMP_155_Avg", 30)
+_CUMBERLAND_INTAKE_HEIGHTS = [0.5, 1, 2, 3.5, 7, 12, 20, 29]
+_CUMBERLAND_CO2_LIMITS = (300, 1000)
+_CUMBERLAND_PROFILE_FILE = "CUP_AUTO_co2profile.dat"
+_CUMBERLAND_CLIMATE_FILE = "CUP_AUTO_climate.dat"
+_CUMBERLAND_EP_MASTER_FILE = "CumberlandPlain_EP_MASTER.txt"
+_CUMBERLAND_TAIR_LOWER = ("Ta_HMP_01_Avg", 7)
+_CUMBERLAND_TAIR_UPPER = ("Ta_HMP_155_Avg", 30)
 
 
-def _timestack_CUP_CO2(df: pd.DataFrame) -> pd.DataFrame:
+def _timestack_cumberland_co2(df: pd.DataFrame) -> pd.DataFrame:
     """Unstack a single, valve-multiplexed CO2 stream onto a regular 30-min axis.
 
     One column per intake height. `ValveNo` identifies which height is
@@ -162,7 +162,7 @@ def _timestack_CUP_CO2(df: pd.DataFrame) -> pd.DataFrame:
     df = df[minute_mod == df["ValveNo"].to_numpy()].drop_duplicates()
 
     df["Time"] = df.index.floor("30min")
-    valve_map = dict(zip(sorted(df["ValveNo"].unique()), _CUP_INTAKE_HEIGHTS))
+    valve_map = dict(zip(sorted(df["ValveNo"].unique()), _CUMBERLAND_INTAKE_HEIGHTS))
     df["Height"] = df["ValveNo"].map(valve_map)
 
     stacked = df.set_index(pd.MultiIndex.from_frame(df[["Time", "Height"]]))[
@@ -172,18 +172,18 @@ def _timestack_CUP_CO2(df: pd.DataFrame) -> pd.DataFrame:
     return stacked.reindex(new_index)
 
 
-def _interpolate_CUP_temperature(df: pd.DataFrame) -> pd.DataFrame:
+def _interpolate_cumberland_temperature(df: pd.DataFrame) -> pd.DataFrame:
     """Linearly interpolate the two measured air temperatures to all 8 intake heights.
 
     Measured at 7m and 30m.
     """
-    lower_name, lower_ht = _CUP_TAIR_LOWER
-    upper_name, upper_ht = _CUP_TAIR_UPPER
+    lower_name, lower_ht = _CUMBERLAND_TAIR_LOWER
+    upper_name, upper_ht = _CUMBERLAND_TAIR_UPPER
     dtdz = (df[upper_name] - df[lower_name]) / (upper_ht - lower_ht)
     return pd.concat(
-        [df[lower_name] + (ht - lower_ht) * dtdz for ht in _CUP_INTAKE_HEIGHTS],
+        [df[lower_name] + (ht - lower_ht) * dtdz for ht in _CUMBERLAND_INTAKE_HEIGHTS],
         axis=1,
-        keys=_CUP_INTAKE_HEIGHTS,
+        keys=_CUMBERLAND_INTAKE_HEIGHTS,
     )
 
 
@@ -209,36 +209,40 @@ def load_cumberland_plain_profile() -> xr.Dataset:
     )
 
     profile_df = _load_toa5_with_backups(
-        profile_dir / _CUP_PROFILE_FILE,
+        profile_dir / _CUMBERLAND_PROFILE_FILE,
         usecols=["TIMESTAMP", "CO2_Avg", "ValveNo"],
     )
-    co2_series = _stack_to_series(_timestack_CUP_CO2(profile_df), "CO2")
+    co2_series = _stack_to_series(_timestack_cumberland_co2(profile_df), "CO2")
     co2_series = co2_series.where(
-        (co2_series >= _CUP_CO2_LIMITS[0]) & (co2_series <= _CUP_CO2_LIMITS[1])
+        (co2_series >= _CUMBERLAND_CO2_LIMITS[0])
+        & (co2_series <= _CUMBERLAND_CO2_LIMITS[1])
     )
 
     climate_df = _load_toa5_with_backups(
-        met_dir / _CUP_CLIMATE_FILE,
-        usecols=["TIMESTAMP", _CUP_TAIR_LOWER[0], _CUP_TAIR_UPPER[0]],
+        met_dir / _CUMBERLAND_CLIMATE_FILE,
+        usecols=["TIMESTAMP", _CUMBERLAND_TAIR_LOWER[0], _CUMBERLAND_TAIR_UPPER[0]],
     )
-    ta_series = _stack_to_series(_interpolate_CUP_temperature(climate_df), "Tair")
+    ta_series = _stack_to_series(
+        _interpolate_cumberland_temperature(climate_df), "Tair"
+    )
 
     ep_master_df = load_raw_data(
-        met_dir / _CUP_EP_MASTER_FILE,
+        met_dir / _CUMBERLAND_EP_MASTER_FILE,
         file_format="EddyPro",
         usecols=["date", "time", "air_pressure"],
     )
     p_series = _stack_to_series(
         pd.concat(
-            [ep_master_df["air_pressure"]] * len(_CUP_INTAKE_HEIGHTS),
+            [ep_master_df["air_pressure"]] * len(_CUMBERLAND_INTAKE_HEIGHTS),
             axis=1,
-            keys=_CUP_INTAKE_HEIGHTS,
+            keys=_CUMBERLAND_INTAKE_HEIGHTS,
         )
         / 10**3,  # Pa -> kPa
         "P",
     )
 
-    earliest_ts = min(
+    # Trim to the last time all three series reach.
+    common_end = min(
         co2_series.index.get_level_values(profile_storage.TIME_DIM).max(),
         ta_series.index.get_level_values(profile_storage.TIME_DIM).max(),
         p_series.index.get_level_values(profile_storage.TIME_DIM).max(),
@@ -246,7 +250,7 @@ def load_cumberland_plain_profile() -> xr.Dataset:
 
     ds = (
         pd.concat([co2_series, ta_series, p_series], axis=1)
-        .loc[:earliest_ts]
+        .loc[:common_end]
         .to_xarray()
     )
     ds["CO2"].attrs = {"units": "umol/mol"}

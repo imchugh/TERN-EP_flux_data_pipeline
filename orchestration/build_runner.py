@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """TERN-adapter wrappers for the L1/L2 Zarr and NetCDF builders.
 
-The generic-core builders (orchestration/build_L1_zarr.py, build_L1_nc.py,
-build_L2_zarr.py, build_L2_nc.py) take a SiteContext / SiteQCConfig and
+fluxcore's builders (build_L1_zarr, build_L1_nc, build_L2_zarr,
+build_L2_nc) take a SiteContext / SiteQCConfig and
 explicit directories. These wrappers resolve a bare TERN site name to those:
 the context via SiteRegistry, the QC config via qc_config_loader, the
 directories via the homogenised_data streams in configs/paths.yml, and the

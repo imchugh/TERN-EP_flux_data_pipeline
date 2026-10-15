@@ -7,7 +7,7 @@ from fluxtools.file_io import write_yml_file
 from infrastructure import config_loader, external_io, paths
 from services.metadata import rdf_label_resolver
 
-ALIAS_DICT = {
+RDF_SITE_ALIASES = {
     "Aqueduct Snow Gum": "SnowGum",
     "ArcturusEmerald": "Emerald",
     "Calperum Chowilla": "Calperum",
@@ -28,13 +28,8 @@ _CREDS_CACHE = None
 # QUERY LOAD / EXECUTION UTILITIES
 
 
-def _get_CREDS_CACHE() -> dict:
-    """Get credentials (or return cached).
-
-    Returns:
-        credentials.
-
-    """
+def _get_credentials() -> dict:
+    """Return the SPARQL endpoint credentials (loaded once)."""
     global _CREDS_CACHE
 
     if _CREDS_CACHE is None:
@@ -87,7 +82,7 @@ def run_query(query_key: str, end_point: str = "knowledge_graph_core") -> dict:
     configs = load_sparql_configs()
     endpoint_cfg = configs["sparql_endpoints"][end_point]
 
-    creds = _get_CREDS_CACHE() if endpoint_cfg["requires_auth"] else None
+    creds = _get_credentials() if endpoint_cfg["requires_auth"] else None
     auth = (creds["USERNAME"], creds["PASSWORD"]) if creds else None
 
     # Do the query
@@ -266,4 +261,4 @@ def convert_site_label(label: str) -> str:
 
     """
     label_clean = label.replace(" Flux Station", "")
-    return ALIAS_DICT.get(label_clean, label_clean).replace(" ", "")
+    return RDF_SITE_ALIASES.get(label_clean, label_clean).replace(" ", "")

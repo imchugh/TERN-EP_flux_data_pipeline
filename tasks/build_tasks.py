@@ -21,9 +21,9 @@ def construct_L1_nc(site: str) -> dict:
 def construct_L1_zarr(site: str) -> dict:
     """Incrementally update the site's whole-history L1 Zarr store.
 
-    Runs in parallel with construct_L1_nc for now (not yet a dependency of
-    it — NetCDF export still reads from raw data directly). Cheap
-    regardless of total site history length: checkpoints off the store's
+    Runs before construct_L1_nc on the same cron line, which exports the
+    store's current year. Cheap regardless of total site history length:
+    checkpoints off the store's
     own last timestamp and appends only newer records, self-healing to a
     full rebuild if the append fails (e.g. a site-config change added or
     removed a variable). See rebuild_L1_zarr for the periodic full-rebuild
