@@ -7,7 +7,7 @@ the generic-core `*_from_context` builders.
 Public API
 ----------
 build_dataframe_from_site_name(site_name, quantities, start_date) -> pd.DataFrame
-build_dataset_from_site_name(site_name, pad_humidity, pad_co2, start_date, legacy)
+build_dataset_from_site_name(site_name, derive_humidity, derive_co2, start_date, legacy)
     -> xr.Dataset
 """
 
@@ -37,8 +37,8 @@ def build_dataframe_from_site_name(
 
 def build_dataset_from_site_name(
     site_name: str,
-    pad_humidity: bool = True,
-    pad_co2: bool = True,
+    derive_humidity: bool = True,
+    derive_co2: bool = True,
     start_date: pd.Timestamp | None = None,
     legacy: bool = False,
 ) -> xr.Dataset:
@@ -51,5 +51,8 @@ def build_dataset_from_site_name(
     """
     ctx = SITE_REGISTRY.get_context(site=site_name, legacy=legacy)
     return build_dataset_from_context(
-        ctx=ctx, pad_humidity=pad_humidity, pad_co2=pad_co2, start_date=start_date
+        ctx=ctx,
+        derive_humidity=derive_humidity,
+        derive_co2=derive_co2,
+        start_date=start_date,
     )

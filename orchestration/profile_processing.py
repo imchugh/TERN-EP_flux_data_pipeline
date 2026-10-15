@@ -45,18 +45,18 @@ def build_profile_output(site: str) -> dict:
 
 def _build_csv_dataframe(ds: xr.Dataset) -> pd.DataFrame:
 
-    layer_da = profile_storage.calculate_delta_CO2_storage(ds)
+    layer_da = profile_storage.layer_co2_storage(ds)
     df = layer_da.to_dataframe()["Sco2"].unstack(profile_storage.LAYER_DIM)
     df.columns = [f"Sco2_{c}" for c in df.columns]
-    df["Sco2_total"] = profile_storage.calculate_summed_CO2_storage(ds).to_series()
+    df["Sco2_total"] = profile_storage.total_co2_storage(ds).to_series()
     return df
 
 
 def _build_netcdf_dataset(ds: xr.Dataset, site: str) -> xr.Dataset:
 
     meta = build_canonical_quantity_registry().get_base_metadata("Sco2")
-    layer_da = profile_storage.calculate_delta_CO2_storage(ds)
-    total_da = profile_storage.calculate_summed_CO2_storage(ds)
+    layer_da = profile_storage.layer_co2_storage(ds)
+    total_da = profile_storage.total_co2_storage(ds)
 
     out = xr.Dataset({"Sco2_layers": layer_da, "Sco2": total_da})
     out.attrs = {

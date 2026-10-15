@@ -7,7 +7,13 @@ Run from the repo root: conda run -n ep_cntl python -m ui.app
 from pathlib import Path
 
 import yaml
-from fluxcore.domain.enums import FileType, FluxSystemType, StatisticType, VariableType
+from fluxcore.domain.enums import (
+    DEFAULT_FILE_FORMAT,
+    FluxSystemType,
+    LoggerType,
+    StatisticType,
+    VariableType,
+)
 from fluxcore.infrastructure.file_io import read_yml
 from fluxcore.services.metadata.core.canonical_quantity_registry import (
     build_canonical_quantity_registry,
@@ -36,7 +42,7 @@ SAVE_DIR = Path("/tmp/site_config_edits")
 EXCLUDE_VARS = ["TIMESTAMP", "date", "time"]
 
 CANONICAL_REGISTRY = build_canonical_quantity_registry()
-FILE_TYPE_OPTIONS = [e.name for e in FileType]
+FILE_TYPE_OPTIONS = [e.name for e in LoggerType]
 FLUX_SYSTEM_OPTIONS = [e.value for e in FluxSystemType]
 STATISTIC_TYPE_OPTIONS = [e.value for e in StatisticType]
 VARIABLE_TYPE_OPTIONS = [e.value for e in VariableType]
@@ -85,13 +91,13 @@ def _get_file_vars(file_stem: str, fmt: str) -> list[str]:
     cache = state["var_cache"]
     if file_stem in cache:
         return cache[file_stem]
-    ftype = FileType[fmt]
-    file_path = state["base_path"] / f"{file_stem}.{ftype.extension}"
+    file_format = DEFAULT_FILE_FORMAT[LoggerType[fmt]]
+    file_path = state["base_path"] / f"{file_stem}.{file_format.extension}"
     try:
         names = [
             v
             for v in get_variables_from_file(
-                file_path=file_path, system_type=ftype.name
+                file_path=file_path, file_format=file_format
             )
             if v not in EXCLUDE_VARS
         ]

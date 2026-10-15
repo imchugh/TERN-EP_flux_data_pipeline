@@ -19,6 +19,7 @@ import datetime as dt
 import logging
 
 import pandas as pd
+from fluxcore.domain.enums import LoggerType
 from fluxcore.infrastructure import datetime_utils
 from fluxcore.services.data import raw_data_loader
 from fluxcore.services.metadata.core.site_metadata_builder import SiteContext
@@ -148,7 +149,7 @@ def collate_site_info(
         / runtime_cfg.flux_filename
     )
 
-    if file_format == "LICOR":
+    if runtime_cfg.get_logger_type(runtime_cfg.flux_file) == LoggerType.LICOR:
         # No TOA5-style info line exists to read — nothing to attempt.
         logger_info = LICOR_LOGGER_INFO.copy()
     else:
@@ -269,16 +270,14 @@ def _get_last_fast_file(site: str) -> str:
 
 def _get_flux_logger_info(file_path, file_format: str) -> dict:
     """Read the fixed subset of TOA5 info-line fields from the flux file header."""
-    header_adapter = raw_data_loader.get_header_adapter(system_type=file_format)
-    header = header_adapter(file_path)
+    header = raw_data_loader.load_raw_header(file_path, file_format)
     info = dict(zip(TOA5_INFO_FIELDS, header["info"]))
     return {key: info.get(key) for key in LOGGER_SUBSET}
 
 
 def _get_flux_data_gaps(file_path, file_format: str, interval_minutes: int) -> dict:
     """Compute the percentage of missing records in the flux file."""
-    data_adapter = raw_data_loader.get_data_adapter(system_type=file_format)
-    df = data_adapter(file_path)
+    df = raw_data_loader.load_raw_data(file_path, file_format)
     gaps = data_diagnostics.analyse_data_gaps(df=df, interval_minutes=interval_minutes)
     return {"pct_missing": gaps["pct_missing"]}
 

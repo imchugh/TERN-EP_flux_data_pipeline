@@ -33,11 +33,11 @@ FILE_SUFFIX = "Status.dat"
 # has no %f) — timestamps are parsed locally with this format instead.
 TS_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
-# Mirrors the header layout of raw_data_loader._FILE_FORMATS["TOA5"] — a
+# Mirrors the header layout of raw_data_loader._LAYOUTS[FileFormat.TOA5] — a
 # fixed property of the TOA5 format, not something specific to status files,
 # so it's safe to restate here rather than reach into that module's private
 # constant.
-_STATUS_FILE_FORMAT = {
+_STATUS_LAYOUT = {
     "header_lines": {"info": 0, "variable": 1, "units": 2, "sampling": 3},
     "separator": ",",
     "non_numeric_cols": ["TIMESTAMP"],
@@ -87,7 +87,7 @@ def get_logger_status(context: SiteContext) -> dict[str, Any]:
 
     df = file_io.read_csv_data(
         file_path=file_path,
-        file_format=_STATUS_FILE_FORMAT,
+        layout=_STATUS_LAYOUT,
         usecols=["TIMESTAMP", *STATUS_SUBSET],
         on_bad_lines="skip",
     )

@@ -224,7 +224,7 @@ def create_file_formats_editor(
     on_change,
     file_type_options,
 ):
-    """Build the editable file-name-to-FileType mapping section."""
+    """Build the editable file-name-to-LoggerType mapping section."""
     container = ui.column()
 
     def refresh():

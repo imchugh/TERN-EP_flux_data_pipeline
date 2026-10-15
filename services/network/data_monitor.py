@@ -391,11 +391,9 @@ def analyse_missing_data(context: SiteContext) -> dict[str, Any]:
         / data_cfg.flux_filename
     )
 
-    adapter = raw_data_loader.get_data_adapter(
-        system_type=data_cfg.get_file_format(file_group=data_cfg.flux_file)
+    df = raw_data_loader.load_raw_data(
+        file_path, data_cfg.get_file_format(data_cfg.flux_file)
     )
-
-    df = adapter(file_path)
 
     local_now = get_local_datetime_now(tz_name=site_cfg.time_zone)
     local_now_naive = local_now.replace(tzinfo=None)
