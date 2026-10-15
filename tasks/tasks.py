@@ -16,7 +16,6 @@ import tasks.build_tasks  # noqa: F401
 import tasks.monitor_tasks  # noqa: F401
 import tasks.transfer_tasks  # noqa: F401
 from infrastructure import config_loader, paths
-from infrastructure.paths import CONFIG_PATH
 from services.metadata.site_registry import SiteRegistry
 from tasks.logger_config import configure_logger_json
 from tasks.registry import GLOBAL_TASKS, SITE_TASKS
@@ -76,20 +75,6 @@ class SiteTaskManager:
     def get_task_list(self) -> list:
         """Return every task name present in the matrix."""
         return self.tasks_df.columns.tolist()
-
-    def get_task_list_for_site(self, site: str, disabled: bool = False) -> list:
-        """Return tasks enabled for `site` (or disabled, if disabled=True)."""
-        return self.tasks_df.columns[~self.tasks_df.loc[site] == disabled].tolist()
-
-    def set_site_task_status(self, site: str, task: str, status: bool) -> None:
-        """Set whether `task` is enabled for `site` (in memory only)."""
-        if not isinstance(status, bool):
-            raise TypeError("`status` kwarg must be a boolean")
-        self.tasks_df.loc[site, task] = status
-
-    def write_tasks_config(self) -> None:
-        """Persist the current in-memory matrix back to tasks.csv."""
-        self.tasks_df.to_csv(CONFIG_PATH / "tasks.csv", index_label="Site")
 
     def _validate(self) -> None:
         registered = set(SITE_TASKS) | set(GLOBAL_TASKS)

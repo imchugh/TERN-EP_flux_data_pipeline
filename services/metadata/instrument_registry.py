@@ -4,7 +4,9 @@
 import functools
 import logging
 
-from infrastructure import config_loader, paths
+from rapidfuzz import fuzz, process
+
+from infrastructure import config_loader
 from services.metadata.site_metadata_repository import get_instrument_vocab
 
 logger = logging.getLogger(__name__)
@@ -17,7 +19,7 @@ def _normalize_key(label: str) -> str:
 
 @functools.lru_cache(maxsize=1)
 def get_raw_vocab() -> list[dict]:
-    """Return the raw SPARQL bindings for inspection."""
+    """Return the raw SPARQL bindings (fetched once per process)."""
     return get_instrument_vocab()
 
 
@@ -30,7 +32,7 @@ def _get_vocab_registry() -> dict[str, list[str]]:
     broader_chain == broader, then exclude category nodes (any URI that itself
     appears as a broader reference) so only leaf instruments are listed.
     """
-    data = get_instrument_vocab()
+    data = get_raw_vocab()
 
     # Any URI used as a broader reference is a category node, not a leaf instrument
     parent_uris = {entry["broader"] for entry in data if entry.get("broader")}
@@ -51,71 +53,48 @@ def _get_vocab_registry() -> dict[str, list[str]]:
 
 
 @functools.lru_cache(maxsize=1)
+def _load_quantity_map() -> dict:
+    """Load instrument_quantity_map.yml: alias entries plus flux_quantities."""
+    return config_loader.load_config_file_from_name("instrument_quantity_map")
+
+
 def _get_alias_map() -> dict[str, dict]:
-    """Load alias entries from config (excludes flux_quantities section)."""
-    raw = config_loader.load_config_file_from_name(
-        "instrument_quantity_map", config_dir=paths.CONFIG_PATH
-    )
-    return {k: v for k, v in raw.items() if k != "flux_quantities"}
+    """Alias entries from instrument_quantity_map.yml (excludes flux_quantities)."""
+    return {k: v for k, v in _load_quantity_map().items() if k != "flux_quantities"}
 
 
-@functools.lru_cache(maxsize=1)
-def _get_name_corrections() -> dict[str, str]:
-    """Load preferred→vocab-label corrections for incorrectly named vocab entries."""
-    try:
-        raw = config_loader.load_config_file_from_name(
-            "instrument_name_corrections", config_dir=paths.CONFIG_PATH
-        )
-        return raw.get("corrections", {}) or {}
-    except FileNotFoundError:
-        logger.debug(
-            "No instrument_name_corrections config found; no corrections applied"
-        )
-        return {}
-
-
-@functools.lru_cache(maxsize=1)
-def _get_pending_instruments() -> dict[str, str]:
-    """Load pending instrument names (no vocab entry yet), mapped to alias category."""
-    try:
-        raw = config_loader.load_config_file_from_name(
-            "instrument_name_corrections", config_dir=paths.CONFIG_PATH
-        )
-        return raw.get("pending", {}) or {}
-    except FileNotFoundError:
-        logger.debug(
-            "No instrument_name_corrections config found; no pending instruments"
-        )
-        return {}
-
-
-@functools.lru_cache(maxsize=1)
 def _get_flux_quantities() -> dict[str, list[str]]:
-    """Load compound flux quantity definitions from config."""
-    raw = config_loader.load_config_file_from_name(
-        "instrument_quantity_map", config_dir=paths.CONFIG_PATH
-    )
-    return raw.get("flux_quantities", {})
+    """Compound flux quantity definitions from instrument_quantity_map.yml."""
+    return _load_quantity_map().get("flux_quantities", {})
 
 
 @functools.lru_cache(maxsize=1)
-def _get_uri_maps() -> tuple[dict[str, str], dict[str, str]]:
-    """Return (uri→label, uri→direct_parent_uri) maps from raw vocab."""
-    data = get_raw_vocab()
-    uri_label = {e["uri"]: e["label"] for e in data if e.get("uri") and e.get("label")}
-    parent_map = {e["uri"]: e["broader"] for e in data if e.get("broader")}
-    return uri_label, parent_map
+def _load_name_corrections() -> dict:
+    """Load instrument_name_corrections.yml ({} if the file doesn't exist)."""
+    try:
+        return config_loader.load_config_file_from_name("instrument_name_corrections")
+    except FileNotFoundError:
+        logger.debug("No instrument_name_corrections config found")
+        return {}
 
 
-def clear_cache() -> None:
-    """Clear all cached registry data (vocab, corrections, pending, alias map)."""
-    get_raw_vocab.cache_clear()
-    _get_vocab_registry.cache_clear()
-    _get_alias_map.cache_clear()
-    _get_name_corrections.cache_clear()
-    _get_pending_instruments.cache_clear()
-    _get_flux_quantities.cache_clear()
-    _get_uri_maps.cache_clear()
+def _get_name_corrections() -> dict[str, str]:
+    """Preferred name → vocab label, for incorrectly named vocab entries."""
+    return _load_name_corrections().get("corrections", {}) or {}
+
+
+def _get_pending_instruments() -> dict[str, str]:
+    """Pending instrument names (no vocab entry yet), mapped to alias category."""
+    return _load_name_corrections().get("pending", {}) or {}
+
+
+@functools.lru_cache(maxsize=1)
+def _get_label_uris() -> dict[str, str]:
+    """Return the vocab label → URI map."""
+    uri_label = {
+        e["uri"]: e["label"] for e in get_raw_vocab() if e.get("uri") and e.get("label")
+    }
+    return {label: uri for uri, label in uri_label.items()}
 
 
 def _get_vocab_keys(alias: str) -> list[str]:
@@ -125,11 +104,6 @@ def _get_vocab_keys(alias: str) -> list[str]:
             f"Unknown instrument alias {alias!r}. Valid aliases: {list(alias_map)}"
         )
     return alias_map[alias]["vocab_keys"]
-
-
-def list_types() -> list[str]:
-    """Return all configured instrument aliases."""
-    return list(_get_alias_map())
 
 
 def list_instruments(instrument_type: str) -> list[str]:
@@ -247,12 +221,6 @@ def is_valid_instrument(name: str) -> bool:
     )
 
 
-def get_quantities_for_instrument(name: str) -> list[str]:
-    """Return the canonical quantities for a specific instrument label."""
-    alias = get_instrument_type(name)
-    return list_quantities(alias)
-
-
 def list_instruments_for_quantity(quantity: str) -> list[str]:
     """Return all instruments that measure a given simple (non-compound) quantity.
 
@@ -328,40 +296,10 @@ def get_instrument_uri(name: str) -> str:
         KeyError: if name is not a known instrument label.
     """
     resolved = _get_name_corrections().get(name, name)
-    uri_label, _ = _get_uri_maps()
-    name_to_uri = {v: k for k, v in uri_label.items()}
-    if resolved not in name_to_uri:
+    label_uris = _get_label_uris()
+    if resolved not in label_uris:
         raise KeyError(f"Unknown instrument {name!r}")
-    return name_to_uri[resolved]
-
-
-def get_ancestor_chain(name: str) -> list[str]:
-    """Return ordered ancestor labels from direct parent to root concept.
-
-    Args:
-        name: instrument label (e.g. 'LI-7500RS').
-
-    Returns:
-        List of ancestor labels, nearest parent first up to root.
-
-    Raises:
-        KeyError: if name is not a known instrument label.
-    """
-    resolved = _get_name_corrections().get(name, name)
-    uri_label, parent_map = _get_uri_maps()
-    name_to_uri = {v: k for k, v in uri_label.items()}
-
-    if resolved not in name_to_uri:
-        raise KeyError(f"Unknown instrument {name!r}")
-
-    chain = []
-    current = parent_map.get(name_to_uri[resolved])
-    while current:
-        label = uri_label.get(current)
-        if label:
-            chain.append(label)
-        current = parent_map.get(current)
-    return chain
+    return label_uris[resolved]
 
 
 def suggest_instruments(
@@ -371,8 +309,8 @@ def suggest_instruments(
 ) -> list[tuple[str, float]]:
     """Return top-n fuzzy matches from the full TERN vocab.
 
-    Uses rapidfuzz.token_set_ratio when available (handles word-order and
-    brand-prefix variation); falls back to difflib.SequenceMatcher.
+    Uses rapidfuzz.token_set_ratio, which handles word-order and
+    brand-prefix variation.
 
     Args:
         name: instrument label to match (need not be in the vocab).
@@ -397,31 +335,11 @@ def suggest_instruments(
                 seen.add(inst)
                 candidates.append(inst)
 
-    try:
-        from rapidfuzz import fuzz, process
-
-        results = process.extract(
-            name,
-            candidates,
-            scorer=fuzz.token_set_ratio,
-            score_cutoff=score_cutoff,
-            limit=n,
-        )
-        return [(match, float(score)) for match, score, _ in results]
-    except ImportError:
-        import difflib
-
-        close = difflib.get_close_matches(
-            name, candidates, n=n, cutoff=score_cutoff / 100
-        )
-        return [
-            (
-                m,
-                round(
-                    difflib.SequenceMatcher(None, name.lower(), m.lower()).ratio()
-                    * 100,
-                    1,
-                ),
-            )
-            for m in close
-        ]
+    results = process.extract(
+        name,
+        candidates,
+        scorer=fuzz.token_set_ratio,
+        score_cutoff=score_cutoff,
+        limit=n,
+    )
+    return [(match, float(score)) for match, score, _ in results]

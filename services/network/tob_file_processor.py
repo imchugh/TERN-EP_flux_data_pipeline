@@ -115,24 +115,6 @@ def process_daily_tob_files(site: str, is_aux: bool = False) -> list[Path]:
     return written
 
 
-def get_last_tob_file(site: str, is_aux: bool = False) -> Path:
-    """Return the most recently archived TOB3 file for a site.
-
-    Args:
-        site: pipeline site name.
-        is_aux: if True, searches the auxiliary fast-flux stream.
-
-    Raises:
-        FileNotFoundError: if no archived files exist.
-    """
-    stream = "flux_fast_aux" if is_aux else "flux_fast"
-    search_dir = paths.get_local_stream_path("raw_data", stream, site=site)
-    files = sorted(f for f in search_dir.rglob("TOB3_*.dat") if "TMP" not in f.parts)
-    if not files:
-        raise FileNotFoundError(f"No archived TOB3 files found for {site}")
-    return files[-1]
-
-
 # Private helpers
 
 

@@ -41,8 +41,7 @@ def transfer(
 
     `rclone copy` semantics: `dst` is always a directory. A directory `src`
     has its contents copied into it; a file `src` is copied into it under
-    its own name. To copy a single file to a specific path/name, use
-    `transfer_file`.
+    its own name.
 
     Args:
         src: Source path (local or remote)
@@ -70,53 +69,6 @@ def transfer(
     run_args = _build_copy_args(
         "copy",
         exclude_dirs=exclude_dirs,
-        set_modtime=set_modtime,
-        dry_run=dry_run,
-    )
-
-    return _run_transfer([APP_PATH, *run_args, str(src), str(dst)], timeout, dry_run)
-
-
-def transfer_file(
-    src: str,
-    dst: str,
-    *,
-    set_modtime: bool = True,
-    validate: bool = True,
-    timeout: int = 600,
-    dry_run: bool = False,
-) -> spc.CompletedProcess:
-    """Copy a single file to an exact destination path via `rclone copyto`.
-
-    Unlike `transfer`, `dst` is the full destination file path (so the file
-    can be renamed on the way); missing parent directories are created.
-
-    Args:
-        src: Source file path (local or remote)
-        dst: Destination file path (local or remote)
-        set_modtime: If False, add --sftp-set-modtime=false (see `transfer`)
-        validate: Whether to check `src` exists and is a file, and that a
-            remote `dst`'s parent directory is listable, before transfer
-        timeout: Subprocess timeout in seconds
-        dry_run: If True, pass --dry-run to rclone (no files are transferred)
-
-    Returns:
-        CompletedProcess
-
-    Raises:
-        FileNotFoundError
-        IsADirectoryError: `src` is a directory (use `transfer` instead)
-        subprocess.TimeoutExpired
-        RcloneError (subclass of subprocess.CalledProcessError)
-    """
-    if validate:
-        _validate_src(src, require_file=True)
-        if _is_remote(dst):
-            check_remote_available(_remote_parent(dst))
-
-    run_args = _build_copy_args(
-        "copyto",
-        exclude_dirs=None,
         set_modtime=set_modtime,
         dry_run=dry_run,
     )
@@ -162,20 +114,6 @@ def check_remote_available(remote_path: str, timeout: int = 60) -> None:
     _run_subprocess(cmd, timeout=timeout)
 
 
-def check_remote_writable(remote_path: str, timeout: int = 60) -> None:
-    """Confirm a remote path is writable, not just listable.
-
-    `lsd` only confirms the path is listable, not writable, so this probes
-    with a throwaway `touch` (removed on success) to catch permission-denied
-    destinations before a real transfer is attempted.
-
-    Raises on failure.
-    """
-    probe_path = f"{remote_path.rstrip('/')}/.rclone_write_test"
-    _run_subprocess([APP_PATH, "touch", probe_path], timeout=timeout)
-    _run_subprocess([APP_PATH, "deletefile", probe_path], timeout=timeout)
-
-
 def check_local_exists(path: str) -> None:
     """Raise FileNotFoundError if `path` does not exist locally."""
     if not Path(path).exists():
@@ -199,13 +137,6 @@ def _validate_remote_if_applicable(path: str) -> None:
     """Run the remote-availability check only if `path` looks remote."""
     if _is_remote(path):
         check_remote_available(path)
-
-
-def _remote_parent(remote_path: str) -> str:
-    """Parent of a remote path, e.g. 'remote:a/b/f.dat' -> 'remote:a/b'."""
-    remote, _, rel = str(remote_path).partition(":")
-    parent = rel.rstrip("/").rpartition("/")[0]
-    return f"{remote}:{parent}"
 
 
 def _is_remote(path: str) -> bool:

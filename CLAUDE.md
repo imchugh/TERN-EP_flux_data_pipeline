@@ -77,7 +77,7 @@ TERN config lives in `configs/` (`infrastructure.paths.CONFIG_PATH`); load by na
 - `configs/paths.yml` — local/remote resource paths with site placeholders
 - `configs/site_metadata.yml` — TERN site metadata (location, commissioning, tower height)
 - `configs/nc_metadata.yml` — TERN/OzFlux NetCDF global attributes (`acknowledgement`, `publisher_name`, `metadata_link`, `ozflux_link`, `data_link`), passed by `build_runner` as `global_attrs` over fluxcore's core attrs. Interim mechanism; agreed direction is in project memory.
-- `configs/tasks.csv` (per-site task enablement), `vpn_ip.yml`, `soil_variables.yml`, `sparql_query_configs.yml`, `instrument_quantity_map.yml`, `instrument_name_corrections.yml`, `instrument_substitutions.yml`
+- `configs/tasks.csv` (per-site task enablement), `vpn_ip.yml`, `soil_variables.yml`, `sparql_query_configs.yml`, `instrument_quantity_map.yml`, `instrument_name_corrections.yml`
 - `/opt/TERN_EP/site_configs/operational/{SiteName}.yml` — **L1** per-site variable specs (fluxcore's site-config schema), file mappings, instrument metadata; `legacy/` holds earlier-generation snapshots, `templates/` PyFluxPro reference control files.
 - `/opt/TERN_EP/site_configs/operational/L2/{SiteName}.yml` — **L2** per-site QC overrides (deltas over fluxcore's `qc/` defaults; semantics in fluxcore's CLAUDE.md), the `site_config_files_L2` stream in `paths.yml`, loaded by `services/metadata/qc_config_loader.py`.
 
