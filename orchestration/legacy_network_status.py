@@ -24,10 +24,11 @@ import time
 import geojson
 import numpy as np
 import xarray as xr
-from fluxcore.infrastructure import datetime_utils, file_io
 from fluxcore.services.metadata.core import qc_config_schema
 from fluxcore.services.metadata.core.variable_name_parser import NameParser
 
+from fluxtools.datetime_utils import get_local_datetime_now
+from fluxtools.file_io import write_json
 from infrastructure import paths
 from infrastructure.parallel_executor import run_concurrent
 from services.metadata.site_registry import SiteRegistry
@@ -93,7 +94,7 @@ def build(site_list: list[str] | None = None) -> dict:
     output_path = (
         paths.get_local_stream_path("network", "status") / "network_status.json"
     )
-    file_io.write_json(file_path=output_path, data=collection)
+    write_json(file_path=output_path, data=collection)
 
     n_success = sum(r["status"] == "success" for r in results.values())
     logger.info(
@@ -197,7 +198,7 @@ def _get_site_status(site: str) -> dict:
 
     # NetCDF time values follow the local-time convention (naive timestamps),
     # matching services.network.nc_monitor / services.network.data_monitor.
-    site_time = datetime_utils.get_local_datetime_now(
+    site_time = get_local_datetime_now(
         tz_name=tz_name,
         return_tz_aware=False,
     )

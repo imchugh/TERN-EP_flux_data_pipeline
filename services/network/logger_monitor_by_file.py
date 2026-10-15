@@ -16,9 +16,10 @@ import pathlib
 from typing import Any
 
 import pandas as pd
-from fluxcore.infrastructure import datetime_utils, file_io
+from fluxcore.infrastructure import file_io
 from fluxcore.services.metadata.core.site_metadata_builder import SiteContext
 
+from fluxtools.datetime_utils import get_local_datetime_now, get_tz_aware_datetime
 from infrastructure import paths
 from services.metadata.site_registry import SiteRegistry
 from services.network.logger_monitor import STATUS_SUBSET, SUMMARY_SUBSET
@@ -101,12 +102,10 @@ def get_logger_status(context: SiteContext) -> dict[str, Any]:
     last_status_naive = pd.to_datetime(
         last["TIMESTAMP"], format=TS_FORMAT
     ).to_pydatetime()
-    last_status_tzaware = datetime_utils.get_tz_aware_datetime(
+    last_status_tzaware = get_tz_aware_datetime(
         naive_dt=last_status_naive, tz_name=tz_name, as_iso=True
     )
-    local_now_naive = datetime_utils.get_local_datetime_now(
-        tz_name=tz_name, return_tz_aware=False
-    )
+    local_now_naive = get_local_datetime_now(tz_name=tz_name, return_tz_aware=False)
 
     return (
         {"model": last["OSVersion"].split(".")[0]}

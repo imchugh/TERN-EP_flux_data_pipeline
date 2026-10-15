@@ -1,10 +1,10 @@
 """Fetch flux station details from TERN's SPARQL endpoint."""
 
-from fluxcore.infrastructure import file_io
-from fluxcore.infrastructure.datetime_utils import get_timezone, get_UTC_offset
-from fluxcore.services import config_loader
+from fluxcore.infrastructure.datetime_utils import get_timezone
 
-from infrastructure import external_io, paths
+from fluxtools.datetime_utils import get_UTC_offset
+from fluxtools.file_io import write_yml_file
+from infrastructure import config_loader, external_io, paths
 from services.metadata import rdf_label_resolver
 
 ALIAS_DICT = {
@@ -244,7 +244,7 @@ def write_flux_tower_fields_config(overwrite: bool = False) -> None:
     if not overwrite:
         if file_path.exists():
             raise FileExistsError("File already exists!")
-    file_io.write_yml_file(file_path=file_path, data=rslt)
+    write_yml_file(file_path=file_path, data=rslt)
 
 
 def get_instrument_vocab():

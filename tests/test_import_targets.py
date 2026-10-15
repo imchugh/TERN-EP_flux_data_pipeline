@@ -16,6 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 LOCAL_TOPS = {
     "domain",
+    "fluxtools",
     "infrastructure",
     "services",
     "orchestration",

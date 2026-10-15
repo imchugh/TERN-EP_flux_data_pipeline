@@ -5,7 +5,7 @@ data landing directory via infrastructure.paths and its metadata via
 SiteRegistry -- not portable to a non-TERN caller. Lives beside the other
 services/network/ ops modules rather than in services/data/ (generic core)
 for that reason, even though it processes the same TOB3/TOA5 file formats
-infrastructure/tob_codec.py (generic) and services/data/toa5_writer.py
+infrastructure/tob_codec.py (generic) and fluxtools/toa5_writer.py
 (generic) handle.
 """
 
@@ -14,8 +14,7 @@ import hashlib
 import logging
 from pathlib import Path
 
-from fluxcore.services.data.toa5_writer import write_toa5
-
+from fluxtools.toa5_writer import write_toa5
 from infrastructure import paths
 from infrastructure import tob_codec as tob
 from services.metadata.site_registry import SiteRegistry

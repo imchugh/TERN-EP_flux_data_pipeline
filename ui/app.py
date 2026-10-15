@@ -8,9 +8,7 @@ from pathlib import Path
 
 import yaml
 from fluxcore.domain.enums import FileType, FluxSystemType, StatisticType, VariableType
-from fluxcore.infrastructure import file_io
 from fluxcore.infrastructure.file_io import read_yml
-from fluxcore.services import config_loader
 from fluxcore.services.metadata.core.canonical_quantity_registry import (
     build_canonical_quantity_registry,
 )
@@ -19,6 +17,7 @@ from fluxcore.services.metadata.core.site_config_schema import validate_all
 from fluxcore.services.metadata.core.variable_name_parser import NameParser
 from nicegui import ui
 
+from fluxtools.file_io import list_available_files
 from infrastructure import paths
 from services.metadata.instrument_registry import (
     get_quantity_components,
@@ -36,7 +35,6 @@ SITES_DIR = Path("/opt/TERN_EP/site_configs/operational")
 SAVE_DIR = Path("/tmp/site_config_edits")
 EXCLUDE_VARS = ["TIMESTAMP", "date", "time"]
 
-CANONICAL_VARS = config_loader.load_config_file_from_name("canonical_quantities")
 CANONICAL_REGISTRY = build_canonical_quantity_registry()
 FILE_TYPE_OPTIONS = [e.name for e in FileType]
 FLUX_SYSTEM_OPTIONS = [e.value for e in FluxSystemType]
@@ -70,7 +68,7 @@ def _compute_file_formats(cfg: dict, base_path: Path) -> dict[str, str]:
     """
     yaml_formats = cfg.get("file_formats", {}) or {}
     try:
-        found = file_io.list_available_files(
+        found = list_available_files(
             dir_path=base_path, pattern=["*.dat", "Cumberland*.txt"]
         )
     except Exception:
@@ -138,9 +136,9 @@ def _long_name_for(var_name: str, var_data: dict) -> str:
 def _valid_units_for(var_name: str) -> list[dict]:
     """Return [{label, value}] options for the canonical quantity of var_name."""
     quantity = _extract_quantity(var_name)
-    if not quantity or quantity not in CANONICAL_VARS:
+    if not quantity or not CANONICAL_REGISTRY.has_quantity(quantity):
         return []
-    raw = CANONICAL_VARS[quantity].get("valid_input_units") or []
+    raw = CANONICAL_REGISTRY.get_base_metadata(quantity).valid_input_units or []
     units = raw if isinstance(raw, list) else [raw]
     return [{"label": u, "value": u} for u in units]
 

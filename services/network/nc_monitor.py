@@ -9,8 +9,8 @@ from typing import Any
 
 import pandas as pd
 import xarray as xr
-from fluxcore.infrastructure import datetime_utils
 
+from fluxtools.datetime_utils import get_local_datetime_now, get_tz_aware_datetime
 from infrastructure import paths
 
 logger = logging.getLogger(__name__)
@@ -166,10 +166,10 @@ def check_nc_last_record(site: str) -> dict[str, Any]:
                 pd.Timestamp(ds.time.values[-1]).to_pydatetime().replace(tzinfo=None)
             )
 
-        local_now = datetime_utils.get_local_datetime_now(tz_name=tz_name)
+        local_now = get_local_datetime_now(tz_name=tz_name)
         local_now_naive = local_now.replace(tzinfo=None)
 
-        last_record_tzaware = datetime_utils.get_tz_aware_datetime(
+        last_record_tzaware = get_tz_aware_datetime(
             naive_dt=last_record_naive,
             tz_name=tz_name,
             as_iso=True,

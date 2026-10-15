@@ -17,8 +17,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TypedDict
 
-from fluxcore.infrastructure import file_io
-
+from fluxtools.file_io import read_json, write_json
 from infrastructure import paths
 
 logger = logging.getLogger(__name__)
@@ -51,7 +50,7 @@ def _load() -> dict[str, CacheEntry]:
     if not CACHE_PATH.exists():
         return {}
     try:
-        return file_io.read_json(CACHE_PATH)
+        return read_json(CACHE_PATH)
     except (ValueError, OSError):
         logger.warning(
             "Instrument validation cache at %s is unreadable; treating as empty",
@@ -76,7 +75,7 @@ def record(
     Safe for concurrent callers (threads within one process, or two
     overlapping cron processes): the read-modify-write cycle is
     serialized with an flock on a sidecar lock file; the write itself is
-    temp-file + fsync + atomic rename (file_io.write_json).
+    temp-file + fsync + atomic rename (fluxtools.file_io.write_json).
     """
     CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
     LOCK_PATH.touch(exist_ok=True)
@@ -90,6 +89,6 @@ def record(
                 "validated_at": datetime.now(UTC).isoformat(),
                 "instrument_uris": instrument_uris,
             }
-            file_io.write_json(file_path=CACHE_PATH, data=cache, sort_keys=True)
+            write_json(file_path=CACHE_PATH, data=cache, sort_keys=True)
         finally:
             fcntl.flock(lock_file, fcntl.LOCK_UN)

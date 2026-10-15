@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from fluxcore.infrastructure import file_io
 
+from fluxtools.file_io import write_yml_file
 from infrastructure import paths
 from services.metadata.site_registry import SITE_CONFIG_DIR
 
@@ -109,7 +110,7 @@ def apply_map(
 
         changed = _apply_to_obj(data, subs)
         out_path = output_dir / yml_path.name
-        file_io.write_yml_file(out_path, data)
+        write_yml_file(out_path, data)
 
         if changed:
             n_changed += 1

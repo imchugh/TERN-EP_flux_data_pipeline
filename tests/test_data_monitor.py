@@ -4,7 +4,7 @@ These guard against a real bug: a gapless file was reporting nonzero
 pct_missing because the rolling window handed to analyse_data_gaps was
 built from a live "now" reference (not an actual expected timestamp), so
 pd.date_range's inclusive-both-ends behaviour counted one phantom slot too
-many. See fluxcore.infrastructure.datetime_utils.floor_to_interval.
+many. See fluxtools.datetime_utils.floor_to_interval.
 """
 
 import unittest
@@ -81,7 +81,9 @@ class TestBuildMonitorSeries(unittest.TestCase):
             variable_type=VariableType.CONTINUOUS,
             statistic_type=statistic_type,
         )
-        return SimpleNamespace(runtime_config=SimpleNamespace(variables={"Fco2": var_def}))
+        return SimpleNamespace(
+            runtime_config=SimpleNamespace(variables={"Fco2": var_def})
+        )
 
     def test_out_of_range_values_are_dropped(self):
         idx = pd.date_range("2026-01-01", periods=4, freq="30min")

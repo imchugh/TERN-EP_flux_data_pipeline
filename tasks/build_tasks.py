@@ -2,8 +2,7 @@
 
 import datetime as dt
 
-from fluxcore.infrastructure import file_io
-
+from fluxtools.file_io import list_available_files
 from infrastructure import paths
 from tasks.registry import register
 
@@ -133,8 +132,8 @@ def construct_site_details_json() -> None:
 def update_EddyPro_master(site: str) -> dict:
     """Append new SmartFlux daily EddyPro summary files to the site's master file."""
     from fluxcore.domain.enums import FluxSystemType
-    from fluxcore.services.data import eddypro_concatenator as epc
 
+    from fluxtools import eddypro_concatenator as epc
     from services.metadata.site_registry import SiteRegistry
 
     runtime_cfg = SiteRegistry().get_runtime_config(site)
@@ -153,7 +152,7 @@ def update_EddyPro_master(site: str) -> dict:
         resource="raw_data", stream="flux_slow", site=site
     )
     master = data_path / runtime_cfg.flux_filename
-    candidates = file_io.list_available_files(data_path, "*EP-Summary.txt")
+    candidates = list_available_files(data_path, "*EP-Summary.txt")
     slaves = epc.select_new_slaves(master=master, candidates=candidates)
 
     report = epc.concatenate_eddypro(master=master, slaves=slaves, output=master)
