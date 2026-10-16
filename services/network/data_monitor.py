@@ -222,6 +222,27 @@ def _build_monitor_series(
     return _combine_columns(series)
 
 
+def _coverage_by_variable(
+    series_by_var: dict[str, pd.Series | None],
+    reference_date: datetime,
+    interval_minutes: int,
+    days: int | list[int] | None,
+) -> dict[str, dict[str, float] | None]:
+    """Rolling pct_outside_range per variable; None where a series is absent/empty."""
+    return {
+        var: None
+        if series is None or series.empty
+        else get_missing_records(
+            df=series,
+            reference_date=reference_date,
+            interval_minutes=interval_minutes,
+            days=days,
+            metric_prefix="pct_outside_range",
+        )
+        for var, series in series_by_var.items()
+    }
+
+
 def get_variable_quality(
     df: pd.DataFrame,
     context: SiteContext,
@@ -252,24 +273,15 @@ def get_variable_quality(
         ``pct_outside_range_last_<N>_days`` floats (absent + implausible),
         or None if the variable is unavailable for this site.
     """
-    results = {}
-
-    for var in MONITOR_VARS:
-        series = _build_monitor_series(df=df, quantity=var, context=context)
-
-        if series is None or series.empty:
-            results[var] = None
-            continue
-
-        results[var] = get_missing_records(
-            df=series,
-            reference_date=reference_date,
-            interval_minutes=interval_minutes,
-            days=days,
-            metric_prefix="pct_outside_range",
-        )
-
-    return results
+    return _coverage_by_variable(
+        {
+            var: _build_monitor_series(df=df, quantity=var, context=context)
+            for var in MONITOR_VARS
+        },
+        reference_date=reference_date,
+        interval_minutes=interval_minutes,
+        days=days,
+    )
 
 
 def _build_threshold_series(
@@ -315,7 +327,6 @@ def _build_threshold_series(
 
 def get_threshold_quality(
     df: pd.DataFrame,
-    context: SiteContext,
     reference_date: datetime,
     interval_minutes: int = 30,
     days: int | list[int] | None = None,
@@ -328,7 +339,6 @@ def get_threshold_quality(
 
     Args:
         df: Canonical-unit DataFrame with DatetimeIndex.
-        context: Site runtime config and metadata.
         reference_date: Upper bound of the analysis window (site-local naive
             datetime).
         interval_minutes: Expected data interval in minutes. Defaults to 30.
@@ -340,29 +350,20 @@ def get_threshold_quality(
         ``pct_outside_range_last_<N>_days`` floats, or None if the variable
         is unavailable.
     """
-    results = {}
-
-    for var, thresholds in THRESHOLD_SPECS.items():
-        series = _build_threshold_series(
-            df=df,
-            quantity=var,
-            pmin=thresholds.get("min"),
-            pmax=thresholds.get("max"),
-        )
-
-        if series is None or series.empty:
-            results[var] = None
-            continue
-
-        results[var] = get_missing_records(
-            df=series,
-            reference_date=reference_date,
-            interval_minutes=interval_minutes,
-            days=days,
-            metric_prefix="pct_outside_range",
-        )
-
-    return results
+    return _coverage_by_variable(
+        {
+            var: _build_threshold_series(
+                df=df,
+                quantity=var,
+                pmin=thresholds.get("min"),
+                pmax=thresholds.get("max"),
+            )
+            for var, thresholds in THRESHOLD_SPECS.items()
+        },
+        reference_date=reference_date,
+        interval_minutes=interval_minutes,
+        days=days,
+    )
 
 
 def analyse_missing_data(context: SiteContext) -> dict[str, Any]:
@@ -478,7 +479,6 @@ def analyse_threshold_quality(context: SiteContext) -> dict[str, Any]:
 
     return get_threshold_quality(
         df=df,
-        context=context,
         reference_date=local_now_naive,
         interval_minutes=context.metadata.time_step,
     )

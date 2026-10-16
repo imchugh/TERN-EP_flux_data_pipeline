@@ -27,7 +27,7 @@ from fluxtools.file_io import write_json
 from infrastructure import paths
 from infrastructure.parallel_executor import run_concurrent_ordered
 from services.metadata.site_registry import SiteRegistry
-from services.network.data_monitor import mask_to_default_range
+from services.network.data_monitor import MONITOR_VARS, mask_to_default_range
 from services.network.nc_monitor import (
     NETCDF_LOCK,
     get_latest_nc_file,
@@ -38,8 +38,9 @@ logger = logging.getLogger(__name__)
 
 SITE_REGISTRY = SiteRegistry()
 
-# Core flux quantities the status map reports staleness for.
-SUBSET = ["Fco2", "Fh", "Fe", "Fsd"]
+# Core flux quantities the status map reports staleness for — the same set
+# the state-task monitor tracks.
+SUBSET = MONITOR_VARS
 
 
 def build(site_list: list[str] | None = None) -> dict:
