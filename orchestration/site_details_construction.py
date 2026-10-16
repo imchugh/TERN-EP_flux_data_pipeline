@@ -106,6 +106,7 @@ def collate_site_info(
     sun_info = safe_component(
         fn=_get_solar_info,
         logger=logger,
+        log_extra={"site": site_name},
         component="sun_times",
         fallback=SUN_TIMES_FALLBACK.copy(),
         metadata=metadata,
@@ -118,6 +119,7 @@ def collate_site_info(
         "10Hz_file": safe_component(
             fn=_get_last_fast_file,
             logger=logger,
+            log_extra={"site": site_name},
             component="fast_file_lookup",
             fallback="No files",
             site=site_name,
@@ -136,6 +138,7 @@ def collate_site_info(
         logger_info = safe_component(
             fn=_get_flux_logger_info,
             logger=logger,
+            log_extra={"site": site_name},
             component="logger_metadata_retrieval",
             fallback=LOGGER_INFO_FALLBACK.copy(),
             file_path=flux_file_path,
@@ -145,6 +148,7 @@ def collate_site_info(
     missing_info = safe_component(
         fn=_get_flux_data_gaps,
         logger=logger,
+        log_extra={"site": site_name},
         component="gap_analysis",
         fallback=MISSING_DATA_FALLBACK.copy(),
         file_path=flux_file_path,

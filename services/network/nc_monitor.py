@@ -12,6 +12,7 @@ import xarray as xr
 
 from fluxtools.datetime_utils import get_local_datetime_now, get_tz_aware_datetime
 from infrastructure import paths
+from infrastructure.safe_ops import safe_component
 
 logger = logging.getLogger(__name__)
 
@@ -151,39 +152,44 @@ def check_nc_last_record(site: str) -> dict[str, Any]:
             - ``error``: ``None`` on success, or an error string describing
               why the check failed.
     """
-    try:
-        file_path = get_latest_nc_file(site=site)
-        logger.debug(
-            "nc_last_record_check",
-            extra={"site": site, "file": str(file_path)},
+    return safe_component(
+        _read_last_record,
+        logger=logger,
+        component="nc_last_record_failed",
+        fallback=NULL_RESULT,
+        include_error=True,
+        log_extra={"site": site},
+        site=site,
+    )
+
+
+def _read_last_record(site: str) -> dict[str, Any]:
+    """Unguarded body of check_nc_last_record."""
+    file_path = get_latest_nc_file(site=site)
+    logger.debug(
+        "nc_last_record_check",
+        extra={"site": site, "file": str(file_path)},
+    )
+
+    with NETCDF_LOCK, open_dataset_with_retry(file_path) as ds:
+        tz_name: str = ds.attrs["time_zone"]
+        # Timestamps are stored as naive local time; convert via pandas
+        # Timestamp to match the convention used by data_monitor.py.
+        last_record_naive = (
+            pd.Timestamp(ds.time.values[-1]).to_pydatetime().replace(tzinfo=None)
         )
 
-        with NETCDF_LOCK, open_dataset_with_retry(file_path) as ds:
-            tz_name: str = ds.attrs["time_zone"]
-            # Timestamps are stored as naive local time; convert via pandas
-            # Timestamp to match the convention used by data_monitor.py.
-            last_record_naive = (
-                pd.Timestamp(ds.time.values[-1]).to_pydatetime().replace(tzinfo=None)
-            )
+    local_now_naive = get_local_datetime_now(tz_name=tz_name, return_tz_aware=False)
 
-        local_now_naive = get_local_datetime_now(tz_name=tz_name, return_tz_aware=False)
+    last_record_tzaware = get_tz_aware_datetime(
+        naive_dt=last_record_naive,
+        tz_name=tz_name,
+        as_iso=True,
+    )
+    elapsed = (local_now_naive - last_record_naive).days
 
-        last_record_tzaware = get_tz_aware_datetime(
-            naive_dt=last_record_naive,
-            tz_name=tz_name,
-            as_iso=True,
-        )
-        elapsed = (local_now_naive - last_record_naive).days
-
-        return {
-            "last_record": last_record_tzaware,
-            "days_since_last_record": elapsed,
-            "error": None,
-        }
-
-    except Exception as exc:
-        logger.warning(
-            "nc_last_record_failed",
-            extra={"site": site, "error": str(exc)},
-        )
-        return NULL_RESULT | {"error": str(exc)}
+    return {
+        "last_record": last_record_tzaware,
+        "days_since_last_record": elapsed,
+        "error": None,
+    }

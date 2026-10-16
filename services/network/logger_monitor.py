@@ -5,6 +5,7 @@ import logging
 from typing import Any
 
 from infrastructure import logger_functions
+from infrastructure.safe_ops import safe_component
 from services.network.connectivity import SITE_IP, resolve_endpoint
 
 logger = logging.getLogger(__name__)
@@ -76,11 +77,11 @@ def check_logger_status(site: str) -> dict[str, Any]:
     ip_addr = resolve_endpoint(vpn_ip=SITE_IP[site]["host"], logger_type="ec")
     logger.info("check_logger_status", extra={"site": site, "ip_addr": ip_addr})
 
-    try:
-        return get_logger_status(ip_addr=ip_addr) | {"error": None}
-    except Exception as exc:
-        logger.warning(
-            "logger_status_failed",
-            extra={"site": site, "ip_addr": ip_addr, "error": str(exc)},
-        )
-        return NULL_RESULT | {"error": str(exc)}
+    return safe_component(
+        lambda: get_logger_status(ip_addr=ip_addr) | {"error": None},
+        logger=logger,
+        component="logger_status_failed",
+        fallback=NULL_RESULT,
+        include_error=True,
+        log_extra={"site": site, "ip_addr": ip_addr},
+    )

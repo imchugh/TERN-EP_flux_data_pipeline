@@ -19,6 +19,7 @@ from fluxcore import SiteContext
 from fluxcore.infrastructure import file_io
 
 from fluxtools.datetime_utils import get_local_datetime_now, get_tz_aware_datetime
+from infrastructure.safe_ops import safe_component
 from services.metadata.site_registry import SiteRegistry
 from services.network.logger_monitor import STATUS_SUBSET, SUMMARY_SUBSET
 
@@ -26,15 +27,14 @@ logger = logging.getLogger(__name__)
 
 FILE_SUFFIX = "Status.dat"
 
-# Status files carry sub-second precision that raw_data_loader's TOA5 date
-# formatter does not parse (it uses fluxcore.domain.constants.DATA_TIME_FORMAT, which
-# has no %f) — timestamps are parsed locally with this format instead.
+# Status files carry sub-second precision that fluxcore's TOA5 date parsing
+# does not handle (its DATA_TIME_FORMAT has no %f) — timestamps are parsed
+# locally with this format instead.
 TS_FORMAT = "%Y-%m-%d %H:%M:%S.%f"
 
-# Mirrors the header layout of raw_data_loader._LAYOUTS[FileFormat.TOA5] — a
-# fixed property of the TOA5 format, not something specific to status files,
-# so it's safe to restate here rather than reach into that module's private
-# constant.
+# Mirrors fluxcore's (private) TOA5 file layout — a fixed property of the
+# TOA5 format, not something specific to status files, so it's safe to
+# restate here rather than reach into fluxcore internals.
 _STATUS_LAYOUT = {
     "header_lines": {"info": 0, "variable": 1, "units": 2, "sampling": 3},
     "separator": ",",
@@ -134,11 +134,11 @@ def check_logger_status(site: str) -> dict[str, Any]:
     """
     context = SITE_REGISTRY.get_context(site=site)
 
-    try:
-        return get_logger_status(context=context) | {"error": None}
-    except Exception as exc:
-        logger.warning(
-            "logger_status_by_file_failed",
-            extra={"site": site, "error": str(exc)},
-        )
-        return NULL_RESULT | {"error": str(exc)}
+    return safe_component(
+        lambda: get_logger_status(context=context) | {"error": None},
+        logger=logger,
+        component="logger_status_by_file_failed",
+        fallback=NULL_RESULT,
+        include_error=True,
+        log_extra={"site": site},
+    )

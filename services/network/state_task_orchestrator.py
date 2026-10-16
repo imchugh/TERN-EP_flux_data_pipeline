@@ -47,10 +47,13 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Literal
 
+from fluxcore import SiteContext
+
 from fluxtools.datetime_utils import get_utc_now
 from fluxtools.file_io import read_json, write_json
 from infrastructure import paths
 from infrastructure.parallel_executor import run_concurrent
+from infrastructure.safe_ops import safe_component
 from services.metadata.site_registry import SiteRegistry
 from services.network.connectivity import (
     connectivity_sites,
@@ -94,70 +97,42 @@ SITE_REGISTRY = SiteRegistry()
 # Add one adapter here for each new task; keep adapters thin.
 
 
-def missing_data_task(site: str) -> dict[str, Any]:
-    """Adapter: analyse_missing_data -> site-name interface.
+def _context_task(
+    analyse: Callable[[SiteContext], dict[str, Any]],
+    null_result: dict[str, Any],
+    component: str,
+) -> Callable[[str], dict[str, Any]]:
+    """Adapt a SiteContext analysis to the task(site) -> dict contract.
 
-    Args:
-        site: Site name as registered in the pipeline site registry.
-
-    Returns:
-        Missing-data analysis result dict for the site, with ``error: null``
-        on success or all data fields set to ``null`` and ``error`` populated
-        on failure.
+    The returned task resolves the site's context (a configuration error
+    there propagates, as for any task), runs ``analyse`` and returns its
+    result with ``error: None``. If ``analyse`` raises, it returns
+    ``null_result`` with ``error`` populated (logged as ``component``).
     """
-    context = SITE_REGISTRY.get_context(site=site)
-    try:
-        return analyse_missing_data(context=context) | {"error": None}
-    except Exception as exc:
-        logger.warning(
-            "missing_data_failed",
-            extra={"site": site, "error": str(exc)},
+
+    def task(site: str) -> dict[str, Any]:
+        context = SITE_REGISTRY.get_context(site=site)
+        return safe_component(
+            lambda: analyse(context) | {"error": None},
+            logger=logger,
+            component=component,
+            fallback=null_result,
+            include_error=True,
+            log_extra={"site": site},
         )
-        return MISSING_DATA_NULL_RESULT | {"error": str(exc)}
+
+    return task
 
 
-def variable_quality_task(site: str) -> dict[str, Any]:
-    """Adapter: analyse_variable_quality -> site-name interface.
-
-    Args:
-        site: Site name as registered in the pipeline site registry.
-
-    Returns:
-        Per-variable quality result dict for the site, with ``error: null``
-        on success or all variable fields set to ``null`` and ``error``
-        populated on failure.
-    """
-    context = SITE_REGISTRY.get_context(site=site)
-    try:
-        return analyse_variable_quality(context=context) | {"error": None}
-    except Exception as exc:
-        logger.warning(
-            "variable_quality_failed",
-            extra={"site": site, "error": str(exc)},
-        )
-        return VARIABLE_QUALITY_NULL_RESULT | {"error": str(exc)}
-
-
-def threshold_quality_task(site: str) -> dict[str, Any]:
-    """Adapter: analyse_threshold_quality -> site-name interface.
-
-    Args:
-        site: Site name as registered in the pipeline site registry.
-
-    Returns:
-        Per-variable threshold-quality result dict for the site, with
-        ``error: null`` on success or all variable fields set to ``null``
-        and ``error`` populated on failure.
-    """
-    context = SITE_REGISTRY.get_context(site=site)
-    try:
-        return analyse_threshold_quality(context=context) | {"error": None}
-    except Exception as exc:
-        logger.warning(
-            "threshold_quality_failed",
-            extra={"site": site, "error": str(exc)},
-        )
-        return THRESHOLD_NULL_RESULT | {"error": str(exc)}
+missing_data_task = _context_task(
+    analyse_missing_data, MISSING_DATA_NULL_RESULT, "missing_data_failed"
+)
+variable_quality_task = _context_task(
+    analyse_variable_quality, VARIABLE_QUALITY_NULL_RESULT, "variable_quality_failed"
+)
+threshold_quality_task = _context_task(
+    analyse_threshold_quality, THRESHOLD_NULL_RESULT, "threshold_quality_failed"
+)
 
 
 def logger_status_task(site: str) -> dict[str, Any]:
