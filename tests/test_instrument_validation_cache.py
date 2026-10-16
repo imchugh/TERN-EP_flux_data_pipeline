@@ -27,20 +27,14 @@ class CacheTestCase(unittest.TestCase):
 
 
 class TestHashing(unittest.TestCase):
-    def test_hash_bytes_is_sha256(self):
+    def test_hash_file_is_sha256_of_bytes(self):
         import hashlib
 
-        content = b"hello"
-        self.assertEqual(
-            cache_mod.hash_bytes(content), hashlib.sha256(content).hexdigest()
-        )
-
-    def test_hash_file_matches_hash_bytes(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "config.yml"
             path.write_bytes(b"site: Foo\n")
             self.assertEqual(
-                cache_mod.hash_file(path), cache_mod.hash_bytes(b"site: Foo\n")
+                cache_mod.hash_file(path), hashlib.sha256(b"site: Foo\n").hexdigest()
             )
 
 

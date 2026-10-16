@@ -11,13 +11,12 @@ never poisons the cache.
 """
 
 import fcntl
-import hashlib
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TypedDict
 
-from fluxtools.file_io import read_json, write_json
+from fluxtools.file_io import file_sha256, read_json, write_json
 from infrastructure import paths
 
 logger = logging.getLogger(__name__)
@@ -36,14 +35,9 @@ class CacheEntry(TypedDict):
     instrument_uris: dict[str, str | None]
 
 
-def hash_bytes(content: bytes) -> str:
-    """Return the SHA-256 hex digest identifying exact config content."""
-    return hashlib.sha256(content).hexdigest()
-
-
 def hash_file(path: Path) -> str:
-    """Return the SHA-256 hex digest of a file's current on-disk bytes."""
-    return hash_bytes(Path(path).read_bytes())
+    """Return the content hash (SHA-256 of the exact bytes) identifying a config."""
+    return file_sha256(path)
 
 
 def _load() -> dict[str, CacheEntry]:

@@ -6,11 +6,12 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from fluxcore import DATA_TIME_FORMAT
 
 from fluxtools.toa5_writer import TOA5_INFO_FIELDS
 from infrastructure import read_cs_files as rcf
 
-DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+DATE_FORMAT = DATA_TIME_FORMAT
 
 # The first seven info-line fields; the eighth differs between TOB1 and TOB3.
 _INFO_NAMES = TOA5_INFO_FIELDS[:-1]

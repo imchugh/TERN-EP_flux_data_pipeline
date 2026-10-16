@@ -2,6 +2,7 @@
 """JSON/YAML helpers, file finders, and atomic TOA5/EddyPro CSV writers."""
 
 import csv
+import hashlib
 import json
 import logging
 import os
@@ -24,7 +25,7 @@ def _atomic_text_write(file_path: Path, write_fn, atomic: bool) -> None:
     if atomic:
         tmp_path = file_path.with_suffix(file_path.suffix + ".tmp")
         try:
-            with open(tmp_path, "w", newline="\n") as f:
+            with open(tmp_path, "w", encoding="utf-8", newline="\n") as f:
                 write_fn(f)
                 f.flush()
                 os.fsync(f.fileno())
@@ -33,7 +34,7 @@ def _atomic_text_write(file_path: Path, write_fn, atomic: bool) -> None:
             tmp_path.unlink(missing_ok=True)
             raise
     else:
-        with open(file_path, "w", newline="\n") as f:
+        with open(file_path, "w", encoding="utf-8", newline="\n") as f:
             write_fn(f)
 
 
@@ -76,10 +77,17 @@ def list_available_files(dir_path: Path | str, pattern: str | list[str]) -> list
         pattern_list = [pattern]
     elif isinstance(pattern, list):
         pattern_list = pattern
+    else:
+        raise TypeError(f"pattern must be a str or list of str, got {pattern!r}")
     files = set()
     for this_pattern in pattern_list:
         files.update(Path(dir_path).glob(this_pattern))
     return sorted(files)
+
+
+def file_sha256(file_path: Path | str) -> str:
+    """Return the SHA-256 hex digest of a file's current on-disk bytes."""
+    return hashlib.sha256(Path(file_path).read_bytes()).hexdigest()
 
 
 def read_json(file_path: Path) -> dict | list:
@@ -116,31 +124,11 @@ def write_json(
             partially-written/corrupted files.
     """
     file_path.parent.mkdir(parents=True, exist_ok=True)
-
-    if atomic:
-        tmp_path = file_path.with_suffix(f"{file_path.suffix}.tmp")
-
-        with open(tmp_path, "w", encoding="utf-8") as f:
-            json.dump(
-                data,
-                f,
-                indent=indent,
-                sort_keys=sort_keys,
-            )
-
-            f.flush()
-            os.fsync(f.fileno())
-
-        tmp_path.replace(file_path)
-
-    else:
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(
-                data,
-                f,
-                indent=indent,
-                sort_keys=sort_keys,
-            )
+    _atomic_text_write(
+        file_path,
+        lambda f: json.dump(data, f, indent=indent, sort_keys=sort_keys),
+        atomic,
+    )
 
 
 def write_toa5_csv(

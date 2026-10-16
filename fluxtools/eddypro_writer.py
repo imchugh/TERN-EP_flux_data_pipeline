@@ -32,7 +32,6 @@ from fluxcore.infrastructure import data_conditioning
 from fluxtools import file_io
 
 _FIXED_COLS = ["DATAH", "filename", "date", "time"]
-_FIXED_VARIABLE_HEADER = ["DATAH", "filename", "date", "time"]
 _FIXED_UNITS_HEADER = ["DATAU", "", "[yyyy-mm-dd]", "[HH:MM]"]
 
 
@@ -100,7 +99,7 @@ def write_eddypro(
     # Prepend fixed header cells
 
     full_headers = [
-        _FIXED_VARIABLE_HEADER + list(headers[0]),
+        _FIXED_COLS + list(headers[0]),
         _FIXED_UNITS_HEADER + list(headers[1]),
     ]
 

@@ -7,10 +7,10 @@ writing in fluxtools/toa5_writer.py.
 """
 
 import datetime as dt
-import hashlib
 import logging
 from pathlib import Path
 
+from fluxtools.file_io import file_sha256
 from fluxtools.toa5_writer import write_toa5
 from infrastructure import paths
 from infrastructure import tob_codec as tob
@@ -138,7 +138,7 @@ def _archive_tob3(
     )
 
     if dest.exists():
-        if _file_hash(file) != _file_hash(dest):
+        if file_sha256(file) != file_sha256(dest):
             raise FileExistsError(f"A non-identical file already exists at {dest.name}")
         file.unlink()
         logger.info("archive_duplicate_removed", extra={"file": file.name})
@@ -146,7 +146,3 @@ def _archive_tob3(
 
     file.rename(dest)
     logger.info("archived_tob3", extra={"dest": dest.name})
-
-
-def _file_hash(file: Path) -> str:
-    return hashlib.sha256(file.read_bytes()).hexdigest()
