@@ -1,5 +1,7 @@
 """Fetch flux station details from TERN's SPARQL endpoint."""
 
+from functools import cache
+
 from fluxcore.infrastructure.datetime_utils import get_timezone
 
 from fluxtools.datetime_utils import get_UTC_offset
@@ -21,34 +23,24 @@ RDF_SITE_ALIASES = {
     "Wombat Forest 2": "WombatForest",
 }
 
-_SPARQL_CACHE = None
-_CREDS_CACHE = None
-
-
 # QUERY LOAD / EXECUTION UTILITIES
 
 
+@cache
 def _get_credentials() -> dict:
     """Return the SPARQL endpoint credentials (loaded once)."""
-    global _CREDS_CACHE
-
-    if _CREDS_CACHE is None:
-        cred_path = paths.get_local_stream_path(resource="configs", stream="secrets")
-        _CREDS_CACHE = config_loader.load_config_file(file=cred_path)["SITE_DETAILS"]
-
-    return _CREDS_CACHE
+    cred_path = paths.get_local_stream_path(resource="configs", stream="secrets")
+    return config_loader.load_config_file(file=cred_path)["SITE_DETAILS"]
 
 
+@cache
 def load_sparql_configs() -> dict:
-    """Load the SPARQL queries from YAML if not already loaded.
+    """Load the SPARQL queries from YAML (once).
 
     Returns:
         Dict with keys for each query.
     """
-    global _SPARQL_CACHE
-    if _SPARQL_CACHE is None:
-        _SPARQL_CACHE = config_loader.load_config_file_from_name("sparql_query_configs")
-    return _SPARQL_CACHE
+    return config_loader.load_config_file_from_name("sparql_query_configs")
 
 
 def available_sparql_queries() -> list[str]:
@@ -88,7 +80,7 @@ def run_query(query_key: str, end_point: str = "knowledge_graph_core") -> dict:
     # Do the query
     rslt = external_io.post(
         url=endpoint_cfg["url"],
-        data=configs["queries"][query_key],
+        data=get_sparql_query(query_key),
         headers=configs["query_headers"],
         auth=auth,
     ).json()

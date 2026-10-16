@@ -97,13 +97,14 @@ def _get_label_uris() -> dict[str, str]:
     return {label: uri for uri, label in uri_label.items()}
 
 
-def _get_vocab_keys(alias: str) -> list[str]:
+def _get_alias_cfg(alias: str) -> dict:
+    """Return one alias's instrument_quantity_map.yml entry (KeyError if unknown)."""
     alias_map = _get_alias_map()
     if alias not in alias_map:
         raise KeyError(
             f"Unknown instrument alias {alias!r}. Valid aliases: {list(alias_map)}"
         )
-    return alias_map[alias]["vocab_keys"]
+    return alias_map[alias]
 
 
 def list_instruments(instrument_type: str) -> list[str]:
@@ -117,7 +118,7 @@ def list_instruments(instrument_type: str) -> list[str]:
         Sorted list of instrument names from the TERN vocabulary, merged
         across all vocab_keys configured for the alias.
     """
-    vocab_keys = _get_vocab_keys(instrument_type)
+    vocab_keys = _get_alias_cfg(instrument_type)["vocab_keys"]
     vocab_registry = _get_vocab_registry()
     missing = [k for k in vocab_keys if _normalize_key(k) not in vocab_registry]
     if missing:
@@ -133,13 +134,7 @@ def list_instruments(instrument_type: str) -> list[str]:
 
 def list_quantities(instrument_type: str) -> list[str]:
     """Return canonical quantity keys measured by a given instrument alias."""
-    alias_map = _get_alias_map()
-    if instrument_type not in alias_map:
-        raise KeyError(
-            f"Unknown instrument alias {instrument_type!r}. "
-            f"Valid aliases: {list(alias_map)}"
-        )
-    return alias_map[instrument_type]["quantities"]
+    return _get_alias_cfg(instrument_type)["quantities"]
 
 
 def is_compound_quantity(quantity: str) -> bool:
