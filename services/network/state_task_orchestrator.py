@@ -29,13 +29,16 @@ Example:
     aggregate(output='geojson')
 
     # Low-level: run a task not in the registry (e.g. ad-hoc gateway scan):
+    from functools import partial
+
     from services.network.connectivity import (
         connectivity_sites,
         persist_connectivity_state,
+        run_site_connectivity,
     )
 
     run_task_for_all_sites(
-        task=make_connectivity_task(hardware='gateway'),
+        task=partial(run_site_connectivity, hardware='gateway'),
         task_name='gateway',
         sites=connectivity_sites(),
         persist=persist_connectivity_state,
@@ -44,6 +47,7 @@ Example:
 
 import logging
 from collections.abc import Callable
+from functools import partial
 from pathlib import Path
 from typing import Any, Literal
 
@@ -83,7 +87,6 @@ logger = logging.getLogger(__name__)
 
 STATE_DIR = paths.get_local_stream_path(resource="network", stream="state")
 GEOJSON_PATH = STATE_DIR / "network_state.json"
-SITE_SUMMARY_PATH = STATE_DIR / "site_summary.json"
 
 # Shared type alias for the two-argument persist-callback contract.
 type PersistFn = Callable[[dict[str, Any], str], None]
@@ -133,52 +136,6 @@ variable_quality_task = _context_task(
 threshold_quality_task = _context_task(
     analyse_threshold_quality, THRESHOLD_NULL_RESULT, "threshold_quality_failed"
 )
-
-
-def logger_status_task(site: str) -> dict[str, Any]:
-    """Adapter: check_logger_status -> site-name interface.
-
-    Args:
-        site: Site name as registered in the pipeline site registry.
-
-    Returns:
-        Logger status result dict for the site.
-    """
-    return check_logger_status(site=site)
-
-
-def nc_last_record_task(site: str) -> dict[str, Any]:
-    """Adapter: check_nc_last_record -> site-name interface.
-
-    Args:
-        site: Site name as registered in the pipeline site registry.
-
-    Returns:
-        NetCDF last-record result dict for the site.
-    """
-    return check_nc_last_record(site=site)
-
-
-def make_connectivity_task(
-    hardware: str = "gateway",
-) -> Callable[[str], dict[str, Any]]:
-    """Factory: return a per-site connectivity task for the given hardware type.
-
-    The returned callable conforms to the ``task(site: str) -> dict`` contract
-    and is intended to be passed directly to ``run_task_for_all_sites``.
-
-    Args:
-        hardware: Hardware type to scan. One of 'gateway', 'ec', 'soil',
-            'profile'. Defaults to 'gateway'.
-
-    Returns:
-        A callable ``task(site: str) -> dict[str, Any]``.
-    """
-
-    def _task(site: str) -> dict[str, Any]:
-        return run_site_connectivity(site=site, hardware=hardware)
-
-    return _task
 
 
 # Persistence helpers
@@ -243,21 +200,21 @@ STATE_TASK_SPECS: list[dict[str, Any]] = [
         task_name="threshold_quality",
     ),
     dict(
-        task=nc_last_record_task,
+        task=check_nc_last_record,
         task_name="nc_last_record",
     ),
     dict(
-        task=logger_status_task,
+        task=check_logger_status,
         task_name="logger_status",
     ),
     dict(
-        task=make_connectivity_task("gateway"),
+        task=partial(run_site_connectivity, hardware="gateway"),
         task_name="gateway_connectivity",
         sites=_CONNECTIVITY_SITES,
         persist=persist_connectivity_state,
     ),
     dict(
-        task=make_connectivity_task("ec"),
+        task=partial(run_site_connectivity, hardware="ec"),
         task_name="ec_logger_connectivity",
         sites=_CONNECTIVITY_SITES,
         persist=persist_connectivity_state,
@@ -316,6 +273,31 @@ def run_task_for_all_sites(
     return {task_name: results}
 
 
+def _load_site_pivot(
+    task_names: list[str], state_dir: Path, failure_event: str
+) -> dict[str, dict[str, Any]]:
+    """Read per-task state files and pivot them to ``{site: {task: result}}``.
+
+    Missing or unreadable task files are skipped with a warning logged as
+    ``failure_event``.
+    """
+    sites: dict[str, dict[str, Any]] = {}
+
+    for task_name in task_names:
+        path = state_dir / f"{task_name}.json"
+        try:
+            payload = read_json(file_path=path)
+            for site, result in payload.get("sites", {}).items():
+                sites.setdefault(site, {})[task_name] = result
+        except Exception as exc:
+            logger.warning(
+                failure_event,
+                extra={"task": task_name, "error": str(exc)},
+            )
+
+    return sites
+
+
 def compile_geojson(
     task_names: list[str] | None = None,
     state_dir: Path = STATE_DIR,
@@ -338,19 +320,7 @@ def compile_geojson(
     if task_names is None:
         task_names = [spec["task_name"] for spec in STATE_TASK_SPECS]
 
-    site_results: dict[str, dict[str, Any]] = {}
-
-    for task_name in task_names:
-        path = state_dir / f"{task_name}.json"
-        try:
-            payload = read_json(file_path=path)
-            for site, result in payload.get("sites", {}).items():
-                site_results.setdefault(site, {})[task_name] = result
-        except Exception as exc:
-            logger.warning(
-                "geojson_read_failed",
-                extra={"task": task_name, "error": str(exc)},
-            )
+    site_results = _load_site_pivot(task_names, state_dir, "geojson_read_failed")
 
     features = []
     for site_name in SITE_REGISTRY.names():
@@ -383,7 +353,7 @@ def compile_geojson(
         "metadata": {"updated_at": get_utc_now(as_iso=True)},
     }
 
-    out_path = state_dir / "network_state.json"
+    out_path = state_dir / GEOJSON_PATH.name
     write_json(file_path=out_path, data=geojson)
     logger.info("geojson_written", extra={"path": str(out_path)})
 
@@ -421,19 +391,7 @@ def compile_site_summary(
     if task_names is None:
         task_names = [spec["task_name"] for spec in STATE_TASK_SPECS]
 
-    sites: dict[str, dict[str, Any]] = {}
-
-    for task_name in task_names:
-        path = state_dir / f"{task_name}.json"
-        try:
-            payload = read_json(file_path=path)
-            for site, result in payload.get("sites", {}).items():
-                sites.setdefault(site, {})[task_name] = result
-        except Exception as exc:
-            logger.warning(
-                "site_summary_read_failed",
-                extra={"task": task_name, "error": str(exc)},
-            )
+    sites = _load_site_pivot(task_names, state_dir, "site_summary_read_failed")
 
     write_state(results=sites, task_name="site_summary", state_dir=state_dir)
 
