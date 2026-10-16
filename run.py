@@ -25,10 +25,9 @@ def main():
 
     try:
         run_task(task=args.task, site=args.site, dry_run=args.dry_run)
-    except NotImplementedError as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
-    except ValueError as e:
+    except (NotImplementedError, ValueError) as e:
+        # CLI usage mistakes (unknown task, bad --site/--dry-run): a clean
+        # message. Anything else is a real failure and keeps its traceback.
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
