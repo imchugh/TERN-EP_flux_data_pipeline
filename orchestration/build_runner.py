@@ -37,14 +37,6 @@ SITE_REGISTRY = SiteRegistry()
 NC_GLOBAL_ATTRS = config_loader.load_config_file_from_name("nc_metadata")
 
 
-def _zarr_dir(level: str) -> pathlib.Path:
-    return paths.get_local_stream_path("homogenised_data", "zarr") / level
-
-
-def _nc_dir(site: str) -> pathlib.Path:
-    return paths.get_local_stream_path("homogenised_data", "nc") / site
-
-
 def build_L1_zarr_for_site(
     site: str,
     output_dir: pathlib.Path | str | None = None,
@@ -54,7 +46,7 @@ def build_L1_zarr_for_site(
     """Full rebuild of a site's L1 Zarr store (see build_L1_zarr.build)."""
     return build_L1_zarr.build(
         SITE_REGISTRY.get_context(site=site, legacy=legacy),
-        output_dir=output_dir or _zarr_dir("L1"),
+        output_dir=output_dir or paths.homogenised_zarr_dir("L1"),
         year=year,
         global_attrs=NC_GLOBAL_ATTRS,
     )
@@ -68,7 +60,7 @@ def update_L1_zarr_for_site(
     """Incremental update of a site's L1 Zarr store (see build_L1_zarr.update)."""
     return build_L1_zarr.update(
         SITE_REGISTRY.get_context(site=site, legacy=legacy),
-        output_dir=output_dir or _zarr_dir("L1"),
+        output_dir=output_dir or paths.homogenised_zarr_dir("L1"),
         global_attrs=NC_GLOBAL_ATTRS,
     )
 
@@ -82,8 +74,8 @@ def build_L1_nc_from_zarr_for_site(
     """Build a site's L1 NetCDF files from its Zarr store."""
     return build_L1_nc.build_from_zarr(
         site,
-        zarr_dir=zarr_dir or _zarr_dir("L1"),
-        output_dir=output_dir or _nc_dir(site),
+        zarr_dir=zarr_dir or paths.homogenised_zarr_dir("L1"),
+        output_dir=output_dir or paths.homogenised_nc_dir(site),
         year=year,
         global_attrs=NC_GLOBAL_ATTRS,
     )
@@ -97,8 +89,8 @@ def build_L2_zarr_for_site(
     """Full rebuild of a site's L2 Zarr store (see build_L2_zarr.build)."""
     return build_L2_zarr.build(
         load_site_qc_config(site),
-        output_dir=output_dir or _zarr_dir("L2"),
-        l1_dir=l1_dir or _zarr_dir("L1"),
+        output_dir=output_dir or paths.homogenised_zarr_dir("L2"),
+        l1_dir=l1_dir or paths.homogenised_zarr_dir("L1"),
     )
 
 
@@ -110,8 +102,8 @@ def update_L2_zarr_for_site(
     """Incremental update of a site's L2 Zarr store (see build_L2_zarr.update)."""
     return build_L2_zarr.update(
         load_site_qc_config(site),
-        output_dir=output_dir or _zarr_dir("L2"),
-        l1_dir=l1_dir or _zarr_dir("L1"),
+        output_dir=output_dir or paths.homogenised_zarr_dir("L2"),
+        l1_dir=l1_dir or paths.homogenised_zarr_dir("L1"),
     )
 
 
@@ -124,8 +116,8 @@ def build_L2_nc_from_zarr_for_site(
     """Build a site's L2 NetCDF files from its L2 Zarr store."""
     return build_L2_nc.build_from_zarr(
         site,
-        zarr_dir=zarr_dir or _zarr_dir("L2"),
-        output_dir=output_dir or _nc_dir(site),
+        zarr_dir=zarr_dir or paths.homogenised_zarr_dir("L2"),
+        output_dir=output_dir or paths.homogenised_nc_dir(site),
         year=year,
         global_attrs=NC_GLOBAL_ATTRS,
     )

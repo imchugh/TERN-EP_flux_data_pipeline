@@ -88,6 +88,16 @@ def get_remote_stream_path(resource: str, stream: str, site: str | None = None) 
     return _resolve(resource, stream, "remote", site)
 
 
+def homogenised_zarr_dir(level: str) -> pathlib.Path:
+    """Directory holding every site's Zarr store for a level ('L1' or 'L2')."""
+    return get_local_stream_path("homogenised_data", "zarr") / level
+
+
+def homogenised_nc_dir(site: str) -> pathlib.Path:
+    """Directory holding a site's annual NetCDF exports (all levels)."""
+    return get_local_stream_path("homogenised_data", "nc") / site
+
+
 def show(resource: str | None = None) -> None:
     """Print a quick-reference overview of configured resources and streams.
 

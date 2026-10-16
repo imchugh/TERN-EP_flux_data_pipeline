@@ -57,7 +57,7 @@ def get_nc_site_dir(site: str) -> pathlib.Path:
     Returns:
         Path to the site's NetCDF directory.
     """
-    return paths.get_local_stream_path(resource="homogenised_data", stream="nc") / site
+    return paths.homogenised_nc_dir(site)
 
 
 def get_latest_nc_file(site: str) -> pathlib.Path:

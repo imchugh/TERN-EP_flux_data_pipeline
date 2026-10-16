@@ -90,11 +90,7 @@ def construct_toa5_from_nc(site: str) -> dict:
     """
     import orchestration.legacy_rtmc_export as toa5con
 
-    store_path = (
-        paths.get_local_stream_path(resource="homogenised_data", stream="zarr")
-        / "L1"
-        / f"{site}_L1.zarr"
-    )
+    store_path = paths.homogenised_zarr_dir("L1") / f"{site}_L1.zarr"
     output_path = (
         paths.get_local_stream_path(resource="homogenised_data", stream="toa5")
         / f"{site}_merged_std.dat"
