@@ -56,7 +56,13 @@ def process_daily_tob_files(site: str, is_aux: bool = False) -> list[Path]:
     written = []
 
     for file in sorted(src_dir.rglob("*.dat")):
-        info = tob.get_file_info(file)
+        # A truncated or corrupt header must skip only this file, not abort
+        # the loop and block every file sorted after it.
+        try:
+            info = tob.get_file_info(file)
+        except Exception as exc:
+            logger.error("bad_header", extra={"file": file.name, "error": str(exc)})
+            continue
 
         if info["format"] != "TOB3":
             logger.error("not_tob3", extra={"file": file.name})
@@ -68,7 +74,11 @@ def process_daily_tob_files(site: str, is_aux: bool = False) -> list[Path]:
                 extra={"file": file.name, "station": info["station_name"]},
             )
 
-        creation_date = _parse_date(info["creation_date"])
+        try:
+            creation_date = _parse_date(info["creation_date"])
+        except (KeyError, ValueError) as exc:
+            logger.error("bad_header", extra={"file": file.name, "error": str(exc)})
+            continue
         if creation_date >= today:
             continue
 
