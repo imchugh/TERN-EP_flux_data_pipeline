@@ -7,6 +7,7 @@ writing in fluxtools/toa5_writer.py.
 """
 
 import datetime as dt
+import itertools
 import logging
 from pathlib import Path
 
@@ -108,16 +109,13 @@ def process_daily_tob_files(site: str, is_aux: bool = False) -> list[Path]:
                     "write_failed", extra={"file": filename, "error": str(exc)}
                 )
 
-        try:
-            _archive_tob3(
-                site=site,
-                file=file,
-                freq_str=freq_str,
-                creation_date=creation_date,
-                out_base=out_base,
-            )
-        except FileExistsError as exc:
-            logger.error("archive_failed", extra={"file": file.name, "error": str(exc)})
+        _archive_tob3(
+            site=site,
+            file=file,
+            freq_str=freq_str,
+            creation_date=creation_date,
+            out_base=out_base,
+        )
 
     return written
 
@@ -143,16 +141,19 @@ def _archive_tob3(
     archive_dir = out_base / creation_date.strftime("TOB3/%Y_%m")
     archive_dir.mkdir(parents=True, exist_ok=True)
 
-    dest = archive_dir / (
-        f"TOB3_{site}_{freq_str}_{creation_date.strftime('%Y_%m_%d')}.dat"
-    )
-
-    if dest.exists():
-        if file_sha256(file) != file_sha256(dest):
-            raise FileExistsError(f"A non-identical file already exists at {dest.name}")
-        file.unlink()
-        logger.info("archive_duplicate_removed", extra={"file": file.name})
-        return
+    # A logger restart, or a partial re-collection, can leave several
+    # different files with the same creation date. Keep each under the next
+    # free numeric suffix (_1, _2, ...); an identical copy is a duplicate.
+    stem = f"TOB3_{site}_{freq_str}_{creation_date.strftime('%Y_%m_%d')}"
+    file_hash = file_sha256(file)
+    for n in itertools.count():
+        dest = archive_dir / (f"{stem}.dat" if n == 0 else f"{stem}_{n}.dat")
+        if not dest.exists():
+            break
+        if file_sha256(dest) == file_hash:
+            file.unlink()
+            logger.info("archive_duplicate_removed", extra={"file": file.name})
+            return
 
     file.rename(dest)
     logger.info("archived_tob3", extra={"dest": dest.name})
