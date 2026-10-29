@@ -1,6 +1,7 @@
 """Decoder for Campbell Scientific TOB1 and TOB3 binary files."""
 
 import datetime as dt
+import logging
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -12,6 +13,8 @@ from fluxtools.toa5_writer import TOA5_INFO_FIELDS
 from infrastructure import read_cs_files as rcf
 
 DATE_FORMAT = DATA_TIME_FORMAT
+
+logger = logging.getLogger(__name__)
 
 # The first seven info-line fields; the eighth differs between TOB1 and TOB3.
 _INFO_NAMES = TOA5_INFO_FIELDS[:-1]
@@ -86,6 +89,11 @@ def split_by_interval(
     offset from the window start by one sample period (1/freq_hz seconds),
     matching the Campbell logger convention.
 
+    The day split is the one most records belong to, not the day of the
+    first record: a ring-buffer TOB3 file can carry a few stale records from
+    an earlier day, which would otherwise select that day and drop the
+    file's real data. Records outside the chosen day are dropped and logged.
+
     Args:
         df: DataFrame with DatetimeIndex, as returned by read_tob.
         interval_minutes: window length in minutes (e.g. 30).
@@ -98,8 +106,18 @@ def split_by_interval(
     if df.empty:
         return
 
-    first_ts = df.index[0]
-    day_start = dt.datetime(first_ts.year, first_ts.month, first_ts.day)
+    # A record on midnight closes the previous day's last window, so assign
+    # each record to the day of the instant just before it.
+    record_days = (df.index - pd.Timedelta(microseconds=1)).normalize()
+    day = record_days.value_counts().idxmax()
+    n_stray = int((record_days != day).sum())
+    if n_stray:
+        logger.warning(
+            "stray_records_dropped",
+            extra={"day": day.date().isoformat(), "dropped": n_stray},
+        )
+
+    day_start = dt.datetime(day.year, day.month, day.day)
     first_sample_offset = dt.timedelta(microseconds=10**6 // freq_hz)
     n_periods = 24 * 60 // interval_minutes
 
