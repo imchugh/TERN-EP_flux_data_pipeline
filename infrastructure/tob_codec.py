@@ -78,6 +78,25 @@ def read_tob(files: Path | list[Path]) -> tuple[pd.DataFrame, dict]:
     return data, _build_metadata(first_raw_meta, file_fmt)
 
 
+def data_day(df: pd.DataFrame) -> dt.date:
+    """Return the day most of a TOB DataFrame's records belong to.
+
+    A ring-buffer TOB3 file can carry stale records from another day, and
+    its header creation date can predate its data by weeks, so this, not
+    either of those, is the day a file's data covers. A record on midnight
+    closes the previous day's last window, so it counts toward that day.
+
+    Args:
+        df: non-empty DataFrame with DatetimeIndex, as returned by read_tob.
+    """
+    return _record_days(df).value_counts().idxmax().date()
+
+
+def _record_days(df: pd.DataFrame) -> pd.DatetimeIndex:
+    # The day of the instant just before each record: see data_day.
+    return (df.index - pd.Timedelta(microseconds=1)).normalize()
+
+
 def split_by_interval(
     df: pd.DataFrame,
     interval_minutes: int,
@@ -89,10 +108,10 @@ def split_by_interval(
     offset from the window start by one sample period (1/freq_hz seconds),
     matching the Campbell logger convention.
 
-    The day split is the one most records belong to, not the day of the
-    first record: a ring-buffer TOB3 file can carry a few stale records from
-    an earlier day, which would otherwise select that day and drop the
-    file's real data. Records outside the chosen day are dropped and logged.
+    The day split is data_day(df), not the day of the first record: a
+    ring-buffer TOB3 file can carry a few stale records from an earlier day,
+    which would otherwise select that day and drop the file's real data.
+    Records outside the chosen day are dropped and logged.
 
     Args:
         df: DataFrame with DatetimeIndex, as returned by read_tob.
@@ -106,15 +125,12 @@ def split_by_interval(
     if df.empty:
         return
 
-    # A record on midnight closes the previous day's last window, so assign
-    # each record to the day of the instant just before it.
-    record_days = (df.index - pd.Timedelta(microseconds=1)).normalize()
-    day = record_days.value_counts().idxmax()
-    n_stray = int((record_days != day).sum())
+    day = data_day(df)
+    n_stray = int((_record_days(df).date != day).sum())
     if n_stray:
         logger.warning(
             "stray_records_dropped",
-            extra={"day": day.date().isoformat(), "dropped": n_stray},
+            extra={"day": day.isoformat(), "dropped": n_stray},
         )
 
     day_start = dt.datetime(day.year, day.month, day.day)

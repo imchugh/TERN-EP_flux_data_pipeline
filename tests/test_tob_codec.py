@@ -55,6 +55,15 @@ class TestSplitByInterval(unittest.TestCase):
         with self.assertNoLogs(tob.logger, "WARNING"):
             _split(_records("2025-12-02 10:00:00.1", "2025-12-02 11:00:00"))
 
+    def test_data_day_follows_most_records(self):
+        stale = _records("2026-01-14 00:09:30.1", "2026-01-14 00:09:33")
+        day = _records("2026-02-12 16:00:00.1", "2026-02-12 18:00:00")
+        self.assertEqual(tob.data_day(pd.concat([stale, day])), dt.date(2026, 2, 12))
+
+    def test_data_day_counts_midnight_record_toward_previous_day(self):
+        df = _records("2025-12-02 23:59:59.9", "2025-12-03 00:00:00")
+        self.assertEqual(tob.data_day(df), dt.date(2025, 12, 2))
+
     def test_empty_frame_yields_nothing(self):
         self.assertEqual(_split(_records("2025-12-02", "2025-12-02").iloc[:0]), [])
 

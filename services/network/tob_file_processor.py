@@ -106,11 +106,13 @@ def process_daily_tob_files(site: str, is_aux: bool = False) -> list[Path]:
                     "write_failed", extra={"file": filename, "error": str(exc)}
                 )
 
+        # Archive under the day the data covers: a ring file's header
+        # creation date can predate its records by weeks.
         _archive_tob3(
             site=site,
             file=file,
             freq_str=freq_str,
-            creation_date=creation_date,
+            day=tob.data_day(df) if not df.empty else creation_date,
             out_base=out_base,
         )
 
@@ -141,16 +143,16 @@ def _archive_tob3(
     site: str,
     file: Path,
     freq_str: str,
-    creation_date: dt.date,
+    day: dt.date,
     out_base: Path,
 ) -> None:
-    archive_dir = out_base / creation_date.strftime("TOB3/%Y_%m")
+    archive_dir = out_base / day.strftime("TOB3/%Y_%m")
     archive_dir.mkdir(parents=True, exist_ok=True)
 
     # A logger restart, or a partial re-collection, can leave several
-    # different files with the same creation date. Keep each under the next
-    # free numeric suffix (_1, _2, ...); an identical copy is a duplicate.
-    stem = f"TOB3_{site}_{freq_str}_{creation_date.strftime('%Y_%m_%d')}"
+    # different files for the same day. Keep each under the next free
+    # numeric suffix (_1, _2, ...); an identical copy is a duplicate.
+    stem = f"TOB3_{site}_{freq_str}_{day.strftime('%Y_%m_%d')}"
     file_hash = file_sha256(file)
     for n in itertools.count():
         dest = archive_dir / (f"{stem}.dat" if n == 0 else f"{stem}_{n}.dat")

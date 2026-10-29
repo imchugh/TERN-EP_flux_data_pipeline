@@ -1,6 +1,6 @@
 """Tests for tob_file_processor._archive_tob3 archive naming.
 
-Several different TOB3 files can share a creation date (a logger restart,
+Several different TOB3 files can cover the same day (a logger restart,
 or a partial re-collection); each must be archived under its own name
 rather than blocking in TMP.
 """
@@ -36,7 +36,7 @@ class TestArchiveTob3(unittest.TestCase):
             site=SITE,
             file=src,
             freq_str=FREQ_STR,
-            creation_date=DATE,
+            day=DATE,
             out_base=self.base,
         )
         return src
