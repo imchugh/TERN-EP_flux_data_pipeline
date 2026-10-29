@@ -89,12 +89,9 @@ def process_daily_tob_files(site: str, is_aux: bool = False) -> list[Path]:
             logger.error("read_failed", extra={"file": file.name, "error": str(exc)})
             continue
 
-        out_dir = out_base / creation_date.strftime("TOA5/%Y_%m/%d")
-        out_dir.mkdir(parents=True, exist_ok=True)
-
         for end_dt, subset in tob.split_by_interval(df, time_step, freq_hz):
             filename = f"TOA5_{site}_{freq_str}_{end_dt.strftime('%Y_%m_%d_%H_%M')}.dat"
-            out_file = out_dir / filename
+            out_file = _toa5_dir(out_base, end_dt, time_step) / filename
             try:
                 write_toa5(
                     data=subset,
@@ -125,6 +122,15 @@ def process_daily_tob_files(site: str, is_aux: bool = False) -> list[Path]:
 
 def _parse_date(date_str: str) -> dt.date:
     return dt.datetime.strptime(date_str, tob.DATE_FORMAT).date()
+
+
+def _toa5_dir(out_base: Path, end_dt: dt.datetime, time_step: int) -> Path:
+    # Blocks are stamped with their period end, but filed by the day the
+    # period covers: the block ending at midnight belongs to the day before.
+    # Keyed on data time, not the TOB3 creation date, which a ring file can
+    # carry from days earlier than its records.
+    period_start = end_dt - dt.timedelta(minutes=time_step)
+    return out_base / period_start.strftime("TOA5/%Y_%m/%d")
 
 
 def _freq_str(freq_hz: int) -> str:

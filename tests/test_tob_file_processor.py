@@ -74,5 +74,27 @@ class TestArchiveTob3(unittest.TestCase):
         self.assertEqual(self._archived(), [f"{STEM}.dat", f"{STEM}_1.dat"])
 
 
+class TestToa5Dir(unittest.TestCase):
+    BASE = Path("/base")
+
+    def test_block_filed_under_its_own_day(self):
+        end = dt.datetime(2025, 12, 2, 17, 0)
+        self.assertEqual(
+            tfp._toa5_dir(self.BASE, end, 30), self.BASE / "TOA5/2025_12/02"
+        )
+
+    def test_midnight_block_filed_under_previous_day(self):
+        end = dt.datetime(2025, 12, 3, 0, 0)
+        self.assertEqual(
+            tfp._toa5_dir(self.BASE, end, 30), self.BASE / "TOA5/2025_12/02"
+        )
+
+    def test_midnight_block_at_month_end(self):
+        end = dt.datetime(2025, 12, 1, 0, 0)
+        self.assertEqual(
+            tfp._toa5_dir(self.BASE, end, 30), self.BASE / "TOA5/2025_11/30"
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
