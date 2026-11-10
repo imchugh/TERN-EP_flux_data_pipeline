@@ -31,9 +31,8 @@ one map-metric selector across 7 mixed columns meant ghosting 6 of them at
 once, mixing two unrelated kinds of checks. Split back to their original
 identities.)
 
-`missing_data`, `variable_quality`, `threshold_quality`, and
-`network_connectivity` (any group with `"has_map": True` in `GROUPS`) render a
-zoomable map of Australia alongside their table, plotting every site by real
+Every group (any with `"has_map": True` in `GROUPS` -- currently all five) renders a
+zoomable map of Australia alongside its table, plotting every site by real
 location (`SITE_REGISTRY` lat/lon, same source
 `state_task_orchestrator.compile_geojson` uses) and colouring each marker by a
 second dropdown, "Map metric" — the selected column stays full-opacity in the
@@ -147,6 +146,7 @@ MISSING_DATA_MAP_METRIC_LABELS = {
     "pct_missing_last_30_days": "% missing (last 30 days)",
 }
 NC_LAST_RECORD_COLUMNS = ["days_since_last_record"]
+NC_LAST_RECORD_MAP_METRIC_LABELS = {"days_since_last_record": "Days since last record"}
 
 NETWORK_CONNECTIVITY_COLUMNS = ["gateway", "EC logger"]
 # Column label -> the state task file backing it (see the multi-source branch
@@ -474,6 +474,9 @@ GROUPS = [
         "row_fn": _nc_last_record_row,
         "scoped": False,
         "column_kinds": {"days_since_last_record": "count"},
+        "has_map": True,
+        "map_metric_labels": NC_LAST_RECORD_MAP_METRIC_LABELS,
+        "default_map_metric": "days_since_last_record",
     },
     {
         "key": "network_connectivity",
@@ -723,7 +726,7 @@ _HTML_TEMPLATE = """<!doctype html>
       --state-na:       #383835;
       --state-no-data:  #232322;
       --state-error:    #d94d5f;
-      --map-land:       #26261f;
+      --map-land:       #3d3c36;
     }
   }
   :root[data-theme="dark"] {
@@ -743,7 +746,7 @@ _HTML_TEMPLATE = """<!doctype html>
     --state-na:       #383835;
     --state-no-data:  #232322;
     --state-error:    #d94d5f;
-    --map-land:       #26261f;
+    --map-land:       #3d3c36;
   }
   * { box-sizing: border-box; }
   body {
@@ -798,7 +801,7 @@ _HTML_TEMPLATE = """<!doctype html>
     white-space: nowrap; font-size: 12px; font-weight: 500; color: var(--text-secondary);
   }
   th.site-header { z-index: 3; top: 0; }
-  .hidden { display: none; }
+  .hidden { display: none !important; }
   td.cell {
     width: 140px; height: 28px; min-width: 140px; border-radius: 4px;
     text-align: center; vertical-align: middle; cursor: default;

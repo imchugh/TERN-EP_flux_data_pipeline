@@ -480,10 +480,23 @@ class TestBuildReportData(unittest.TestCase):
                 [opt["key"] for opt in missing_data["map_metric_options"]],
                 MISSING_DATA_COLUMNS,
             )
-            other_group = next(
-                g for g in data["groups"] if g["key"] == "nc_last_record"
+
+    def test_nc_last_record_group_carries_map_payload(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            state_dir = Path(tmp)
+            data = build_report_data(
+                state_dir,
+                ["Boyagin"],
+                set(),
+                site_coords={"Boyagin": (147.6, -37.0)},
             )
-            self.assertNotIn("markers", other_group)
+            nc_group = next(g for g in data["groups"] if g["key"] == "nc_last_record")
+            self.assertIn("Boyagin", nc_group["markers"])
+            self.assertEqual(nc_group["default_map_metric"], "days_since_last_record")
+            self.assertEqual(
+                [opt["key"] for opt in nc_group["map_metric_options"]],
+                ["days_since_last_record"],
+            )
 
     def test_network_connectivity_group_carries_map_payload(self):
         with tempfile.TemporaryDirectory() as tmp:
