@@ -134,6 +134,15 @@ atmospheric_pressure:
   quantities:
     - ps
 
+water_level:
+  # Submersible water-level sensors (pressure transducers). The vocab has no
+  # water-level category; CTD (conductivity/temperature/depth) holds the
+  # nearest kin, the METER HYDROS 21.
+  vocab_keys:
+    - CTD
+  quantities:
+    - WTD
+
 logger:
   vocab_keys:
     - Eddy Covariance Logger

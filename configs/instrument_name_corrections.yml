@@ -7,7 +7,7 @@
 #   Use when there is no vocab entry yet. Remove once the entry is added.
 #   Valid aliases: sonic_anemometer, anemometer, irga, temperature_humidity,
 #                  radiation, soil_temperature, soil_moisture, soil_heat_flux,
-#                  precipitation, logger
+#                  precipitation, water_level, logger
 
 corrections:
   # Campbell Scientific CR1000X: Campbell CR1000X
@@ -25,6 +25,7 @@ pending:
   # Campbell Scientific 109: soil_temperature
   # Campbell Scientific CR3000: logger
   Campbell Scientific CR1000XE: logger
+  Campbell Scientific CS451: water_level
   # Campbell Scientific 229: soil_moisture
   # Campbell Scientific 253: soil_moisture
   # Rimco RIM8000: precipitation
