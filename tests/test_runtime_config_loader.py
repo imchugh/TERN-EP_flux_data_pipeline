@@ -20,7 +20,7 @@ variables:
     height: 2.0
     statistic_type: average
     input_variables:
-      Ta_1_1_1:
+      - name: Ta_1_1_1
         instrument: Campbell Scientific HMP155A
         file: flux
         units: degC

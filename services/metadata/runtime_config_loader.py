@@ -64,13 +64,13 @@ def _validate_instrument_names(
     errors = []
     instrument_uris: dict[str, str | None] = {}
     for variable, var_cfg in validated_config.variables.items():
-        for raw_name, input_cfg in var_cfg.input_variables.items():
+        for input_cfg in var_cfg.input_variables:
             inst = input_cfg.instrument
             names = list(inst.values()) if isinstance(inst, dict) else [inst]
             for name in names:
                 if not instrument_registry.is_valid_instrument(name):
                     errors.append(
-                        f"Variable '{variable}' input '{raw_name}': "
+                        f"Variable '{variable}' input '{input_cfg.name}': "
                         f"unknown instrument '{name}'"
                     )
                 elif name not in instrument_uris:

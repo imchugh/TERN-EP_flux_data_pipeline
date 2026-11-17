@@ -89,7 +89,7 @@ L1 and L2 configs deliberately live in separate folders: `SiteRegistry.names()` 
 
 ### Site config: `instrument` field notation
 
-Within `input_variables`, the `instrument` field has two valid forms:
+`input_variables` is a list of sources, each with a `name` (the raw column); see fluxcore's CLAUDE.md, "Site config: `input_variables`". Within each input, the `instrument` field has two valid forms:
 
 **Single instrument** (scalar string) — used for all variables measured by one sensor:
 ```yaml

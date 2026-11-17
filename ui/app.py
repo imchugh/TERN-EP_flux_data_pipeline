@@ -154,14 +154,15 @@ def _fmt_instrument(instrument) -> str:
     return str(instrument) if instrument else ""
 
 
-def _validate_date_ranges(input_variables: dict) -> None:
+def _validate_date_ranges(input_variables: list[dict]) -> None:
     """Raise ValueError if date ranges are missing, unordered, or overlapping."""
     items = sorted(
-        input_variables.items(),
-        key=lambda x: x[1].get("begin") or "0000-00-00",
+        input_variables,
+        key=lambda attrs: str(attrs.get("begin") or "0000-00-00"),
     )
     prev_end = None
-    for i, (name, attrs) in enumerate(items):
+    for i, attrs in enumerate(items):
+        name = attrs.get("name")
         begin = attrs.get("begin")
         end = attrs.get("end")
         if i > 0 and begin is None:
@@ -234,12 +235,13 @@ def _instrument_options_for(var_name: str) -> dict:
 
 def _build_rows(var_name: str) -> list[dict]:
     """Build the list of row dicts for the input-variables table."""
-    input_vars = state["cfg"]["variables"][var_name].get("input_variables", {})
+    input_vars = state["cfg"]["variables"][var_name].get("input_variables", [])
     valid_units = _valid_units_for(var_name)
     opts = _instrument_options_for(var_name)
 
     rows = []
-    for key, attrs in input_vars.items():
+    # A row's key is its position: a column name can repeat across files.
+    for key, attrs in enumerate(input_vars):
         file_stem = attrs.get("file")
         fmt = state["file_formats"].get(file_stem) if file_stem else None
         var_options = _get_file_vars(file_stem, fmt) if (file_stem and fmt) else []
@@ -268,7 +270,7 @@ def _build_rows(var_name: str) -> list[dict]:
         rows.append(
             {
                 "_key": key,
-                "name": attrs.get("name", key),
+                "name": attrs.get("name"),
                 "_var_options": var_options,
                 "instrument": "" if is_compound else _fmt_instrument(raw_instrument),
                 "_instrument_is_compound": is_compound,
@@ -290,7 +292,7 @@ def _make_table_edit_handler(var_name: str, refresh_fn) -> callable:
     def handle(row: dict) -> None:
         input_vars = state["cfg"]["variables"][var_name]["input_variables"]
         key = row["_key"]
-        if key not in input_vars:
+        if not 0 <= key < len(input_vars):
             return
 
         attrs = input_vars[key]
