@@ -12,15 +12,25 @@ from ``fluxcore.infrastructure.data_conditioning.condition_dataframe``, which pa
 output to a uniform time index.  The concatenator preserves only timestamps
 that appear in at least one input file — no NaN rows are inserted for gaps
 that no file covers.
+
+``write_toa5_patch`` is the non-destructive alternative to
+``concatenate_toa5``: instead of a spliced copy of the master, it writes only
+the missing records, as a numbered ``.patch`` file beside the master's raw
+directory (fluxcore reads it after the master and its backups), plus a YAML
+sidecar recording where the records came from and why.
 """
 
+import datetime
+import getpass
 import pathlib
+import re
 
 import pandas as pd
 from fluxcore import load_raw_data, load_raw_header
+from fluxcore.infrastructure import file_io as core_file_io
 from fluxcore.infrastructure.data_conditioning import infer_interval
 
-from fluxtools import data_diagnostics, toa5_writer
+from fluxtools import data_diagnostics, file_io, toa5_writer
 from fluxtools.concat_common import validate_headers, validate_interval
 
 _HEADER_LABELS = ("variable", "units", "sampling")
@@ -208,4 +218,179 @@ def concatenate_toa5(
         info=master_info,
     )
 
+    return report
+
+
+def next_patch_path(
+    master: str | pathlib.Path, patch_dir: str | pathlib.Path
+) -> pathlib.Path:
+    """Path the next patch for `master` gets in `patch_dir`.
+
+    LoggerNet's append-only backup numbering: `<name>.patch` first, then
+    `<name>.1.patch`, `<name>.2.patch`, ... (highest existing + 1; gaps in
+    the numbering are not reused).
+    """
+    master, patch_dir = pathlib.Path(master), pathlib.Path(patch_dir)
+    existing = core_file_io.get_numbered_files(
+        master, suffix="patch", directory=patch_dir
+    )
+    if not existing:
+        return patch_dir / f"{master.name}.patch"
+    number = re.fullmatch(
+        rf"{re.escape(master.name)}(?:\.(\d+))?\.patch", existing[-1].name
+    ).group(1)
+    return patch_dir / f"{master.name}.{int(number or 0) + 1}.patch"
+
+
+def _covered_timestamps(
+    master: pathlib.Path, patch_dir: pathlib.Path
+) -> tuple[pd.DataFrame, pd.Index, list[pathlib.Path]]:
+    """Load the master; return it, the covered timestamps, and their files.
+
+    Covered means present in the master, its backups or existing patches.
+    """
+    master_df = load_raw_data(file_path=master, file_format="TOA5")
+    files = [
+        master,
+        *core_file_io.get_backup_files(master),
+        *core_file_io.get_numbered_files(master, suffix="patch", directory=patch_dir),
+    ]
+    covered = master_df.index
+    for path in files[1:]:
+        covered = covered.union(load_raw_data(file_path=path, file_format="TOA5").index)
+    return master_df, covered.dropna().unique(), files
+
+
+def write_toa5_patch(
+    master: str | pathlib.Path,
+    slaves: list[str | pathlib.Path],
+    patch_dir: str | pathlib.Path,
+    reason: str,
+    min_timestamp: str | pd.Timestamp | None = None,
+    author: str | None = None,
+    dry_run: bool = False,
+) -> dict:
+    """Write the records `slaves` can add to `master` as a new `.patch` file.
+
+    Never touches the master or anything else in its directory. A record is
+    taken from a slave only if its timestamp is in none of: the master, the
+    master's `.backup` files, or the patches already in `patch_dir`. So
+    patches never overlap the logger's own data or each other, and fluxcore
+    (which reads master > backups > patches) only ever uses them to fill
+    gaps. Slaves are consumed in order; the first to supply a timestamp
+    wins. As in ``concatenate_toa5``, records may lie outside the master's
+    own date range, and slaves must match the master's headers and interval.
+
+    Alongside the patch, writes `<patch>.yml` recording the master, each
+    slave (name, sha256, records contributed), the reason, the author, the
+    creation time (UTC), and the patch's record count and time range.
+
+    Args:
+        master: the live raw file being patched (e.g. `Site_EC_flux.dat`).
+        slaves: files to take missing records from, in priority order.
+        patch_dir: where patches live (TERN: the `flux_slow_patch` stream,
+            `<site>/Flux/Slow_patch`); created if missing.
+        reason: why the patch exists (e.g. "comms outage, data retrieved
+            from logger card"); required, recorded in the sidecar.
+        min_timestamp: optional floor; slave records earlier than this are
+            ignored (see ``concatenate_toa5`` on clock-reset artifacts).
+        author: recorded in the sidecar; defaults to the current user.
+        dry_run: if True, compute the report but write nothing.
+
+    Returns:
+        Report dict: 'patch_file' (Path, or None if there was nothing to
+        add), 'records', 'first', 'last', 'slave_contributions'
+        ({filename: n_records}), 'dropped_below_min', and 'checked_against'
+        (names of the files whose timestamps were treated as covered).
+
+    Raises:
+        ValueError: if `reason` is blank, or a slave's headers or time step
+            don't match the master's.
+        FileExistsError: if the computed patch path already exists.
+    """
+    if not reason or not reason.strip():
+        raise ValueError("A reason is required for every patch.")
+    master, patch_dir = pathlib.Path(master), pathlib.Path(patch_dir)
+    slaves = [pathlib.Path(s) for s in slaves]
+    if min_timestamp is not None:
+        min_timestamp = pd.Timestamp(min_timestamp)
+
+    master_info, master_headers = _load_header(master)
+    master_df, covered, checked = _covered_timestamps(master, patch_dir)
+
+    pieces, contributions, dropped_below_min = [], {}, 0
+    for slave_path in slaves:
+        _, slave_headers = _load_header(slave_path)
+        validate_headers(master_headers, slave_path, slave_headers, _HEADER_LABELS)
+        slave_df = load_raw_data(file_path=slave_path, file_format="TOA5")
+        validate_interval(master_df, slave_df, slave_path)
+
+        slave_df = slave_df[slave_df.index.notna()]
+        slave_df = slave_df[~slave_df.index.duplicated(keep="first")]
+        if min_timestamp is not None:
+            below = slave_df.index < min_timestamp
+            dropped_below_min += int(below.sum())
+            slave_df = slave_df[~below]
+        new = slave_df[~slave_df.index.isin(covered)]
+        if len(new):
+            pieces.append(new)
+            contributions[slave_path.name] = len(new)
+            covered = covered.union(new.index)
+
+    report = {
+        "patch_file": None,
+        "records": 0,
+        "first": None,
+        "last": None,
+        "slave_contributions": contributions,
+        "dropped_below_min": dropped_below_min,
+        "checked_against": [path.name for path in checked],
+    }
+    if not pieces:
+        return report
+
+    patch = pd.concat(pieces).sort_index(kind="stable")
+    patch_path = next_patch_path(master, patch_dir)
+    report.update(
+        patch_file=patch_path,
+        records=len(patch),
+        first=patch.index[0],
+        last=patch.index[-1],
+    )
+    if dry_run:
+        return report
+
+    sidecar_path = patch_path.with_name(patch_path.name + ".yml")
+    for path in (patch_path, sidecar_path):
+        if path.exists():
+            raise FileExistsError(f"{path} already exists; not overwriting.")
+
+    toa5_writer.write_toa5(
+        data=patch, headers=master_headers, file_path=patch_path, info=master_info
+    )
+    file_io.write_yml_file(
+        sidecar_path,
+        {
+            "patch": patch_path.name,
+            "master": master.name,
+            "reason": reason.strip(),
+            "author": author or getpass.getuser(),
+            "created_utc": datetime.datetime.now(datetime.UTC).isoformat(
+                timespec="seconds"
+            ),
+            "records": len(patch),
+            "first": str(patch.index[0]),
+            "last": str(patch.index[-1]),
+            "min_timestamp": None if min_timestamp is None else str(min_timestamp),
+            "sources": [
+                {
+                    "file": str(slave_path),
+                    "sha256": file_io.file_sha256(slave_path),
+                    "records": contributions.get(slave_path.name, 0),
+                }
+                for slave_path in slaves
+            ],
+            "checked_against": report["checked_against"],
+        },
+    )
     return report
