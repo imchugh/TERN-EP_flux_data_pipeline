@@ -59,6 +59,13 @@ class RuntimeConfigLoaderCacheTestCase(unittest.TestCase):
         self.addCleanup(is_valid_patch.stop)
         self.addCleanup(get_uri_patch.stop)
 
+    def test_patch_dir_is_flux_slow_sibling(self):
+        cfg = load_runtime_config(self.config_path)
+        self.assertEqual(cfg.input_data_path.name, "Slow")
+        self.assertEqual(
+            cfg.input_patch_path, cfg.input_data_path.with_name("Slow_patch")
+        )
+
     def test_uncached_config_calls_is_valid_instrument(self):
         load_runtime_config(self.config_path)
         self.mock_is_valid.assert_called_once_with("Campbell Scientific HMP155A")

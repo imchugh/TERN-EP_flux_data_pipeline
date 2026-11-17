@@ -23,6 +23,10 @@ raw_data:
     flux_slow:
       local: Flux/Slow
       remote: uqrdm:TERNEP-Q5937/Sites/<site>/Data/Flux/Raw/Slow
+    # Gap-fill .patch files for flux_slow (<file>.dat.patch, .1.patch, ...),
+    # kept apart so raw files are never edited; read after master + backups.
+    flux_slow_patch:
+      local: Flux/Slow_patch
     flux_fast:
       local: Flux/Fast
       remote: uqrdm:FLUXARCH23-Q6223/Sites/<site>/Data/Flux/Raw/Fast

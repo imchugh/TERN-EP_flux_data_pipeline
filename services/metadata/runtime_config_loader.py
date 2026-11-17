@@ -101,8 +101,8 @@ def load_runtime_config(file_path: Path) -> SiteRuntimeConfig:
         2. Instrument validation  — all instrument names against TERN registry
            (skipped, per content hash, when a prior clean pass is cached —
            see instrument_validation_cache)
-        3. Path resolution        — site's raw-data directory, via
-           infrastructure.paths / configs/paths.yml
+        3. Path resolution        — site's raw-data and patch directories,
+           via infrastructure.paths / configs/paths.yml
         4. Build                  — delegated to runtime_config_builder
 
     Args:
@@ -115,9 +115,14 @@ def load_runtime_config(file_path: Path) -> SiteRuntimeConfig:
     content_hash = instrument_validation_cache.hash_file(file_path)
     validated_config = validate_L1_config_structure(file=file_path)
     instrument_uris = _validate_instrument_names(validated_config, content_hash)
-    input_data_path = paths.get_local_stream_path(
-        resource="raw_data", stream="flux_slow", site=validated_config.site
-    )
+    site = validated_config.site
     return build_runtime_config(
-        validated_config, instrument_uris, input_data_path=input_data_path
+        validated_config,
+        instrument_uris,
+        input_data_path=paths.get_local_stream_path(
+            resource="raw_data", stream="flux_slow", site=site
+        ),
+        input_patch_path=paths.get_local_stream_path(
+            resource="raw_data", stream="flux_slow_patch", site=site
+        ),
     )
