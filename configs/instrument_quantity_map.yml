@@ -79,8 +79,8 @@ radiation:
     - Fld
     - Flu
     - Fn
-    - Fpard
-    - Fparu
+    - Fqd
+    - Fqu
     - Fsd
     - FsdDiff
     - FsdDir
