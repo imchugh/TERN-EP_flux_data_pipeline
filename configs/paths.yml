@@ -43,6 +43,18 @@ raw_data:
       local: Ancillary/<site>_cosmoz_CRNS.dat
       remote: cosmoz:/incoming
 
+# Terrestrial laser scanner (TLS) raw data, delivered daily by SFTP into
+# per-site chroot accounts named by FLUXNET code (AU_ASM, ...), so the local
+# <site> is the FLUXNET ID with '-' -> '_' (see push_tls_raw), while the
+# remote <site> is the pipeline site name (+ remote_aliases) as usual.
+raw_data_tls:
+  base_path:
+    local: /store/Raw_data_TLS/<site>
+  stream:
+    tls:
+      local: TLS
+      remote: uqrdm:TERNEP-Q5937/Sites/<site>/Data/TLS/Raw
+
 processed_data:
   base_path:
     local: /store/Processed_data/<site>

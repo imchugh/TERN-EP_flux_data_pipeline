@@ -1,7 +1,10 @@
 """Transfer tasks: rclone and SFTP data movement."""
 
 from infrastructure import paths, rclone_transfer
+from services.metadata.site_registry import SiteRegistry
 from tasks.registry import register
+
+SITE_REGISTRY = SiteRegistry()
 
 # Sites where the flux_slow logger data is collected by the site operator and
 # pushed to the remote store, rather than pulled from the logger by us — so
@@ -81,13 +84,13 @@ def pull_rtmc_images() -> None:
 @register
 def push_aux_fast_flux(site: str) -> None:
     """Push raw auxiliary fast-flux (TOB3) data to the remote store."""
-    _push("raw_data", "flux_fast_aux", site=site, exclude_dirs=["TMP"], timeout=1200)
+    _push("raw_data", "flux_fast_aux", site=site, exclude=["TMP/**"], timeout=1200)
 
 
 @register
 def push_main_fast_flux(site: str) -> None:
     """Push raw main fast-flux (TOB3) data to the remote store."""
-    _push("raw_data", "flux_fast", site=site, exclude_dirs=["TMP"], timeout=1200)
+    _push("raw_data", "flux_fast", site=site, exclude=["TMP/**"], timeout=1200)
 
 
 @register
@@ -108,6 +111,27 @@ def push_slow_flux(site: str) -> None:
     """Push raw slow-flux data to the remote store for a non-remote-collected site."""
     _require_locally_collected(site, "push_slow_flux")
     _push("raw_data", "flux_slow", site=site)
+
+
+def _tls_site_code(site: str) -> str:
+    """Return the TLS SFTP directory name for a site (FLUXNET ID, '-' -> '_')."""
+    fluxnet_id = SITE_REGISTRY.get_metadata(site).fluxnet_id
+    if not fluxnet_id:
+        raise ValueError(f"'{site}' has no fluxnet_id; cannot locate its TLS data")
+    return fluxnet_id.replace("-", "_")
+
+
+@register
+def push_tls_raw(site: str) -> None:
+    """Push raw terrestrial laser scanner (TLS) data to the remote store."""
+    rclone_transfer.transfer(
+        src=paths.get_local_stream_path(
+            "raw_data_tls", "tls", site=_tls_site_code(site)
+        ),
+        dst=paths.get_remote_stream_path("raw_data_tls", "tls", site=site),
+        exclude=["dummy.txt"],
+        timeout=1200,
+    )
 
 
 # CSIRO's own site-naming convention for the incoming/ subdirectory — not

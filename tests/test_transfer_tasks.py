@@ -62,7 +62,7 @@ class TestPushSiteTasks(unittest.TestCase):
         mock_transfer.assert_called_once_with(
             src=Path("/store/Raw_data/HowardSprings/Flux_aux/Fast"),
             dst="uqrdm:FLUXARCH23-Q6223/Sites/HowardSprings/Data/Flux_aux/Raw/Fast",
-            exclude_dirs=["TMP"],
+            exclude=["TMP/**"],
             timeout=1200,
         )
 
@@ -72,7 +72,7 @@ class TestPushSiteTasks(unittest.TestCase):
         mock_transfer.assert_called_once_with(
             src=Path("/store/Raw_data/HowardSprings/Flux/Fast"),
             dst="uqrdm:FLUXARCH23-Q6223/Sites/HowardSprings/Data/Flux/Raw/Fast",
-            exclude_dirs=["TMP"],
+            exclude=["TMP/**"],
             timeout=1200,
         )
 
@@ -115,6 +115,28 @@ class TestPushSiteTasks(unittest.TestCase):
             ),
             dst="cosmoz:/incoming/HowardSprings",
         )
+
+    @patch(PATCH)
+    def test_push_tls_raw(self, mock_transfer):
+        # Local dir is the FLUXNET-coded SFTP account; remote uses the
+        # (aliased) pipeline site name.
+        meta = MagicMock(fluxnet_id="AU-ASM")
+        with patch.object(tt.SITE_REGISTRY, "get_metadata", return_value=meta):
+            tt.push_tls_raw("AliceSpringsMulga")
+        mock_transfer.assert_called_once_with(
+            src=Path("/store/Raw_data_TLS/AU_ASM/TLS"),
+            dst="uqrdm:TERNEP-Q5937/Sites/AliceMulga/Data/TLS/Raw",
+            exclude=["dummy.txt"],
+            timeout=1200,
+        )
+
+    @patch(PATCH)
+    def test_push_tls_raw_rejects_site_without_fluxnet_id(self, mock_transfer):
+        meta = MagicMock(fluxnet_id=None)
+        with patch.object(tt.SITE_REGISTRY, "get_metadata", return_value=meta):
+            with self.assertRaises(ValueError):
+                tt.push_tls_raw(SITE)
+        mock_transfer.assert_not_called()
 
 
 class TestPushGlobalTasks(unittest.TestCase):
@@ -214,3 +236,21 @@ class TestRemoteAlias(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class TestBuildCopyArgs(unittest.TestCase):
+    """exclude patterns pass straight through to rclone, one --exclude each."""
+
+    def test_exclude_patterns(self):
+        from infrastructure.rclone_transfer import _build_copy_args
+
+        args = _build_copy_args(
+            "copy", exclude=["TMP/**", "dummy.txt"], set_modtime=True
+        )
+        self.assertEqual(args[-4:], ["--exclude", "TMP/**", "--exclude", "dummy.txt"])
+
+    def test_no_exclude(self):
+        from infrastructure.rclone_transfer import _build_copy_args
+
+        args = _build_copy_args("copy", exclude=None, set_modtime=True)
+        self.assertNotIn("--exclude", args)

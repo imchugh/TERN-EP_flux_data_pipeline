@@ -31,7 +31,7 @@ def transfer(
     src: str,
     dst: str,
     *,
-    exclude_dirs: Iterable[str] | None = None,
+    exclude: Iterable[str] | None = None,
     set_modtime: bool = True,
     validate: bool = True,
     timeout: int = 600,
@@ -46,7 +46,8 @@ def transfer(
     Args:
         src: Source path (local or remote)
         dst: Destination directory (local or remote)
-        exclude_dirs: Optional directory patterns to exclude
+        exclude: Optional rclone filter patterns to exclude, relative to
+            `src` (e.g. "TMP/**" for a directory, "dummy.txt" for a file)
         set_modtime: If False, disable rclone's SFTP modtime-setting
             (adds --sftp-set-modtime=false). If True (default), leave
             rclone's default modtime behavior in place.
@@ -68,7 +69,7 @@ def transfer(
 
     run_args = _build_copy_args(
         "copy",
-        exclude_dirs=exclude_dirs,
+        exclude=exclude,
         set_modtime=set_modtime,
         dry_run=dry_run,
     )
@@ -150,7 +151,7 @@ def _is_remote(path: str) -> bool:
 def _build_copy_args(
     verb: str,
     *,
-    exclude_dirs: Iterable[str] | None,
+    exclude: Iterable[str] | None,
     set_modtime: bool,
     dry_run: bool = False,
 ) -> list[str]:
@@ -158,7 +159,7 @@ def _build_copy_args(
 
     Args:
         verb: rclone subcommand ("copy" or "copyto").
-        exclude_dirs: directories to exclude.
+        exclude: rclone filter patterns to exclude.
         set_modtime: if False, append --sftp-set-modtime=false.
         dry_run: append --dry-run so no files are transferred.
 
@@ -167,9 +168,8 @@ def _build_copy_args(
     """
     args = [verb, *COPY_ARGS]
 
-    if exclude_dirs:
-        for d in exclude_dirs:
-            args.extend(["--exclude", f"{d}/**"])
+    for pattern in exclude or ():
+        args.extend(["--exclude", pattern])
 
     if not set_modtime:
         args.append("--sftp-set-modtime=false")
