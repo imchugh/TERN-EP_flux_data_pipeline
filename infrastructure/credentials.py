@@ -51,13 +51,20 @@ def get_login(
 
     Raises:
         KeyError: if the login is missing and ``required`` is True.
+        ValueError: if the login is present but not a USERNAME/PASSWORD
+            mapping (raised even when not ``required``).
     """
+    where = section if entry is None else f"{section}.{entry}"
     login = load_secrets().get(section)
     if login is not None and entry is not None:
         login = login.get(entry)
     if login is None:
         if required:
-            where = section if entry is None else f"{section}.{entry}"
             raise KeyError(f"No login {where!r} in {secrets_path()}")
         return None
-    return login["USERNAME"], login["PASSWORD"]
+    if not isinstance(login, dict) or not {"USERNAME", "PASSWORD"} <= login.keys():
+        raise ValueError(
+            f"Login {where!r} in {secrets_path()} must be a mapping with "
+            "USERNAME and PASSWORD"
+        )
+    return str(login["USERNAME"]), str(login["PASSWORD"])

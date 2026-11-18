@@ -46,7 +46,8 @@ def get_logger_status(
         the full uniform-shape result.
     """
     logger.debug("get_logger_status", extra={"ip_addr": ip_addr})
-    summary, status = logger_functions.get_logger_status(ip_addr=ip_addr, auth=auth)
+    with logger_functions.LoggerClient(ip_addr=ip_addr, auth=auth) as client:
+        summary, status = client.get_logger_status()
     return {key: summary[key] for key in SUMMARY_SUBSET} | {
         key: status[key] for key in STATUS_SUBSET
     }

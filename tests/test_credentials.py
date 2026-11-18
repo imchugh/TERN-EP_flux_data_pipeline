@@ -11,6 +11,7 @@ SECRETS_YML = """\
 SITE_DETAILS: {USERNAME: sparql_user, PASSWORD: sparql_pw}
 LOGGERS:
   Calperum: {USERNAME: admin, PASSWORD: "1234"}
+  Gingin: "5678"
 """
 
 
@@ -46,6 +47,10 @@ class TestGetLogin(unittest.TestCase):
             credentials.get_login("LOGGERS", "Yanco")
         with self.assertRaises(KeyError):
             credentials.get_login("NOPE")
+
+    def test_malformed_entry_raises_even_if_optional(self):
+        with self.assertRaisesRegex(ValueError, "LOGGERS.Gingin"):
+            credentials.get_login("LOGGERS", "Gingin", required=False)
 
 
 if __name__ == "__main__":

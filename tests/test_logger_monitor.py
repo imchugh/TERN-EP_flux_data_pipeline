@@ -18,13 +18,11 @@ class TestCheckLoggerStatus(unittest.TestCase):
             patcher = mock.patch.object(logger_monitor, target, **kwargs)
             patcher.start()
             self.addCleanup(patcher.stop)
-        patcher = mock.patch.object(
-            logger_monitor.logger_functions,
-            "get_logger_status",
-            return_value=(SUMMARY, STATUS),
-        )
-        self.api = patcher.start()
+        patcher = mock.patch.object(logger_monitor.logger_functions, "LoggerClient")
+        self.client_cls = patcher.start()
         self.addCleanup(patcher.stop)
+        self.client = self.client_cls.return_value.__enter__.return_value
+        self.client.get_logger_status.return_value = (SUMMARY, STATUS)
 
     def _run(self, login):
         with mock.patch.object(
@@ -36,16 +34,18 @@ class TestCheckLoggerStatus(unittest.TestCase):
 
     def test_login_from_secrets_is_sent(self):
         result = self._run(("admin", "1234"))
-        self.api.assert_called_once_with(ip_addr="192.168.7.10", auth=("admin", "1234"))
+        self.client_cls.assert_called_once_with(
+            ip_addr="192.168.7.10", auth=("admin", "1234")
+        )
         self.assertIsNone(result["error"])
         self.assertEqual(result["model"], "CR1000X")
 
     def test_unlisted_site_sends_no_login(self):
         self._run(None)
-        self.api.assert_called_once_with(ip_addr="192.168.7.10", auth=None)
+        self.client_cls.assert_called_once_with(ip_addr="192.168.7.10", auth=None)
 
     def test_api_failure_returns_null_result_with_error(self):
-        self.api.side_effect = RuntimeError("401 Unauthorized")
+        self.client.get_logger_status.side_effect = RuntimeError("401 Unauthorized")
         result = self._run(("admin", "wrong"))
         self.assertEqual(result["error"], "401 Unauthorized")
         self.assertIsNone(result["model"])

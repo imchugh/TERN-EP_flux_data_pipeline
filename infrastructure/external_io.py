@@ -15,17 +15,19 @@ def get(
     *,
     headers: dict[str, str] | None = None,
     params: dict | None = None,
-    timeout: int = 60,
+    timeout: float = 60,
     stream: bool = False,
     auth: tuple[str, str] | requests.auth.AuthBase | None = None,
+    session: requests.Session | None = None,
 ) -> requests.Response:
     """Execute an HTTP GET request, raising HTTPRequestError on failure.
 
     ``auth`` is passed straight to ``requests``: a ``(user, password)`` tuple
-    means HTTP Basic auth.
+    means HTTP Basic auth. ``session`` sends the request through an existing
+    ``requests.Session`` (reused connection, session-level auth/headers).
     """
     try:
-        response = requests.get(
+        response = (session or requests).get(
             url,
             headers=headers,
             params=params,
