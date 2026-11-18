@@ -17,8 +17,13 @@ def get(
     params: dict | None = None,
     timeout: int = 60,
     stream: bool = False,
+    auth: tuple[str, str] | requests.auth.AuthBase | None = None,
 ) -> requests.Response:
-    """Execute an HTTP GET request, raising HTTPRequestError on failure."""
+    """Execute an HTTP GET request, raising HTTPRequestError on failure.
+
+    ``auth`` is passed straight to ``requests``: a ``(user, password)`` tuple
+    means HTTP Basic auth.
+    """
     try:
         response = requests.get(
             url,
@@ -26,6 +31,7 @@ def get(
             params=params,
             timeout=timeout,
             stream=stream,
+            auth=auth,
         )
 
         response.raise_for_status()

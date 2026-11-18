@@ -6,7 +6,7 @@ from fluxcore.infrastructure.datetime_utils import get_timezone
 
 from fluxtools.datetime_utils import get_UTC_offset
 from fluxtools.file_io import write_yml_file
-from infrastructure import config_loader, external_io, paths
+from infrastructure import config_loader, credentials, external_io, paths
 from services.metadata import rdf_label_resolver
 
 RDF_SITE_ALIASES = {
@@ -24,13 +24,6 @@ RDF_SITE_ALIASES = {
 }
 
 # QUERY LOAD / EXECUTION UTILITIES
-
-
-@cache
-def _get_credentials() -> dict:
-    """Return the SPARQL endpoint credentials (loaded once)."""
-    cred_path = paths.get_local_stream_path(resource="configs", stream="secrets")
-    return config_loader.load_config_file(file=cred_path)["SITE_DETAILS"]
 
 
 @cache
@@ -74,8 +67,9 @@ def run_query(query_key: str, end_point: str = "knowledge_graph_core") -> dict:
     configs = load_sparql_configs()
     endpoint_cfg = configs["sparql_endpoints"][end_point]
 
-    creds = _get_credentials() if endpoint_cfg["requires_auth"] else None
-    auth = (creds["USERNAME"], creds["PASSWORD"]) if creds else None
+    auth = (
+        credentials.get_login("SITE_DETAILS") if endpoint_cfg["requires_auth"] else None
+    )
 
     # Do the query
     rslt = external_io.post(

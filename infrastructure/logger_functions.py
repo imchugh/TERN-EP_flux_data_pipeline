@@ -28,24 +28,32 @@ ALLOWED_QUERY_MODES = [
 VALID_FILE_SOURCES = ["CPU", "CRD", "USR"]
 VALID_FORMATS = ["html", "json", "toa5", "tob1", "xml"]
 
+# HTTP Basic credentials for a password-protected logger web server, as
+# ``(user, password)``. With the default .csipasswd that is ``("admin", <UID>)``.
+Auth = tuple[str, str] | None
+
 
 @dataclass(slots=True)
 class LoggerClient:
     """Thin convenience wrapper around the Campbell logger HTTP API functions.
 
     Binds an IP address so callers only specify query parameters, not the
-    address, on each call.
+    address, on each call. ``auth`` is the logger's HTTP Basic credentials
+    (see ``Auth``); leave it ``None`` for a logger without a password.
     """
 
     ip_addr: str
+    auth: Auth = None
 
     def get_table_list(self) -> pd.DataFrame:
         """See module-level `get_table_list`."""
-        return get_table_list(ip_addr=self.ip_addr)
+        return get_table_list(ip_addr=self.ip_addr, auth=self.auth)
 
     def get_table_variable_list(self, table: str) -> pd.DataFrame:
         """See module-level `get_table_variable_list`."""
-        return get_table_variable_list(ip_addr=self.ip_addr, table=table)
+        return get_table_variable_list(
+            ip_addr=self.ip_addr, table=table, auth=self.auth
+        )
 
     def get_data_by_date_range(
         self,
@@ -57,6 +65,7 @@ class LoggerClient:
         """See module-level `get_data_by_date_range`."""
         return get_data_by_date_range(
             ip_addr=self.ip_addr,
+            auth=self.auth,
             start_date=start_date,
             end_date=end_date,
             table=table,
@@ -72,6 +81,7 @@ class LoggerClient:
         """See module-level `get_data_since_date`."""
         return get_data_since_date(
             ip_addr=self.ip_addr,
+            auth=self.auth,
             start_date=start_date,
             table=table,
             variable=variable,
@@ -86,6 +96,7 @@ class LoggerClient:
         """See module-level `get_data_n_records_back`."""
         return get_data_n_records_back(
             ip_addr=self.ip_addr,
+            auth=self.auth,
             table=table,
             recs_back=recs_back,
             variable=variable,
@@ -93,15 +104,15 @@ class LoggerClient:
 
     def get_logger_status(self) -> tuple[dict, dict]:
         """See module-level `get_logger_status`."""
-        return get_logger_status(ip_addr=self.ip_addr)
+        return get_logger_status(ip_addr=self.ip_addr, auth=self.auth)
 
     def list_files(self, source: str) -> pd.DataFrame:
         """See module-level `list_files`."""
-        return list_files(ip_addr=self.ip_addr, source=source)
+        return list_files(ip_addr=self.ip_addr, source=source, auth=self.auth)
 
     def get_used_space(self, source: str) -> dict:
         """See module-level `get_used_space`."""
-        return get_used_space(ip_addr=self.ip_addr, source=source)
+        return get_used_space(ip_addr=self.ip_addr, source=source, auth=self.auth)
 
 
 def get_data_by_date_range(
@@ -110,6 +121,7 @@ def get_data_by_date_range(
     end_date: str | dt.datetime,
     table: str,
     variable: str | None = None,
+    auth: Auth = None,
 ) -> pd.DataFrame:
     """Get all data between specified start and end dates.
 
@@ -119,6 +131,8 @@ def get_data_by_date_range(
         end_date: End date.
         table: Table from which to collect data.
         variable: Variable for which to collect data. Defaults to None (all).
+        auth: HTTP Basic ``(user, password)`` for a password-protected
+            logger. Defaults to None (no authentication).
 
     Returns:
         Time-indexed DataFrame of the requested data.
@@ -133,7 +147,7 @@ def get_data_by_date_range(
         variable=variable,
     )
 
-    return _format_data(ip_addr=ip_addr, cmd_substr=cmd_substr)
+    return _format_data(ip_addr=ip_addr, cmd_substr=cmd_substr, auth=auth)
 
 
 def get_data_since_date(
@@ -141,6 +155,7 @@ def get_data_since_date(
     start_date: str | dt.datetime,
     table: str,
     variable: str | None = None,
+    auth: Auth = None,
 ) -> pd.DataFrame:
     """Get all data after a specified date.
 
@@ -149,6 +164,8 @@ def get_data_since_date(
         start_date: Start date.
         table: Table from which to collect data.
         variable: Variable for which to collect data. Defaults to None (all).
+        auth: HTTP Basic ``(user, password)`` for a password-protected
+            logger. Defaults to None (no authentication).
 
     Returns:
         Time-indexed DataFrame of the requested data.
@@ -160,7 +177,7 @@ def get_data_since_date(
         variable=variable,
     )
 
-    return _format_data(ip_addr=ip_addr, cmd_substr=cmd_substr)
+    return _format_data(ip_addr=ip_addr, cmd_substr=cmd_substr, auth=auth)
 
 
 def get_data_n_records_back(
@@ -168,6 +185,7 @@ def get_data_n_records_back(
     table: str,
     recs_back: int = 1,
     variable: str | None = None,
+    auth: Auth = None,
 ) -> pd.DataFrame:
     """Get data starting n records back from the present.
 
@@ -176,6 +194,8 @@ def get_data_n_records_back(
         table: Table from which to collect data.
         recs_back: Number of records to step back from present. Defaults to 1.
         variable: Variable for which to collect data. Defaults to None (all).
+        auth: HTTP Basic ``(user, password)`` for a password-protected
+            logger. Defaults to None (no authentication).
 
     Returns:
         Time-indexed DataFrame of the requested data.
@@ -187,22 +207,24 @@ def get_data_n_records_back(
         variable=variable,
     )
 
-    return _format_data(ip_addr=ip_addr, cmd_substr=cmd_substr)
+    return _format_data(ip_addr=ip_addr, cmd_substr=cmd_substr, auth=auth)
 
 
-def _format_data(ip_addr: str, cmd_substr: str) -> pd.DataFrame:
+def _format_data(ip_addr: str, cmd_substr: str, auth: Auth = None) -> pd.DataFrame:
     """Execute a data query and shape the result into a DataFrame.
 
     Args:
         ip_addr: IP address of the device.
         cmd_substr: Query substring to embed in the complete URL.
+        auth: HTTP Basic ``(user, password)`` for a password-protected
+            logger. Defaults to None (no authentication).
 
     Returns:
         Time-indexed DataFrame with a RECORD column and one column per
         variable.
     """
     cmd_str = resolve_url(ip_addr=ip_addr, cmd_substr=cmd_substr)
-    content = submit_request(cmd_str=cmd_str)
+    content = submit_request(cmd_str=cmd_str, auth=auth)
     init_df = (
         pd.DataFrame(content["head"]["fields"])
         .drop(["type", "settable"], axis=1)
@@ -224,24 +246,28 @@ def _format_data(ip_addr: str, cmd_substr: str) -> pd.DataFrame:
     return pd.DataFrame(data=data_list, columns=var_list).set_index(keys="TIMESTAMP")
 
 
-def clock_check(ip_addr: str) -> dict:
+def clock_check(ip_addr: str, auth: Auth = None) -> dict:
     """Check the logger clock.
 
     Args:
         ip_addr: IP address of the logger.
+        auth: HTTP Basic ``(user, password)`` for a password-protected
+            logger. Defaults to None (no authentication).
 
     Returns:
         Dict containing the logger time as reported by the ClockCheck command.
     """
     cmd_str = resolve_url(ip_addr=ip_addr, cmd_substr="ClockCheck")
-    return submit_request(cmd_str=cmd_str)
+    return submit_request(cmd_str=cmd_str, auth=auth)
 
 
-def get_logger_status(ip_addr: str) -> tuple[dict, dict]:
+def get_logger_status(ip_addr: str, auth: Auth = None) -> tuple[dict, dict]:
     """Fetch the logger environment summary and status table.
 
     Args:
         ip_addr: IP address of the logger.
+        auth: HTTP Basic ``(user, password)`` for a password-protected
+            logger. Defaults to None (no authentication).
 
     Returns:
         A two-tuple of ``(summary_table, status_table)`` where both elements
@@ -255,7 +281,7 @@ def get_logger_status(ip_addr: str) -> tuple[dict, dict]:
     )
 
     cmd_str = resolve_url(ip_addr=ip_addr, cmd_substr=cmd_substr)
-    content = submit_request(cmd_str=cmd_str)
+    content = submit_request(cmd_str=cmd_str, auth=auth)
     summary_table = content["head"]["environment"]
     fields = [field["name"] for field in content["head"]["fields"]]
     data = content["data"][0]["vals"]
@@ -263,24 +289,32 @@ def get_logger_status(ip_addr: str) -> tuple[dict, dict]:
     return summary_table, status_table
 
 
-def get_table_list(ip_addr: str) -> pd.DataFrame:
+def get_table_list(ip_addr: str, auth: Auth = None) -> pd.DataFrame:
     """Get the list of tables available on the logger.
 
     Args:
         ip_addr: IP address of the device.
+        auth: HTTP Basic ``(user, password)`` for a password-protected
+            logger. Defaults to None (no authentication).
 
     Returns:
         DataFrame indexed by table name containing available metadata columns.
     """
-    return _browse_symbols(ip_addr=ip_addr, cmd_substr="browsesymbols&uri=dl:")
+    return _browse_symbols(
+        ip_addr=ip_addr, cmd_substr="browsesymbols&uri=dl:", auth=auth
+    )
 
 
-def get_table_variable_list(ip_addr: str, table: str) -> pd.DataFrame:
+def get_table_variable_list(
+    ip_addr: str, table: str, auth: Auth = None
+) -> pd.DataFrame:
     """Get the list of variables available in a given table.
 
     Args:
         ip_addr: IP address of the device.
         table: Table for which to return the variables.
+        auth: HTTP Basic ``(user, password)`` for a password-protected
+            logger. Defaults to None (no authentication).
 
     Returns:
         DataFrame indexed by variable name containing available metadata
@@ -289,10 +323,11 @@ def get_table_variable_list(ip_addr: str, table: str) -> pd.DataFrame:
     return _browse_symbols(
         ip_addr=ip_addr,
         cmd_substr=f"browsesymbols&uri=dl:{table}",
+        auth=auth,
     )
 
 
-def build_lookup_table(ip_addr: str) -> pd.DataFrame:
+def build_lookup_table(ip_addr: str, auth: Auth = None) -> pd.DataFrame:
     """Build a cross-table variable lookup for all tables on the logger.
 
     Iterates every table returned by ``get_table_list`` and concatenates the
@@ -301,31 +336,35 @@ def build_lookup_table(ip_addr: str) -> pd.DataFrame:
 
     Args:
         ip_addr: IP address of the device.
+        auth: HTTP Basic ``(user, password)`` for a password-protected
+            logger. Defaults to None (no authentication).
 
     Returns:
         DataFrame indexed by variable name with columns ``units``, ``process``,
         and ``table``.
     """
     df_list = []
-    for table in get_table_list(ip_addr=ip_addr).index:
-        df = get_table_variable_list(ip_addr=ip_addr, table=table)
+    for table in get_table_list(ip_addr=ip_addr, auth=auth).index:
+        df = get_table_variable_list(ip_addr=ip_addr, table=table, auth=auth)
         df["table"] = table
         df_list.append(df)
     return pd.concat(df_list)[["units", "process", "table"]].fillna("")
 
 
-def _browse_symbols(ip_addr: str, cmd_substr: str) -> pd.DataFrame:
+def _browse_symbols(ip_addr: str, cmd_substr: str, auth: Auth = None) -> pd.DataFrame:
     """Submit a browsesymbols request and return results as a DataFrame.
 
     Args:
         ip_addr: IP address of the device.
         cmd_substr: Pre-built browsesymbols command substring.
+        auth: HTTP Basic ``(user, password)`` for a password-protected
+            logger. Defaults to None (no authentication).
 
     Returns:
         DataFrame indexed by symbol name.
     """
     cmd_str = resolve_url(ip_addr=ip_addr, cmd_substr=cmd_substr)
-    rslt = submit_request(cmd_str=cmd_str)
+    rslt = submit_request(cmd_str=cmd_str, auth=auth)
     return (
         pd.DataFrame(rslt["symbols"])
         .drop(columns="type", errors="ignore")
@@ -333,13 +372,15 @@ def _browse_symbols(ip_addr: str, cmd_substr: str) -> pd.DataFrame:
     )
 
 
-def list_files(ip_addr: str, source: str) -> pd.DataFrame:
+def list_files(ip_addr: str, source: str, auth: Auth = None) -> pd.DataFrame:
     """List the files available on a logger storage device.
 
     Args:
         ip_addr: IP address of the device.
         source: Storage source to check. One of ``'CPU'``, ``'CRD'``,
             ``'USR'``.
+        auth: HTTP Basic ``(user, password)`` for a password-protected
+            logger. Defaults to None (no authentication).
 
     Returns:
         DataFrame indexed by filename with columns for file size and
@@ -352,7 +393,7 @@ def list_files(ip_addr: str, source: str) -> pd.DataFrame:
     drop_list = ["is_dir", "run_now", "run_on_power_up", "read_only", "paused"]
     _check_source(source=source)
     cmd_str = resolve_url(ip_addr=ip_addr, cmd_substr="ListFiles", source=source)
-    rslt = submit_request(cmd_str=cmd_str)
+    rslt = submit_request(cmd_str=cmd_str, auth=auth)
     df = pd.DataFrame(rslt["files"])
     if df.empty:
         return df
@@ -366,13 +407,15 @@ def list_files(ip_addr: str, source: str) -> pd.DataFrame:
     )
 
 
-def get_used_space(ip_addr: str, source: str) -> dict:
+def get_used_space(ip_addr: str, source: str, auth: Auth = None) -> dict:
     """Get the total used space on a logger storage device.
 
     Args:
         ip_addr: IP address of the device.
         source: Storage source to check. One of ``'CPU'``, ``'CRD'``,
             ``'USR'``.
+        auth: HTTP Basic ``(user, password)`` for a password-protected
+            logger. Defaults to None (no authentication).
 
     Returns:
         Dict with a single key ``'used space on <source> (GB)'`` mapping to
@@ -382,23 +425,25 @@ def get_used_space(ip_addr: str, source: str) -> dict:
         ValueError: If ``source`` is not one of the valid source identifiers.
     """
     _check_source(source=source)
-    df = list_files(ip_addr=ip_addr, source=source)
+    df = list_files(ip_addr=ip_addr, source=source, auth=auth)
     used_in_gb = round(df["size"].sum() / 10**9, 2) if not df.empty else float("nan")
     return {f"used space on {source} (GB)": used_in_gb}
 
 
-def submit_request(cmd_str: str, timeout: int = 2) -> dict | list:
+def submit_request(cmd_str: str, timeout: int = 2, auth: Auth = None) -> dict | list:
     """Submit an HTTP request to the logger and return the parsed JSON response.
 
     Args:
         cmd_str: Full URL to request.
         timeout: Request timeout in seconds. Defaults to 2.
+        auth: HTTP Basic ``(user, password)`` for a password-protected
+            logger. Defaults to None (no authentication).
 
     Returns:
         Parsed JSON response body (typically a dict).
     """
     logger.debug("logger_request", extra={"url": cmd_str})
-    response = get(url=cmd_str, timeout=timeout, stream=True)
+    response = get(url=cmd_str, timeout=timeout, stream=True, auth=auth)
     return json.loads(response.content)
 
 

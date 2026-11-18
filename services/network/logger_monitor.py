@@ -4,7 +4,7 @@
 import logging
 from typing import Any
 
-from infrastructure import logger_functions
+from infrastructure import credentials, logger_functions
 from infrastructure.safe_ops import safe_component
 from services.network.connectivity import SITE_IP, resolve_endpoint
 
@@ -26,7 +26,9 @@ NULL_RESULT: dict[str, Any] = {key: None for key in SUMMARY_SUBSET + STATUS_SUBS
 }
 
 
-def get_logger_status(ip_addr: str) -> dict[str, Any]:
+def get_logger_status(
+    ip_addr: str, auth: logger_functions.Auth = None
+) -> dict[str, Any]:
     """Fetch and filter status fields from a Campbell datalogger.
 
     Calls the logger HTTP API, then extracts the ``model`` field from the
@@ -35,6 +37,8 @@ def get_logger_status(ip_addr: str) -> dict[str, Any]:
 
     Args:
         ip_addr: IP address of the datalogger.
+        auth: HTTP Basic ``(user, password)`` for a password-protected
+            logger. Defaults to None (no authentication).
 
     Returns:
         Flat dict containing ``model`` plus each field in ``STATUS_SUBSET``.
@@ -42,7 +46,7 @@ def get_logger_status(ip_addr: str) -> dict[str, Any]:
         the full uniform-shape result.
     """
     logger.debug("get_logger_status", extra={"ip_addr": ip_addr})
-    summary, status = logger_functions.get_logger_status(ip_addr=ip_addr)
+    summary, status = logger_functions.get_logger_status(ip_addr=ip_addr, auth=auth)
     return {key: summary[key] for key in SUMMARY_SUBSET} | {
         key: status[key] for key in STATUS_SUBSET
     }
@@ -52,7 +56,10 @@ def check_logger_status(site: str) -> dict[str, Any]:
     """Fetch datalogger status for a named pipeline site.
 
     Resolves the site's EC logger IP address from the VPN IP config and
-    delegates to ``get_logger_status``. Network and API errors are caught and
+    delegates to ``get_logger_status``. A password-protected logger is
+    queried with its login from the ``LOGGERS`` section of the secrets file
+    (``LOGGERS: {<site>: {USERNAME: admin, PASSWORD: <UID>}}``); sites not
+    listed there are queried without one. Network and API errors are caught and
     returned as a ``NULL_RESULT`` with the ``error`` key populated, so the
     output shape is always identical regardless of reachability. This allows
     the downstream aggregator to merge state files without needing per-task
@@ -75,10 +82,14 @@ def check_logger_status(site: str) -> dict[str, Any]:
         raise KeyError(f"Site {site!r} not found in VPN IP config")
 
     ip_addr = resolve_endpoint(vpn_ip=SITE_IP[site]["host"], logger_type="ec")
-    logger.info("check_logger_status", extra={"site": site, "ip_addr": ip_addr})
+    auth = credentials.get_login("LOGGERS", site, required=False)
+    logger.info(
+        "check_logger_status",
+        extra={"site": site, "ip_addr": ip_addr, "authenticated": auth is not None},
+    )
 
     return safe_component(
-        lambda: get_logger_status(ip_addr=ip_addr) | {"error": None},
+        lambda: get_logger_status(ip_addr=ip_addr, auth=auth) | {"error": None},
         logger=logger,
         component="logger_status_failed",
         fallback=NULL_RESULT,
