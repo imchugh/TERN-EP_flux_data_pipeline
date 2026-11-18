@@ -9,6 +9,7 @@ give each worker thread its own client.
 """
 
 import datetime as dt
+import json
 import logging
 from dataclasses import dataclass, field
 
@@ -16,7 +17,7 @@ import pandas as pd
 import requests
 from fluxcore import DATA_TIME_FORMAT as TIME_FORMAT
 
-from infrastructure.external_io import get
+from infrastructure.external_io import HTTPRequestError, get
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,15 @@ VALID_FILE_SOURCES = ["CPU", "CRD", "USR"]
 # Seconds to wait for a logger to respond. Generous because many loggers sit
 # behind cellular modems; override per client.
 DEFAULT_TIMEOUT = 10
+
+# Upper bound on requests for one paged data query (see
+# LoggerClient._query_records), so a misbehaving logger can't loop forever.
+MAX_PAGES = 10_000
+
+# Extra attempts for a request that timed out or lost its connection (slow
+# cellular links stall now and then). Every API call is a read-only GET, so
+# repeating one is safe. HTTP errors such as 401 are not retried.
+RETRIES = 1
 
 # HTTP Basic credentials for a password-protected logger web server, as
 # ``(user, password)``. With the default .csipasswd that is ``("admin", <UID>)``.
@@ -91,8 +101,9 @@ class LoggerClient:
 
         Raises:
             ValueError: If ``source`` is not a recognised source.
-            HTTPRequestError: On connection failure, timeout or HTTP error
-                status (e.g. 401 for a missing or wrong login).
+            HTTPRequestError: On HTTP error status (e.g. 401 for a missing or
+                wrong login), or on connection failure or timeout once
+                ``RETRIES`` further attempts have also failed.
         """
         path = ""
         if source is not None:
@@ -100,20 +111,129 @@ class LoggerClient:
             path = f"{source}/"
         url = f"http://{self.ip_addr}/{path}"
         query = {"command": command, **params, "format": "json"}
-        logger.debug("logger_request", extra={"url": url, "params": query})
-        response = get(
-            url=url, params=query, timeout=self.timeout, session=self._session
-        )
-        return response.json()
+        for attempt in range(RETRIES + 1):
+            logger.debug(
+                "logger_request",
+                extra={"url": url, "params": query, "attempt": attempt},
+            )
+            try:
+                response = get(
+                    url=url, params=query, timeout=self.timeout, session=self._session
+                )
+                break
+            except HTTPRequestError as exc:
+                transient = isinstance(
+                    exc.__cause__, (requests.Timeout, requests.ConnectionError)
+                )
+                if not transient or attempt == RETRIES:
+                    raise
+                logger.warning(
+                    "logger_request_retry",
+                    extra={"url": url, "params": query, "error": str(exc)},
+                )
+        # strict=False: string fields (e.g. Status CompileResults) can hold raw
+        # control characters such as \r\n, which strict JSON rejects.
+        return json.loads(response.text, strict=False)
 
     def _data_query(
         self, table: str, mode: str, variable: str | None = None, **params
     ) -> dict:
-        """Send a ``dataquery`` command for a table (or one variable in it)."""
+        """Send one ``dataquery`` command for a table (or one variable in it).
+
+        Returns the raw response, which may be truncated: see
+        ``_query_records``.
+        """
         if mode not in ALLOWED_QUERY_MODES:
             raise ValueError(f"mode must be one of {', '.join(ALLOWED_QUERY_MODES)}")
         uri = f"dl:{table}" if variable is None else f"dl:{table}.{variable}"
         return self.request("dataquery", uri=uri, mode=mode, **params)
+
+    def _query_records(
+        self,
+        table: str,
+        mode: str,
+        variable: str | None = None,
+        *,
+        limit: int | None = None,
+        end: dt.datetime | None = None,
+        **params,
+    ) -> tuple[dict, list[dict]]:
+        """Run a ``dataquery`` to completion, paging past truncated responses.
+
+        A logger silently caps how much one response holds (by size, so the
+        record count depends on model, OS and table width; a CR6 with a
+        63-column table returns 17), and returns the *oldest* records of the
+        requested span. So after the first response this keeps asking for
+        ``since-record <last received>`` (inclusive) until no newer record
+        comes back. It never asks past the newest record: the logger answers
+        that with the oldest records in the table (ring-buffer wraparound),
+        so any record not numbered above the last one ends the paging.
+
+        Args:
+            table: Logger table.
+            mode: First request's query mode.
+            variable: Optional single variable.
+            limit: Stop once this many records are held (``most-recent``).
+            end: Stop at, and drop, records at or after this time
+                (``date-range``, whose end the logger treats as exclusive).
+            **params: First request's mode parameters (``p1``, ``p2``).
+
+        Returns:
+            ``(head, records)``: the first response's head block and the
+            records in ascending record-number order.
+        """
+        content = self._data_query(table=table, mode=mode, variable=variable, **params)
+        head, records = content["head"], list(content["data"])
+        n_requests = 1
+
+        def done() -> bool:
+            if not records:
+                return True
+            if limit is not None and len(records) >= limit:
+                return True
+            last_time = _convert_time_from_logger_format(records[-1]["time"])
+            return end is not None and last_time >= end
+
+        while not done():
+            if n_requests >= MAX_PAGES:
+                raise RuntimeError(
+                    f"{table} query on {self.ip_addr} not complete after "
+                    f"{MAX_PAGES} requests"
+                )
+            last_no = int(records[-1]["no"])
+            page = self._data_query(
+                table=table, mode="since-record", variable=variable, p1=last_no
+            )["data"]
+            n_requests += 1
+            new = []
+            for record in page:
+                no = int(record["no"])
+                if no <= last_no:
+                    if new:  # numbering went backwards: wrapped round
+                        break
+                    continue  # the inclusive overlap record
+                new.append(record)
+                last_no = no
+            if not new:
+                break
+            records.extend(new)
+
+        if end is not None:
+            records = [
+                r for r in records if _convert_time_from_logger_format(r["time"]) < end
+            ]
+        if limit is not None:
+            records = records[:limit]
+        logger.debug(
+            "data_query_complete",
+            extra={
+                "ip_addr": self.ip_addr,
+                "table": table,
+                "n_records": len(records),
+                "n_requests": n_requests,
+            },
+        )
+        return head, records
 
     # Data
 
@@ -124,25 +244,29 @@ class LoggerClient:
         table: str,
         variable: str | None = None,
     ) -> pd.DataFrame:
-        """Get all data between specified start and end dates.
+        """Get all data from the start date up to (not including) the end date.
 
         Args:
-            start_date: Start date (``TIME_FORMAT`` string or datetime).
-            end_date: End date (``TIME_FORMAT`` string or datetime).
+            start_date: Start date (``TIME_FORMAT`` string or datetime),
+                inclusive.
+            end_date: End date (``TIME_FORMAT`` string or datetime), exclusive.
             table: Table from which to collect data.
             variable: Variable for which to collect data. Defaults to None (all).
 
         Returns:
             Time-indexed DataFrame of the requested data.
         """
-        content = self._data_query(
-            table=table,
-            mode="date-range",
-            variable=variable,
-            p1=_convert_time_to_logger_format(time=start_date),
-            p2=_convert_time_to_logger_format(time=end_date),
+        end_date = _to_datetime(end_date)
+        return self._format_data(
+            *self._query_records(
+                table=table,
+                mode="date-range",
+                variable=variable,
+                end=end_date,
+                p1=_convert_time_to_logger_format(time=start_date),
+                p2=_convert_time_to_logger_format(time=end_date),
+            )
         )
-        return self._format_data(content)
 
     def get_data_since_date(
         self,
@@ -150,7 +274,7 @@ class LoggerClient:
         table: str,
         variable: str | None = None,
     ) -> pd.DataFrame:
-        """Get all data after a specified date.
+        """Get all data from a specified date (inclusive) to the newest record.
 
         Args:
             start_date: Start date (``TIME_FORMAT`` string or datetime).
@@ -160,13 +284,14 @@ class LoggerClient:
         Returns:
             Time-indexed DataFrame of the requested data.
         """
-        content = self._data_query(
-            table=table,
-            mode="since-time",
-            variable=variable,
-            p1=_convert_time_to_logger_format(time=start_date),
+        return self._format_data(
+            *self._query_records(
+                table=table,
+                mode="since-time",
+                variable=variable,
+                p1=_convert_time_to_logger_format(time=start_date),
+            )
         )
-        return self._format_data(content)
 
     def get_data_n_records_back(
         self,
@@ -174,7 +299,7 @@ class LoggerClient:
         recs_back: int = 1,
         variable: str | None = None,
     ) -> pd.DataFrame:
-        """Get data starting n records back from the present.
+        """Get the most recent ``recs_back`` records.
 
         Args:
             table: Table from which to collect data.
@@ -185,36 +310,33 @@ class LoggerClient:
         Returns:
             Time-indexed DataFrame of the requested data.
         """
-        content = self._data_query(
-            table=table, mode="most-recent", variable=variable, p1=recs_back
+        return self._format_data(
+            *self._query_records(
+                table=table,
+                mode="most-recent",
+                variable=variable,
+                limit=recs_back,
+                p1=recs_back,
+            )
         )
-        return self._format_data(content)
 
-    def _format_data(self, content: dict) -> pd.DataFrame:
-        """Shape a ``dataquery`` response into a DataFrame.
+    @staticmethod
+    def _format_data(head: dict, records: list[dict]) -> pd.DataFrame:
+        """Shape ``dataquery`` records into a DataFrame.
 
         Returns:
             Time-indexed DataFrame with a RECORD column and one column per
             variable.
         """
-        init_df = (
-            pd.DataFrame(content["head"]["fields"])
-            .drop(["type", "settable"], axis=1)
-            .set_index(keys="name")
-            .fillna("")
-        )
-        var_list = ["TIMESTAMP", "RECORD"] + init_df.index.tolist()
-        data_list = []
-        for record in content["data"]:
-            time = _convert_time_from_logger_format(time_str=record["time"])
-            record_n = int(record["no"])
-            data_list.append([time, record_n] + record["vals"])
-
-        logger.debug(
-            "data_query_complete",
-            extra={"ip_addr": self.ip_addr, "n_records": len(data_list)},
-        )
-
+        var_list = ["TIMESTAMP", "RECORD"] + [f["name"] for f in head["fields"]]
+        data_list = [
+            [
+                _convert_time_from_logger_format(time_str=record["time"]),
+                int(record["no"]),
+                *record["vals"],
+            ]
+            for record in records
+        ]
         return pd.DataFrame(data=data_list, columns=var_list).set_index(
             keys="TIMESTAMP"
         )
@@ -339,6 +461,13 @@ class LoggerClient:
         return {f"used space on {source} (GB)": used_in_gb}
 
 
+def _to_datetime(time: str | dt.datetime) -> dt.datetime:
+    """Parse a ``TIME_FORMAT`` string (or pass a datetime through)."""
+    if isinstance(time, str):
+        return dt.datetime.strptime(time, TIME_FORMAT)
+    return time
+
+
 def _convert_time_to_logger_format(time: str | dt.datetime) -> str:
     """Convert a datetime to the logger's ISO-like timestamp format.
 
@@ -348,10 +477,8 @@ def _convert_time_to_logger_format(time: str | dt.datetime) -> str:
     Returns:
         Timestamp string with the date/time separator replaced by ``'T'``.
     """
-    if isinstance(time, str):
-        time = dt.datetime.strptime(time, TIME_FORMAT)
     format_str = TIME_FORMAT.replace(" ", "T")
-    return dt.datetime.strftime(time, format_str)
+    return dt.datetime.strftime(_to_datetime(time), format_str)
 
 
 def _convert_time_from_logger_format(time_str: str) -> dt.datetime:
