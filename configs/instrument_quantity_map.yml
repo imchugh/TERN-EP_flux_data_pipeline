@@ -47,10 +47,12 @@ irga:
     - CO2c
     - Diag
     - H2O
+    - RH
     - Sco2
     - Sig
     - SigCO2
     - SigH2O
+    - Td
     - ps
 
 temperature_humidity:
