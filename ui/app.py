@@ -11,14 +11,16 @@ from fluxcore import (
     DEFAULT_FILE_FORMAT,
     FluxSystemType,
     LoggerType,
+    SiteConfig,
     StatisticType,
     VariableType,
     build_canonical_quantity_registry,
+    build_runtime_config,
     get_variables_from_file,
     parse_variable_name,
     validate_all,
 )
-from fluxcore.infrastructure.file_io import read_yml
+from fluxcore.infrastructure.file_io import get_numbered_files, read_yml
 from nicegui import ui
 
 from fluxtools.file_io import list_available_files
@@ -86,22 +88,27 @@ def _compute_file_formats(cfg: dict, base_path: Path) -> dict[str, str]:
 
 
 def _get_file_vars(file_stem: str, fmt: str) -> list[str]:
-    """Return variable names from a file header, with results cached."""
+    """Return variable names from a file group's headers, with results cached.
+
+    Reads the master file and its .backup files (fluxcore's own naming
+    rule): a sensor that has since been removed from the logger program
+    survives only in the backups, and its configured input must stay
+    selectable and editable.
+    """
     cache = state["var_cache"]
     if file_stem in cache:
         return cache[file_stem]
     file_format = DEFAULT_FILE_FORMAT[LoggerType[fmt]]
-    file_path = state["base_path"] / f"{file_stem}.{file_format.extension}"
-    try:
-        names = [
-            v
-            for v in get_variables_from_file(
+    master = state["base_path"] / f"{file_stem}.{file_format.extension}"
+    names: list[str] = []
+    for file_path in [master, *get_numbered_files(master, "backup")]:
+        try:
+            header = get_variables_from_file(
                 file_path=file_path, file_format=file_format
             )
-            if v not in EXCLUDE_VARS
-        ]
-    except Exception:
-        names = []
+        except Exception:
+            continue
+        names += [v for v in header if v not in EXCLUDE_VARS and v not in names]
     cache[file_stem] = names
     return names
 
@@ -137,14 +144,40 @@ def _long_name_for(var_name: str, var_data: dict) -> str:
         return CANONICAL_REGISTRY.get_base_metadata(quantity).long_name or ""
 
 
-def _valid_units_for(var_name: str) -> list[dict]:
-    """Return [{label, value}] options for the canonical quantity of var_name."""
+def _valid_units_for(var_name: str, var_data: dict, input_attrs: dict) -> list[str]:
+    """Return the units fluxcore accepts for one input of var_name.
+
+    Same rule as fluxcore's runtime_config_builder: the quantity's units
+    resolved for the variable's type and the input's own raw statistic
+    (else the variable's), so variances get squared units and quality
+    flags 'dimensionless'. Counter units are a placeholder fluxcore doesn't
+    check; the configs use 'dimensionless'.
+    """
     quantity = _extract_quantity(var_name)
     if not quantity or not CANONICAL_REGISTRY.has_quantity(quantity):
         return []
-    raw = CANONICAL_REGISTRY.get_base_metadata(quantity).valid_input_units or []
-    units = raw if isinstance(raw, list) else [raw]
-    return [{"label": u, "value": u} for u in units]
+    try:
+        vtype = VariableType(var_data.get("variable_type") or "continuous")
+        stat = input_attrs.get("statistic_type") or var_data.get("statistic_type")
+        if vtype == VariableType.COUNTER:
+            return ["dimensionless"]
+        return CANONICAL_REGISTRY.resolve_metadata(
+            quantity, vtype, StatisticType(stat) if stat else None
+        ).valid_input_units
+    except ValueError:
+        return []
+
+
+def _with_current(options: list[str], current) -> list[str]:
+    """Return options with the row's current value first if it's missing.
+
+    A value outside the registry's suggestions (e.g. an instrument not yet
+    mapped to the quantity) stays visible and selectable instead of
+    silently looking blank.
+    """
+    if current and current not in options:
+        return [current, *options]
+    return options
 
 
 def _fmt_instrument(instrument) -> str:
@@ -235,8 +268,8 @@ def _instrument_options_for(var_name: str) -> dict:
 
 def _build_rows(var_name: str) -> list[dict]:
     """Build the list of row dicts for the input-variables table."""
-    input_vars = state["cfg"]["variables"][var_name].get("input_variables", [])
-    valid_units = _valid_units_for(var_name)
+    var_data = state["cfg"]["variables"][var_name]
+    input_vars = var_data.get("input_variables", [])
     opts = _instrument_options_for(var_name)
 
     rows = []
@@ -256,7 +289,11 @@ def _build_rows(var_name: str) -> list[dict]:
         if is_compound:
             if isinstance(raw_instrument, dict):
                 compound_parts = [
-                    {"alias": a, "name": n or "", "options": _instruments_for_alias(a)}
+                    {
+                        "alias": a,
+                        "name": n or "",
+                        "options": _with_current(_instruments_for_alias(a), n),
+                    }
                     for a, n in raw_instrument.items()
                 ]
             else:
@@ -267,20 +304,27 @@ def _build_rows(var_name: str) -> list[dict]:
         else:
             compound_parts = []
 
+        instrument = "" if is_compound else _fmt_instrument(raw_instrument)
+        units = attrs.get("units", "")
         rows.append(
             {
                 "_key": key,
                 "name": attrs.get("name"),
-                "_var_options": var_options,
-                "instrument": "" if is_compound else _fmt_instrument(raw_instrument),
+                "_var_options": _with_current(var_options, attrs.get("name")),
+                "instrument": instrument,
                 "_instrument_is_compound": is_compound,
                 "_compound_parts": compound_parts,
-                "_instrument_options": opts["options"],
-                "units": attrs.get("units", ""),
+                "_instrument_options": _with_current(opts["options"], instrument),
+                "units": units,
                 "file": file_stem,
                 "begin": str(attrs.get("begin", "") or ""),
                 "end": str(attrs.get("end", "") or ""),
-                "_valid_units": valid_units,
+                "_valid_units": [
+                    {"label": u, "value": u}
+                    for u in _with_current(
+                        _valid_units_for(var_name, var_data, attrs), units
+                    )
+                ],
             }
         )
     return rows
@@ -309,9 +353,10 @@ def _make_table_edit_handler(var_name: str, refresh_fn) -> callable:
             refresh_fn()
             return
 
-        # Raw variable name: validate against file header before accepting
+        # Raw variable name: a new choice must be in the file group's headers;
+        # an unchanged one is kept even if no header has it any more.
         new_name = row.get("name")
-        if new_name is not None:
+        if new_name is not None and new_name != attrs.get("name"):
             file_stem = attrs.get("file")
             fmt = state["file_formats"].get(file_stem) if file_stem else None
             if fmt and new_name not in _get_file_vars(file_stem, fmt):
@@ -504,8 +549,19 @@ def build_editor(content_col) -> None:
 
 # Actions
 def do_validate(error_col) -> None:
-    """Validate the current in-memory config and render any errors into error_col."""
+    """Validate the current in-memory config and render any errors into error_col.
+
+    Two stages, as in a real build: the structural schema (validate_all),
+    then fluxcore's config assembly (build_runtime_config), which checks
+    what the schema can't, e.g. variable-name syntax and each input's units
+    for its quantity and statistic.
+    """
     ok, errors = validate_all(state["cfg"])
+    if ok:
+        try:
+            build_runtime_config(SiteConfig(**state["cfg"]))
+        except ValueError as exc:
+            ok, errors = False, [{"loc": ["variables"], "msg": str(exc)}]
     error_col.clear()
     if ok:
         ui.notify("Config is valid", color="green")
