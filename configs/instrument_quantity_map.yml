@@ -115,6 +115,8 @@ soil_moisture:
 soil_water_potential:
   vocab_keys:
     - Soil Water Potential Sensors
+  quantities:
+    - Swp
 
 soil_heat_flux:
   vocab_keys:
