@@ -27,7 +27,6 @@ sonic_anemometer:
     - Ws
     - pitch
     - roll
-    - tau
     - Tstar
     - ustar
 
