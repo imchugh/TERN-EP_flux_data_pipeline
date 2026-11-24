@@ -23,12 +23,25 @@ def construct_L1_zarr(site: str) -> dict:
 
     Runs before construct_L1_nc on the same cron line, which exports the
     store's current year. Cheap regardless of total site history length:
-    checkpoints off the store's
-    own last timestamp and appends only newer records, self-healing to a
-    full rebuild if the append fails (e.g. a site-config change added or
-    removed a variable). See rebuild_L1_zarr for the periodic full-rebuild
-    reconciliation pass this depends on to correct for backfills/config
-    drift an incremental append can't see.
+    checkpoints off the store's own last timestamp and appends only newer
+    records.
+
+    Falls back to a full rebuild (decided in fluxcore's
+    incremental_zarr.incremental_update) when:
+      - the store doesn't exist yet;
+      - the hash of the site's assembled runtime config no longer matches
+        the config_hash stamped on the store by the last full build, i.e.
+        any site-config change that alters processing (so a config edit
+        takes effect on the next 30-min cycle, not the nightly rebuild).
+        The hash covers config only, not code: a fluxcore change that
+        alters a store's contents or format needs a manual rebuild (or
+        waits for the nightly one);
+      - the incremental append fails (e.g. the tail's schema no longer
+        matches the store's).
+
+    See rebuild_L1_zarr for the nightly full-rebuild reconciliation pass
+    this depends on to pick up backfilled raw records older than the
+    store's checkpoint, which neither the hash nor an append can see.
     """
     from orchestration import build_runner
 
