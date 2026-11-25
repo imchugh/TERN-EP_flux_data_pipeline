@@ -68,7 +68,7 @@ SturtPlains:
   soil_moisture: Sws_0.05mb, Sws_0.5mb
 TiTreeEast:
   soil_heat_flux: Fg_0.16ma
-  soil_temperature: Ts_0.1ma
+  soil_temperature: Ts_0.09ma
   soil_moisture: Sws_0.1ma, Sws_0.35ma, Sws_0.6ma, Sws_0.85ma
 Tumbarumba:
   soil_heat_flux: Fg_0.16ma, Fg_0.16mb
