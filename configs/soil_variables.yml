@@ -23,8 +23,8 @@ Fletcherview:
   soil_temperature: Ts_0.04ma, Ts_0.04mb, Ts_0.04mc, Ts_0.04md
   soil_moisture: Sws_0.05ma, Sws_0.05mb, Sws_0.05mc, Sws_0.05md
 Gingin:
-  soil_heat_flux: Fg_0.08ma, Fg_0.08mb, Fg_0.08mc, Fg_0.08md
-  soil_temperature: Ts_0.04ma, Ts_0.04mb, Ts_0.04mc, Ts_0.04md
+  soil_heat_flux: Fg_0.16mg, Fg_0.16mh, Fg_0.16mi
+  soil_temperature: Ts_0.08mg, Ts_0.08mh
   soil_moisture: Sws_0.1ma, Sws_0.2ma, Sws_0.4ma, Sws_0.8ma, Sws_1.6ma
 GreatWesternWoodlands:
   soil_heat_flux: Fg_0.08ma, Fg_0.08mb, Fg_0.08mc
