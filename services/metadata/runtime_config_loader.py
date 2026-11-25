@@ -70,7 +70,7 @@ def _validate_instrument_names(
             for name in names:
                 if not instrument_registry.is_valid_instrument(name):
                     errors.append(
-                        f"Variable '{variable}' input '{input_cfg.name}': "
+                        f"Variable '{variable}' input '{input_cfg.label}': "
                         f"unknown instrument '{name}'"
                     )
                 elif name not in instrument_uris:
